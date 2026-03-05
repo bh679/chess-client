@@ -9,7 +9,7 @@
  * on the server it receives a numeric server ID stored in sync metadata.
  */
 
-const API_BASE = '/api';
+const API_BASE = '/api/chess';
 const LS_KEY = 'chess-local-games';
 const LS_IDS_KEY = 'chess-game-ids';        // legacy — kept for isOwnGame lookups
 const REQUIRED_SERVER_VERSION = '1.0.0';

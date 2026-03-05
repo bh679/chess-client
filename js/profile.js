@@ -6,7 +6,7 @@
  * Accessible via /#/profile?user=<username>
  */
 
-const API_BASE = '/api';
+const API_BASE = '/api/chess';
 const CATEGORIES = ['bullet', 'blitz', 'rapid', 'classical'];
 const CATEGORY_ICONS = { bullet: '\u26A1', blitz: '\u23F1', rapid: '\u23F0', classical: '\u265A' };
 const PROVISIONAL_THRESHOLD = 15;
