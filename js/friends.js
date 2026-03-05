@@ -5,7 +5,7 @@
  * Add friend by username, accept/reject/remove.
  */
 
-const API_BASE = '/api';
+const API_BASE = '/api/chess';
 
 export class Friends {
   constructor(auth) {

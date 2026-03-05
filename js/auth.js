@@ -5,7 +5,7 @@
  * login, logout, token validation, and auth headers for API calls.
  */
 
-const API_BASE = '/api';
+const API_BASE = '/api/chess';
 const TOKEN_KEY = 'chess-auth-token';
 const USER_KEY = 'chess-auth-user';
 

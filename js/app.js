@@ -164,7 +164,7 @@ auth.onAuthChange(async (user) => {
   if (user) {
     // Sync settings from server on login
     try {
-      const res = await fetch('/api/settings', { headers: auth.getAuthHeaders() });
+      const res = await fetch('/api/chess/settings', { headers: auth.getAuthHeaders() });
       if (res.ok) {
         const { settings } = await res.json();
         if (settings) {
@@ -198,7 +198,7 @@ auth.onAuthChange(async (user) => {
     }
     if (claimableIds.length > 0) {
       try {
-        const res = await fetch('/api/games/claim-batch', {
+        const res = await fetch('/api/chess/games/claim-batch', {
           method: 'POST',
           headers: auth.getAuthHeaders(),
           body: JSON.stringify({ gameIds: claimableIds })
@@ -245,7 +245,7 @@ function saveSettingsToServer() {
       chess960: chess960Toggle.checked
     };
     try {
-      await fetch('/api/settings', {
+      await fetch('/api/chess/settings', {
         method: 'PUT',
         headers: auth.getAuthHeaders(),
         body: JSON.stringify({ settings })
