@@ -3288,8 +3288,8 @@ mp.onDisconnected = () => {
 
 mp.onError = (msg) => {
   console.warn('Multiplayer error:', msg);
-  // Reset multiplayerActive on join failures so the user can start a local game
-  if (!mp.isActive()) {
+  // Don't show alerts or reset state during shared post-game review
+  if (!mp.isActive() && !sharedReviewActive) {
     multiplayerActive = false;
     alert(msg || 'Multiplayer error. Please try again.');
   }
