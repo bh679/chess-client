@@ -18,8 +18,8 @@ export class NewGameMenu {
     this._timeControl = '0'; // pipe-delimited string, '0' for no timer, 'custom'
     this._selectedCat = 'bullet'; // currently selected time category
     this._onStart = null;    // (config) => void
-    this._onOnline = null;   // (tc, name, videoEnabled) => void  — auto matchmaking
-    this._onFriend = null;   // (action, tc, name, code?, videoEnabled?) => void  — create or join
+    this._onOnline = null;   // (tc, name, videoEnabled, chess960) => void  — auto matchmaking
+    this._onFriend = null;   // (action, tc, name, code?, videoEnabled?, chess960?) => void  — create or join
     this._onCustomTime = null; // () => void
     this._pendingCustomTime = false;
 
@@ -183,8 +183,9 @@ export class NewGameMenu {
       const tc = this.onlineTcSelect.value;
       const name = this.onlineNameInput.value.trim() || null;
       const videoEnabled = this.onlineVideoBtn?.classList.contains('active') || false;
+      const chess960 = this.online960Btn?.classList.contains('active') || false;
       this.close();
-      if (this._onOnline) this._onOnline(tc, name, videoEnabled);
+      if (this._onOnline) this._onOnline(tc, name, videoEnabled, chess960);
     });
 
     // --- Friend step: Create Room / Join Room ---
@@ -192,8 +193,9 @@ export class NewGameMenu {
       const tc = this.friendTcSelect.value;
       const name = this.friendNameInput.value.trim() || null;
       const videoEnabled = this.friendVideoBtn?.classList.contains('active') || false;
+      const chess960 = this.friend960Btn?.classList.contains('active') || false;
       this.close();
-      if (this._onFriend) this._onFriend('create', tc, name, null, videoEnabled);
+      if (this._onFriend) this._onFriend('create', tc, name, null, videoEnabled, chess960);
     });
 
     this.joinRoomBtn.addEventListener('click', () => {
