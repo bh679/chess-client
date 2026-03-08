@@ -1798,10 +1798,24 @@ async function enterReplayMode(gameRecord) {
   if (gameRecord.id) {
     router.silentUpdate('/replay', { gameid: gameRecord.id });
   }
+
+  // Enter shared review if this is a post-multiplayer game
+  if (mp.roomId && gameRecord.gameType === 'multiplayer') {
+    sharedReviewActive = true;
+    mp.sendReviewEnter();
+  }
 }
 
 function exitReplayMode(startNew = true) {
   if (!isReplayMode) return;
+
+  // Exit shared review if active
+  if (sharedReviewActive) {
+    mp.sendReviewExit();
+    sharedReviewActive = false;
+    peerInReview = false;
+    peerAnalysisRunning = false;
+  }
 
   stopReplayPlayback();
 
@@ -1871,6 +1885,14 @@ function replayGoToMove(plyIndex) {
     updateEngineArrows();
   } else {
     board.getArrowOverlay().clearEngineArrows();
+  }
+
+  // Clear peer arrows on navigation (arrows are position-specific)
+  board.getArrowOverlay().clearPeerAnnotations();
+
+  // Sync navigation to peer in shared review
+  if (sharedReviewActive && !isRemoteNavigation) {
+    mp.sendReviewNavigate(replayPly);
   }
 }
 
@@ -2181,12 +2203,24 @@ function loadCachedAnalysis(serverId) {
 async function runMainBoardAnalysis(gameRecord) {
   if (!gameRecord || !gameRecord.moves || gameRecord.moves.length === 0) return;
 
+  // If peer is already running analysis during shared review, skip
+  if (sharedReviewActive && peerAnalysisRunning) return;
+
   // Check cache first
   const serverId = gameRecord.serverId || null;
   const cached = loadCachedAnalysis(serverId);
   if (cached) {
     setMainBoardAnalysis(cached);
+    // Share cached results with peer
+    if (sharedReviewActive) {
+      mp.sendReviewAnalysis(cached);
+    }
     return;
+  }
+
+  // Notify peer that we're starting analysis
+  if (sharedReviewActive) {
+    mp.sendReviewAnalysisStarted();
   }
 
   // Lazily create engine
@@ -2212,6 +2246,10 @@ async function runMainBoardAnalysis(gameRecord) {
       }
     );
     setMainBoardAnalysis(result);
+    // Share analysis results with peer
+    if (sharedReviewActive) {
+      mp.sendReviewAnalysis(result);
+    }
   } catch (err) {
     if (err !== 'stopped') {
       console.warn('Analysis failed:', err);
