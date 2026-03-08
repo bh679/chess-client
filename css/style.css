@@ -4159,21 +4159,7 @@ button.replay-summary-btn {
 }
 .vc-error-toast.hidden { display: none; }
 
-/* Video toggle in new-game menu */
-.ng-video-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 12px 0;
-  color: var(--text-primary);
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-.ng-video-toggle input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--accent);
-}
+
 
 /* Responsive: reposition video on small screens */
 @media (max-width: 768px) {

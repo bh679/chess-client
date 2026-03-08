@@ -277,8 +277,8 @@ let videoActive = false;
 if (!VideoChat.isSupported()) {
   const onlineVideoToggle = document.getElementById('ng-online-video');
   const friendVideoToggle = document.getElementById('ng-friend-video');
-  if (onlineVideoToggle) onlineVideoToggle.closest('.ng-video-toggle')?.classList.add('hidden');
-  if (friendVideoToggle) friendVideoToggle.closest('.ng-video-toggle')?.classList.add('hidden');
+  if (onlineVideoToggle) onlineVideoToggle.closest('.ng-toggle')?.classList.add('hidden');
+  if (friendVideoToggle) friendVideoToggle.closest('.ng-toggle')?.classList.add('hidden');
 }
 
 // New Game Wizard
