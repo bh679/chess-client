@@ -90,14 +90,17 @@ export class VideoBoard {
    * Update tint opacity based on whose turn it is.
    * @param {'w'|'b'} turn — whose turn it is
    * @param {'w'|'b'} playerColor — local player's color
+   * @param {number} [baseOpacity=0.55] — base tint opacity (0–1)
    */
-  updateTurnTint(turn, playerColor) {
+  updateTurnTint(turn, playerColor, baseOpacity = 0.55) {
     if (!this._active || !this._lightTint || !this._darkTint) return;
 
     const whiteIsActive = turn === 'w';
+    const lo = Math.max(0, baseOpacity - 0.05);
+    const hi = Math.min(1, baseOpacity + 0.05);
     // Light squares = white player's feed, dark squares = black player's feed
-    this._lightTint.style.opacity = whiteIsActive ? '0.1' : '0.3';
-    this._darkTint.style.opacity = whiteIsActive ? '0.3' : '0.1';
+    this._lightTint.style.opacity = whiteIsActive ? lo : hi;
+    this._darkTint.style.opacity = whiteIsActive ? hi : lo;
   }
 
   /**
