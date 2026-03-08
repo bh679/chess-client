@@ -4162,17 +4162,20 @@ button.replay-summary-btn {
 /* Board-Face video toggle button in new-game menu */
 .ng-video-btn {
   margin-top: 12px;
+  width: 60%;
+  margin-left: auto;
+  margin-right: auto;
   opacity: 0.5;
   transition: background-color 0.15s, opacity 0.15s, border-color 0.15s;
 }
 .ng-video-btn.active {
-  background: var(--accent);
+  background: var(--info);
   color: #fff;
-  border-color: var(--accent);
+  border-color: var(--info);
   opacity: 1;
 }
 .ng-video-btn.active:hover {
-  background: var(--accent-hover);
+  background: #5199d9;
 }
 
 /* Responsive: reposition video on small screens */
