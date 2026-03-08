@@ -16,6 +16,8 @@ export class VideoBoard {
     this._layer = null;
     this._lightVideo = null;
     this._darkVideo = null;
+    this._lightTint = null;
+    this._darkTint = null;
     this._active = false;
   }
 
@@ -79,7 +81,23 @@ export class VideoBoard {
       this._layer = null;
       this._lightVideo = null;
       this._darkVideo = null;
+      this._lightTint = null;
+      this._darkTint = null;
     }
+  }
+
+  /**
+   * Update tint opacity based on whose turn it is.
+   * @param {'w'|'b'} turn — whose turn it is
+   * @param {'w'|'b'} playerColor — local player's color
+   */
+  updateTurnTint(turn, playerColor) {
+    if (!this._active || !this._lightTint || !this._darkTint) return;
+
+    const whiteIsActive = turn === 'w';
+    // Light squares = white player's feed, dark squares = black player's feed
+    this._lightTint.style.opacity = whiteIsActive ? '0.1' : '0.3';
+    this._darkTint.style.opacity = whiteIsActive ? '0.3' : '0.1';
   }
 
   /**
@@ -98,8 +116,13 @@ export class VideoBoard {
     this._lightVideo = this._createVideo('video-board-light-feed');
     this._darkVideo = this._createVideo('video-board-dark-feed');
 
+    this._lightTint = this._createTint('video-board-light-tint');
+    this._darkTint = this._createTint('video-board-dark-tint');
+
     layer.appendChild(this._lightVideo);
     layer.appendChild(this._darkVideo);
+    layer.appendChild(this._lightTint);
+    layer.appendChild(this._darkTint);
 
     // Insert as the first child so it sits behind grid squares
     this._boardEl.insertBefore(layer, this._boardEl.firstChild);
@@ -117,6 +140,16 @@ export class VideoBoard {
     video.playsInline = true;
     video.muted = true;
     return video;
+  }
+
+  /**
+   * @param {string} className
+   * @returns {HTMLDivElement}
+   */
+  _createTint(className) {
+    const div = document.createElement('div');
+    div.className = className;
+    return div;
   }
 
   /**
