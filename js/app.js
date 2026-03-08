@@ -268,6 +268,20 @@ gameBrowser.setOnClose(() => {
 const mp = new MultiplayerClient();
 const mpUI = new MultiplayerUI(mp);
 
+// Wire multiplayer into game browser for pending rooms / rejoin
+gameBrowser.setMultiplayerClient(mp);
+gameBrowser.setOnRejoinGame(async (roomId) => {
+  try {
+    if (!mp.ws || mp.ws.readyState !== WebSocket.OPEN) {
+      await mp.connect();
+    }
+    mp.joinRoom(roomId, null);
+  } catch (err) {
+    console.warn('Failed to rejoin game:', err);
+    alert('Could not rejoin the game. Please try again.');
+  }
+});
+
 // Video Chat
 const videoChat = new VideoChat(mp);
 const videoUI = new VideoUI(videoChat);

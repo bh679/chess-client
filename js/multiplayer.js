@@ -31,6 +31,8 @@ export class MultiplayerClient {
     this.onQueueJoined = null;
     this.onQueueLeft = null;
     this.onRoomCreated = null;
+    this.onRoomsList = null;
+    this.onRoomCancelled = null;
     this.onConnected = null;
     this.onDisconnected = null;
     this.onError = null;
@@ -127,6 +129,16 @@ export class MultiplayerClient {
   /** Respond to a rematch offer */
   respondToRematch(accept) {
     this._send('rematch_respond', { accept });
+  }
+
+  /** Request list of active/pending rooms */
+  listRooms() {
+    this._send('list_rooms', {});
+  }
+
+  /** Cancel a pending waiting room */
+  cancelPendingRoom() {
+    this._send('cancel_room', {});
   }
 
   /** Send WebRTC offer SDP */
@@ -261,6 +273,16 @@ export class MultiplayerClient {
         if (this.onReconnect) this.onReconnect(payload);
         break;
 
+      case 'rooms_list':
+        if (this.onRoomsList) this.onRoomsList(payload.rooms);
+        break;
+
+      case 'room_cancelled':
+        this.roomId = null;
+        this.color = null;
+        if (this.onRoomCancelled) this.onRoomCancelled();
+        break;
+
       // WebRTC video signaling
       case 'rtc_offer':
         if (this.onRtcOffer) this.onRtcOffer(payload);
@@ -306,10 +328,15 @@ export class MultiplayerClient {
   }
 
   _getOrCreateSessionId() {
-    let id = sessionStorage.getItem('chess-mp-session-id');
+    // Use localStorage so session persists across page reloads
+    let id = localStorage.getItem('chess-mp-session-id');
     if (!id) {
-      id = crypto.randomUUID();
-      sessionStorage.setItem('chess-mp-session-id', id);
+      // Migrate from sessionStorage if present
+      id = sessionStorage.getItem('chess-mp-session-id');
+      if (!id) {
+        id = crypto.randomUUID();
+      }
+      localStorage.setItem('chess-mp-session-id', id);
     }
     return id;
   }
