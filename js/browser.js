@@ -17,13 +17,16 @@ const MIN_DISPLAY_MOVES = 4; // at least 2 moves per player
 const CACHE_KEY = 'chess-analysis-cache';
 
 class GameBrowser {
-  constructor(database, replayViewer, onReviewOnBoard) {
+  constructor(database, replayViewer, onReviewOnBoard, multiplayerClient) {
     this._db = database;
     this._replay = replayViewer;
     this._onReviewOnBoard = onReviewOnBoard || null;
+    this._mp = multiplayerClient || null;
+    this._onRejoinGame = null;
     this._onClose = null;
     this._suppressCloseCallback = false;
     this._overlay = null;
+    this._pendingSectionEl = null;
     this._listEl = null;
     this._paginationEl = null;
     this._pageInfoEl = null;
@@ -58,6 +61,16 @@ class GameBrowser {
 
     // Wire up the analyze callback on the replay viewer
     this._replay.setAnalyzeCallback((game) => this._runAnalysis(game));
+  }
+
+  /** Set the multiplayer client for fetching active rooms */
+  setMultiplayerClient(mp) {
+    this._mp = mp;
+  }
+
+  /** Set callback for when the user wants to rejoin an active multiplayer game */
+  setOnRejoinGame(callback) {
+    this._onRejoinGame = callback;
   }
 
   /**
@@ -349,12 +362,21 @@ class GameBrowser {
       this._allLoadedGames = allGames;
       this._populateDynamicFilters(allGames);
 
-      const afterMinMoves = allGames.filter(g => g.moveCount >= MIN_DISPLAY_MOVES);
+      // For live mode, show all in-progress games regardless of move count
+      // For history mode, require MIN_DISPLAY_MOVES
+      const afterMinMoves = allGames.filter(g => {
+        const isInProgress = g.result === null || g.result === undefined;
+        if (this._filters.showLive && isInProgress) return true;
+        return g.moveCount >= MIN_DISPLAY_MOVES;
+      });
       const filtered = this._applyFilters(afterMinMoves);
       this._totalGames = filtered.length;
 
       const start = page * PAGE_SIZE;
       const pageGames = filtered.slice(start, start + PAGE_SIZE);
+
+      // Fetch and render pending rooms when in live mode
+      await this._loadPendingRooms();
 
       this._renderGameList(pageGames);
       this._updatePagination();
@@ -362,6 +384,133 @@ class GameBrowser {
       console.warn('Failed to load games:', err);
       this._listEl.innerHTML = '<div class="browser-empty">Error loading games</div>';
     }
+  }
+
+  async _loadPendingRooms() {
+    this._pendingSectionEl.innerHTML = '';
+    if (!this._filters.showLive || !this._mp) {
+      this._pendingSectionEl.classList.add('hidden');
+      return;
+    }
+
+    try {
+      const sessionId = this._mp.sessionId;
+      const res = await fetch(`/api/chess/rooms/active?sessionId=${encodeURIComponent(sessionId)}`);
+      if (!res.ok) {
+        this._pendingSectionEl.classList.add('hidden');
+        return;
+      }
+      const data = await res.json();
+      const rooms = data.rooms || [];
+      if (rooms.length === 0) {
+        this._pendingSectionEl.classList.add('hidden');
+        return;
+      }
+
+      this._pendingSectionEl.classList.remove('hidden');
+      const heading = document.createElement('div');
+      heading.className = 'browser-pending-heading';
+      heading.textContent = 'Your Active Rooms';
+      this._pendingSectionEl.appendChild(heading);
+
+      for (const room of rooms) {
+        this._pendingSectionEl.appendChild(this._renderPendingRoom(room));
+      }
+    } catch (err) {
+      console.warn('Failed to load pending rooms:', err);
+      this._pendingSectionEl.classList.add('hidden');
+    }
+  }
+
+  _renderPendingRoom(room) {
+    const item = document.createElement('div');
+    item.className = 'browser-pending-item';
+    if (room.status === 'waiting') {
+      item.classList.add('browser-pending-waiting');
+    }
+
+    const info = document.createElement('div');
+    info.className = 'browser-pending-info';
+
+    const statusBadge = document.createElement('span');
+    statusBadge.className = 'browser-pending-status';
+    statusBadge.textContent = room.status === 'waiting' ? 'Pending' : 'In Game';
+    info.appendChild(statusBadge);
+
+    const code = document.createElement('span');
+    code.className = 'browser-pending-code';
+    code.textContent = room.roomId;
+    info.appendChild(code);
+
+    if (room.timeControl && room.timeControl !== 'none') {
+      const tc = document.createElement('span');
+      tc.className = 'browser-pending-tc';
+      tc.textContent = room.timeControl;
+      info.appendChild(tc);
+    }
+
+    const time = document.createElement('span');
+    time.className = 'browser-pending-time';
+    time.textContent = this._formatDate(room.createdAt);
+    info.appendChild(time);
+
+    if (room.status === 'playing' && room.black) {
+      const players = document.createElement('span');
+      players.className = 'browser-pending-players';
+      players.textContent = `${room.white.name} vs ${room.black.name}`;
+      info.appendChild(players);
+    }
+
+    item.appendChild(info);
+
+    const actions = document.createElement('div');
+    actions.className = 'browser-pending-actions';
+
+    if (room.status === 'waiting') {
+      const shareUrl = `${location.origin}${location.pathname}?room=${room.roomId}`;
+
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'browser-pending-btn browser-pending-copy';
+      copyBtn.textContent = 'Copy Link';
+      copyBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(shareUrl).then(() => {
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => { copyBtn.textContent = 'Copy Link'; }, 2000);
+        });
+      });
+      actions.appendChild(copyBtn);
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'browser-pending-btn browser-pending-cancel';
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this._mp) {
+          this._mp.cancelPendingRoom();
+          this._loadPage(this._currentPage);
+        }
+      });
+      actions.appendChild(cancelBtn);
+    }
+
+    if (room.status === 'playing') {
+      const rejoinBtn = document.createElement('button');
+      rejoinBtn.className = 'browser-pending-btn browser-pending-rejoin';
+      rejoinBtn.textContent = 'Rejoin';
+      rejoinBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this._onRejoinGame) {
+          this._suppressCloseCallback = true;
+          this.close();
+          this._onRejoinGame(room.roomId);
+        }
+      });
+      actions.appendChild(rejoinBtn);
+    }
+
+    item.appendChild(actions);
+    return item;
   }
 
   // --- Rendering ---
@@ -508,6 +657,11 @@ class GameBrowser {
 
     // Quick filter row + advanced panel
     this._buildFilterBar(content);
+
+    // Pending challenges section (shown in Live mode)
+    this._pendingSectionEl = document.createElement('div');
+    this._pendingSectionEl.className = 'browser-pending-section hidden';
+    content.appendChild(this._pendingSectionEl);
 
     // Game list
     this._listEl = document.createElement('div');
