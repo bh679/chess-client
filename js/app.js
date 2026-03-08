@@ -831,6 +831,11 @@ function startMultiplayerGame(color, fen, timeControl, opponentName) {
   const isMyTurn = mp.isMyTurn(game.getTurn());
   board.setInteractive(isMyTurn);
 
+  // Update video feed tint for turn indication
+  if (videoBoard.isActive()) {
+    videoBoard.updateTurnTint(game.getTurn(), mp.color);
+  }
+
   // Show multiplayer in-game controls
   mpUI.showGameControls();
   mpUI.close(); // close the modal
@@ -863,6 +868,9 @@ board.onMove((result) => {
   if (mp.isActive()) {
     mp.sendMove(result.san);
     board.setInteractive(false);
+    if (videoBoard.isActive()) {
+      videoBoard.updateTurnTint(game.getTurn(), mp.color);
+    }
     updateStatus("Opponent's turn");
 
     // Start/switch timer locally for visual feedback (server will sync)
@@ -3080,6 +3088,9 @@ mp.onOpponentMove = (payload) => {
 
   // Enable board for our turn
   board.setInteractive(true);
+  if (videoBoard.isActive()) {
+    videoBoard.updateTurnTint(game.getTurn(), mp.color);
+  }
   updateStatus('Your turn');
 
   // Execute premove if queued
@@ -3194,6 +3205,9 @@ mp.onReconnect = async (payload) => {
 
   const isMyTurn = mp.isMyTurn(game.getTurn());
   board.setInteractive(isMyTurn);
+  if (videoBoard.isActive()) {
+    videoBoard.updateTurnTint(game.getTurn(), mp.color);
+  }
   updateStatus(isMyTurn ? 'Your turn (reconnected)' : "Opponent's turn (reconnected)");
   mpUI.setConnectionStatus('connected');
 
@@ -3218,6 +3232,9 @@ mp.onOpponentDisconnected = (payload) => {
 mp.onOpponentReconnected = () => {
   mpUI.setConnectionStatus('connected');
   const isMyTurn = mp.isMyTurn(game.getTurn());
+  if (videoBoard.isActive()) {
+    videoBoard.updateTurnTint(game.getTurn(), mp.color);
+  }
   updateStatus(isMyTurn ? 'Your turn' : "Opponent's turn");
 };
 

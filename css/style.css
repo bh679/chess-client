@@ -324,6 +324,29 @@ body {
   mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 25% 25%;
 }
 
+/* Color tint overlays — white tint on light squares, brown tint on dark squares */
+.video-board-light-tint {
+  position: absolute;
+  inset: 0;
+  background-color: #FFFFFF;
+  opacity: 0.1;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  -webkit-mask: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 25% 25%;
+  mask: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 25% 25%;
+}
+
+.video-board-dark-tint {
+  position: absolute;
+  inset: 0;
+  background-color: #8B6914;
+  opacity: 0.1;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  -webkit-mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 25% 25%;
+  mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 25% 25%;
+}
+
 /* When video board is active, make square backgrounds transparent */
 .board.video-board-active .square.light {
   background-color: transparent;
