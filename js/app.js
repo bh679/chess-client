@@ -82,6 +82,8 @@ const settingsToggle = document.getElementById('settings-toggle');
 const settingsPanel = document.getElementById('settings-panel');
 const settingsBackdrop = document.getElementById('settings-backdrop');
 const artStylePicker = document.getElementById('art-style-picker');
+const boardTintSlider = document.getElementById('board-tint-slider');
+const boardTintValue = document.getElementById('board-tint-value');
 const aiWhiteToggle = document.getElementById('ai-white-toggle');
 const aiWhiteEngineSelect = document.getElementById('ai-white-engine');
 const aiWhiteEloSlider = document.getElementById('ai-white-elo');
@@ -189,6 +191,10 @@ auth.onAuthChange(async (user) => {
             }
             board.redraw();
           }
+          if (settings.boardTint !== undefined) {
+            boardTintSlider.value = settings.boardTint;
+            boardTintValue.textContent = settings.boardTint + '%';
+          }
         }
       }
     } catch (e) { /* offline — skip */ }
@@ -245,7 +251,8 @@ function saveSettingsToServer() {
       premoves: premovesToggle.checked,
       pieceStyle: selectedStyle,
       animations: animationsToggle.checked,
-      chess960: chess960Toggle.checked
+      chess960: chess960Toggle.checked,
+      boardTint: parseInt(boardTintSlider.value, 10)
     };
     try {
       await fetch('/api/chess/settings', {
@@ -834,7 +841,7 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
 
   // Update video feed tint for turn indication
   if (videoBoard.isActive()) {
-    videoBoard.updateTurnTint(game.getTurn(), mp.color);
+    videoBoard.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
   }
 
   // Show multiplayer in-game controls
@@ -870,7 +877,7 @@ board.onMove((result) => {
     mp.sendMove(result.san);
     board.setInteractive(false);
     if (videoBoard.isActive()) {
-      videoBoard.updateTurnTint(game.getTurn(), mp.color);
+      videoBoard.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
     }
     updateStatus("Opponent's turn");
 
@@ -1286,6 +1293,18 @@ artStylePicker.addEventListener('click', (e) => {
 
   board.render();
   renderCaptured();
+  saveSettingsToServer();
+});
+
+// Board tint slider
+boardTintSlider.addEventListener('input', () => {
+  const val = parseInt(boardTintSlider.value, 10);
+  boardTintValue.textContent = val + '%';
+  if (videoBoard.isActive() && mp) {
+    videoBoard.updateTurnTint(game.getTurn(), mp.color, val / 100);
+  }
+});
+boardTintSlider.addEventListener('change', () => {
   saveSettingsToServer();
 });
 
@@ -3130,7 +3149,7 @@ mp.onOpponentMove = (payload) => {
   // Enable board for our turn
   board.setInteractive(true);
   if (videoBoard.isActive()) {
-    videoBoard.updateTurnTint(game.getTurn(), mp.color);
+    videoBoard.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
   }
   updateStatus('Your turn');
 
@@ -3243,7 +3262,7 @@ mp.onReconnect = async (payload) => {
   const isMyTurn = mp.isMyTurn(game.getTurn());
   board.setInteractive(isMyTurn);
   if (videoBoard.isActive()) {
-    videoBoard.updateTurnTint(game.getTurn(), mp.color);
+    videoBoard.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
   }
   updateStatus(isMyTurn ? 'Your turn (reconnected)' : "Opponent's turn (reconnected)");
   mpUI.setConnectionStatus('connected');
@@ -3270,7 +3289,7 @@ mp.onOpponentReconnected = () => {
   mpUI.setConnectionStatus('connected');
   const isMyTurn = mp.isMyTurn(game.getTurn());
   if (videoBoard.isActive()) {
-    videoBoard.updateTurnTint(game.getTurn(), mp.color);
+    videoBoard.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
   }
   updateStatus(isMyTurn ? 'Your turn' : "Opponent's turn");
 };
