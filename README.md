@@ -84,6 +84,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Responsive layout**](https://github.com/bh679/Chess/wiki/Feature:-Responsive-Design) — works on desktop and mobile
 - [**Settings panel**](https://github.com/bh679/Chess/wiki/Feature:-Settings-Panel) — collapsible panel with all game configuration options
 - [**Archive menu**](https://github.com/bh679/Chess/wiki/Feature:-Archive-Browser) — dynamic archive discovery with navigation between versions; opens in new tab from main app, same tab within archives
+- [**Video board squares**](https://github.com/bh679/Chess/wiki/Feature:-Video-Board-Squares) — during video calls, camera feeds display as a mosaic across the board (white player on light squares, black player on dark squares) using CSS checkerboard masks
 
 ## Roadmap
 
