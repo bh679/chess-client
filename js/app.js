@@ -3473,9 +3473,22 @@ router.on('/profile', ({ params }) => {
   profile.show(username || undefined);
 });
 
+router.on('/:username', ({ username }) => {
+  profile.show(username);
+});
+
 router.on('/friends', () => {
   friends.show();
 });
+
+// Set version in settings footer from package.json
+fetch('./package.json')
+  .then(r => r.json())
+  .then(pkg => {
+    const el = document.querySelector('.settings-footer .version');
+    if (el) el.textContent = `v${pkg.version}`;
+  })
+  .catch(() => {}); // keep hardcoded fallback on failure
 
 // Initialize DB and auth, then start routing (engines load lazily in startNewGame)
 Promise.all([
