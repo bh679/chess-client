@@ -27,6 +27,8 @@ class Board {
     this._rightClickStart = null;
     this._rightClickMoved = false;
     this._flipped = false;
+    this.onUserArrowDrawn = null;   // (from, to) => void
+    this.onUserHighlightToggled = null; // (square) => void
 
     this._buildGrid();
     this._arrowOverlay = new ArrowOverlay(containerEl);
@@ -261,8 +263,10 @@ class Board {
     const endSquare = squareEl.dataset.square;
     if (endSquare === startSquare && !this._rightClickMoved) {
       this._arrowOverlay.toggleHighlight(endSquare);
+      if (this.onUserHighlightToggled) this.onUserHighlightToggled(endSquare);
     } else if (endSquare !== startSquare) {
       this._arrowOverlay.addUserArrow(startSquare, endSquare);
+      if (this.onUserArrowDrawn) this.onUserArrowDrawn(startSquare, endSquare);
     }
   }
 

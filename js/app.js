@@ -3304,6 +3304,73 @@ mp.onVideoEnded = () => {
   videoActive = false;
 };
 
+// --- Shared Post-Game Review ---
+
+let sharedReviewActive = false;
+let isRemoteNavigation = false;
+let peerInReview = false;
+let peerAnalysisRunning = false;
+
+// Board arrow callbacks — broadcast to peer during shared review
+board.onUserArrowDrawn = (from, to) => {
+  if (sharedReviewActive) {
+    mp.sendReviewArrow('add', from, to);
+  }
+};
+
+board.onUserHighlightToggled = (square) => {
+  // Highlights are local-only for now
+};
+
+// Incoming peer arrows
+mp.onReviewArrow = (payload) => {
+  const { action, from, to, side } = payload;
+  const overlay = board.getArrowOverlay();
+  if (action === 'add') {
+    overlay.addPeerArrow(from, to, side);
+  } else if (action === 'remove') {
+    overlay.removePeerArrow(from, to, side);
+  }
+};
+
+mp.onReviewClearArrows = (payload) => {
+  board.getArrowOverlay().clearPeerAnnotations(payload.side);
+};
+
+// Peer entered/exited review
+mp.onReviewEntered = (payload) => {
+  peerInReview = true;
+  updateStatus('Opponent joined review');
+};
+
+mp.onReviewExited = (payload) => {
+  peerInReview = false;
+  peerAnalysisRunning = false;
+  board.getArrowOverlay().clearPeerAnnotations(payload.side);
+  updateStatus('Opponent left review');
+};
+
+// Navigation sync
+mp.onReviewNavigate = (payload) => {
+  if (!isReplayMode) return;
+  isRemoteNavigation = true;
+  replayGoToMove(payload.ply);
+  isRemoteNavigation = false;
+};
+
+// Analysis sharing
+mp.onReviewAnalysisStarted = (payload) => {
+  peerAnalysisRunning = true;
+  updateStatus('Opponent is analyzing...');
+};
+
+mp.onReviewAnalysis = (payload) => {
+  peerAnalysisRunning = false;
+  if (isReplayMode && payload) {
+    setMainBoardAnalysis(payload);
+  }
+};
+
 // Check URL for room code parameter (joining via shared link)
 function checkRoomCodeInUrl() {
   const params = new URLSearchParams(window.location.search);
