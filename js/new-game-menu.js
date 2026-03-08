@@ -18,8 +18,8 @@ export class NewGameMenu {
     this._timeControl = '0'; // pipe-delimited string, '0' for no timer, 'custom'
     this._selectedCat = 'bullet'; // currently selected time category
     this._onStart = null;    // (config) => void
-    this._onOnline = null;   // (tc, name) => void  — auto matchmaking
-    this._onFriend = null;   // (action, tc, name, code?) => void  — create or join
+    this._onOnline = null;   // (tc, name, videoEnabled) => void  — auto matchmaking
+    this._onFriend = null;   // (action, tc, name, code?, videoEnabled?) => void  — create or join
     this._onCustomTime = null; // () => void
     this._pendingCustomTime = false;
 
@@ -86,11 +86,13 @@ export class NewGameMenu {
     // Online step elements
     this.onlineNameInput = document.getElementById('ng-online-name');
     this.onlineTcSelect = document.getElementById('ng-online-tc');
+    this.onlineVideoToggle = document.getElementById('ng-online-video');
     this.findOpponentBtn = document.getElementById('ng-find-opponent');
 
     // Friend step elements
     this.friendNameInput = document.getElementById('ng-friend-name');
     this.friendTcSelect = document.getElementById('ng-friend-tc');
+    this.friendVideoToggle = document.getElementById('ng-friend-video');
     this.createRoomBtn = document.getElementById('ng-create-room');
     this.joinCodeInput = document.getElementById('ng-join-code');
     this.joinRoomBtn = document.getElementById('ng-join-room');
@@ -154,16 +156,18 @@ export class NewGameMenu {
     this.findOpponentBtn.addEventListener('click', () => {
       const tc = this.onlineTcSelect.value;
       const name = this.onlineNameInput.value.trim() || null;
+      const videoEnabled = this.onlineVideoToggle?.checked || false;
       this.close();
-      if (this._onOnline) this._onOnline(tc, name);
+      if (this._onOnline) this._onOnline(tc, name, videoEnabled);
     });
 
     // --- Friend step: Create Room / Join Room ---
     this.createRoomBtn.addEventListener('click', () => {
       const tc = this.friendTcSelect.value;
       const name = this.friendNameInput.value.trim() || null;
+      const videoEnabled = this.friendVideoToggle?.checked || false;
       this.close();
-      if (this._onFriend) this._onFriend('create', tc, name);
+      if (this._onFriend) this._onFriend('create', tc, name, null, videoEnabled);
     });
 
     this.joinRoomBtn.addEventListener('click', () => {

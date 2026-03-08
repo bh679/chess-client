@@ -395,7 +395,7 @@ class GameBrowser {
 
     try {
       const sessionId = this._mp.sessionId;
-      const res = await fetch(`/api/rooms/active?sessionId=${encodeURIComponent(sessionId)}`);
+      const res = await fetch(`/api/chess/rooms/active?sessionId=${encodeURIComponent(sessionId)}`);
       if (!res.ok) {
         this._pendingSectionEl.classList.add('hidden');
         return;

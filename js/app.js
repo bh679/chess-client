@@ -18,6 +18,8 @@ import { Friends } from './friends.js';
 import { MultiplayerClient } from './multiplayer.js';
 import { MultiplayerUI } from './multiplayer-ui.js';
 import { NewGameMenu } from './new-game-menu.js';
+import { VideoChat } from './video-chat.js';
+import { VideoUI } from './video-ui.js';
 
 const PIECE_ORDER = { q: 0, r: 1, b: 2, n: 3, p: 4 };
 const PIECE_VALUES = { q: 9, r: 5, b: 3, n: 3, p: 1 };
@@ -164,7 +166,7 @@ auth.onAuthChange(async (user) => {
   if (user) {
     // Sync settings from server on login
     try {
-      const res = await fetch('/api/settings', { headers: auth.getAuthHeaders() });
+      const res = await fetch('/api/chess/settings', { headers: auth.getAuthHeaders() });
       if (res.ok) {
         const { settings } = await res.json();
         if (settings) {
@@ -198,7 +200,7 @@ auth.onAuthChange(async (user) => {
     }
     if (claimableIds.length > 0) {
       try {
-        const res = await fetch('/api/games/claim-batch', {
+        const res = await fetch('/api/chess/games/claim-batch', {
           method: 'POST',
           headers: auth.getAuthHeaders(),
           body: JSON.stringify({ gameIds: claimableIds })
@@ -245,7 +247,7 @@ function saveSettingsToServer() {
       chess960: chess960Toggle.checked
     };
     try {
-      await fetch('/api/settings', {
+      await fetch('/api/chess/settings', {
         method: 'PUT',
         headers: auth.getAuthHeaders(),
         body: JSON.stringify({ settings })
@@ -279,6 +281,19 @@ gameBrowser.setOnRejoinGame(async (roomId) => {
     alert('Could not rejoin the game. Please try again.');
   }
 });
+
+// Video Chat
+const videoChat = new VideoChat(mp);
+const videoUI = new VideoUI(videoChat);
+let videoActive = false;
+
+// Hide video toggles if browser doesn't support WebRTC
+if (!VideoChat.isSupported()) {
+  const onlineVideoToggle = document.getElementById('ng-online-video');
+  const friendVideoToggle = document.getElementById('ng-friend-video');
+  if (onlineVideoToggle) onlineVideoToggle.closest('.ng-video-toggle')?.classList.add('hidden');
+  if (friendVideoToggle) friendVideoToggle.closest('.ng-video-toggle')?.classList.add('hidden');
+}
 
 // New Game Wizard
 const newGameMenu = new NewGameMenu();
@@ -2955,8 +2970,18 @@ updateEloSliderRange('b');
 // --- Multiplayer wiring ---
 
 // When the server says a game has started
-mp.onGameStart = (payload) => {
+mp.onGameStart = async (payload) => {
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName);
+
+  // If video is enabled, request camera and signal readiness
+  if (payload.videoEnabled) {
+    try {
+      const stream = await videoChat.requestCamera();
+      videoUI.showCameraPreview(stream);
+    } catch (e) {
+      videoUI.showError(e.message || 'Camera access failed.');
+    }
+  }
 };
 
 // Room created — show waiting screen
@@ -3109,6 +3134,13 @@ mp.onGameEnd = (payload) => {
       }
     );
   }
+
+  // Clean up video call if active
+  if (videoActive) {
+    videoChat.stop();
+    videoUI.hide();
+    videoActive = false;
+  }
 };
 
 // Draw offered by opponent
@@ -3139,7 +3171,7 @@ mp.onRematchStart = (payload) => {
 };
 
 // Reconnection
-mp.onReconnect = (payload) => {
+mp.onReconnect = async (payload) => {
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName);
 
   // Replay all moves to catch up
@@ -3161,6 +3193,16 @@ mp.onReconnect = (payload) => {
   board.setInteractive(isMyTurn);
   updateStatus(isMyTurn ? 'Your turn (reconnected)' : "Opponent's turn (reconnected)");
   mpUI.setConnectionStatus('connected');
+
+  // Re-establish video if it was a video game
+  if (payload.videoEnabled && !videoActive) {
+    try {
+      await videoChat.requestCamera();
+      mp.sendVideoReady();
+    } catch (e) {
+      videoUI.showError(e.message || 'Camera access failed on reconnect.');
+    }
+  }
 };
 
 // Opponent disconnected
@@ -3194,6 +3236,51 @@ mp.onError = (msg) => {
     multiplayerActive = false;
     alert(msg || 'Multiplayer error. Please try again.');
   }
+};
+
+// --- Video Chat wiring ---
+
+// WebRTC signaling relayed from opponent
+mp.onRtcOffer = (payload) => videoChat.handleOffer(payload.sdp);
+mp.onRtcAnswer = (payload) => videoChat.handleAnswer(payload.sdp);
+mp.onRtcIce = (payload) => videoChat.handleIceCandidate(payload.candidate);
+
+// Server says both players have cameras ready — start WebRTC handshake
+mp.onVideoStart = async (payload) => {
+  try {
+    await videoChat.startCall(payload.initiator);
+    videoActive = true;
+    videoUI.show();
+  } catch (e) {
+    videoUI.showError('Video connection failed: ' + e.message);
+  }
+};
+
+mp.onVideoPeerReady = () => {
+  // Opponent's camera is ready — UI hint (optional)
+};
+
+// VideoChat events
+videoChat.onLocalStream = (stream) => videoUI.setLocalStream(stream);
+videoChat.onRemoteStream = (stream) => videoUI.setRemoteStream(stream);
+videoChat.onDisconnected = () => videoUI.showError('Video disconnected');
+videoChat.onError = (msg) => videoUI.showError(msg);
+
+// VideoUI events
+videoUI.onPreviewConfirm = () => {
+  // User confirmed camera preview — tell server we're ready
+  mp.sendVideoReady();
+};
+
+videoUI.onPreviewCancel = () => {
+  // User cancelled — stop camera, don't send video_ready
+  videoChat.stop();
+};
+
+videoUI.onEndCall = () => {
+  videoChat.stop();
+  videoUI.hide();
+  videoActive = false;
 };
 
 // Check URL for room code parameter (joining via shared link)
@@ -3291,7 +3378,7 @@ newGameMenu.onStart((config) => {
   startNewGame();
 });
 
-newGameMenu.onOnline(async (tc, name) => {
+newGameMenu.onOnline(async (tc, name, videoEnabled) => {
   if (!mp.ws || mp.ws.readyState !== WebSocket.OPEN) {
     try {
       await mp.connect();
@@ -3301,13 +3388,13 @@ newGameMenu.onOnline(async (tc, name) => {
     }
   }
   // Auto matchmaking — go straight to searching
-  mp.quickMatch(tc, name);
+  mp.quickMatch(tc, name, videoEnabled);
   mpUI.showSearching();
   mpUI.modal.classList.remove('hidden');
   mpUI.backdrop.classList.remove('hidden');
 });
 
-newGameMenu.onFriend(async (action, tc, name, code) => {
+newGameMenu.onFriend(async (action, tc, name, code, videoEnabled) => {
   if (!mp.ws || mp.ws.readyState !== WebSocket.OPEN) {
     try {
       await mp.connect();
@@ -3317,7 +3404,7 @@ newGameMenu.onFriend(async (action, tc, name, code) => {
     }
   }
   if (action === 'create') {
-    mp.createRoom(tc, name);
+    mp.createRoom(tc, name, videoEnabled);
     // mpUI will show waiting view via the room-created event
     mpUI.modal.classList.remove('hidden');
     mpUI.backdrop.classList.remove('hidden');
