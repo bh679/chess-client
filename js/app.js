@@ -1698,7 +1698,8 @@ function showConfirmation(message, title) {
 
 async function enterReplayMode(gameRecord) {
   // Confirm if there's an active live game (not if already in replay mode)
-  if (!isReplayMode && moveCount > 0 && !game.isGameOver()) {
+  // Skip confirmation for post-multiplayer review (game already ended)
+  if (!isReplayMode && moveCount > 0 && !game.isGameOver() && !lastMultiplayerGameRecord) {
     const confirmed = await showConfirmation(
       'You have a game in progress. Abandon it to review this game?',
       'Abandon Game?'
@@ -1800,7 +1801,7 @@ async function enterReplayMode(gameRecord) {
   }
 
   // Enter shared review if this is a post-multiplayer game
-  if (mp.roomId && gameRecord.gameType === 'multiplayer') {
+  if (mp.roomId) {
     sharedReviewActive = true;
     mp.sendReviewEnter();
   }
@@ -3011,6 +3012,7 @@ updateEloSliderRange('b');
 
 // When the server says a game has started
 mp.onGameStart = async (payload) => {
+  lastMultiplayerGameRecord = null;
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName);
 
   // If video is enabled, request camera and signal readiness
@@ -3159,6 +3161,7 @@ mp.onGameEnd = (payload) => {
 
   // Trigger post-game summary with analysis
   const record = buildMultiplayerGameRecord(result, reason);
+  lastMultiplayerGameRecord = record;
   if (record) {
     if (!postGameAnalysisEngine) {
       postGameAnalysisEngine = new AnalysisEngine();
@@ -3348,6 +3351,7 @@ let sharedReviewActive = false;
 let isRemoteNavigation = false;
 let peerInReview = false;
 let peerAnalysisRunning = false;
+let lastMultiplayerGameRecord = null;
 
 // Board arrow callbacks — broadcast to peer during shared review
 board.onUserArrowDrawn = (from, to) => {
@@ -3378,7 +3382,10 @@ mp.onReviewClearArrows = (payload) => {
 // Peer entered/exited review
 mp.onReviewEntered = (payload) => {
   peerInReview = true;
-  updateStatus('Opponent joined review');
+  // Auto-enter review if peer started it and we're not already in replay
+  if (!isReplayMode && lastMultiplayerGameRecord) {
+    enterReplayMode(lastMultiplayerGameRecord);
+  }
 };
 
 mp.onReviewExited = (payload) => {
