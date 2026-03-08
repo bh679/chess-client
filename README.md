@@ -79,6 +79,9 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - **Settings sync** — user settings persist across sessions via the server
 - **Game claiming** — games are linked to your account at creation; pre-login games are batch claimed on sign-in
 
+### [Deployment](https://github.com/bh679/Chess/wiki/Feature:-Deployment-Status-Page)
+- [**Deployment status page**](https://github.com/bh679/Chess/wiki/Feature:-Deployment-Status-Page) — standalone page showing real-time deployment progress with step-by-step status, elapsed timer, deployment history, and auto-redirect on completion; index.html redirects visitors to the deployment page during active deploys
+
 ### UI
 - [**Captured pieces display**](https://github.com/bh679/Chess/wiki/Feature:-Captured-Pieces) — shows captured pieces with material advantage indicators
 - [**Responsive layout**](https://github.com/bh679/Chess/wiki/Feature:-Responsive-Design) — works on desktop and mobile
@@ -128,7 +131,9 @@ For full functionality (game saving and history), set up the [chess-api](https:/
 
 ```
 index.html              Main HTML page
+deploying.html          Deployment status page (standalone)
 css/style.css           Board and UI styles
+css/deploy.css          Deployment status page styles
 css/combat-enhanced.css Combat animation effects (shake, flash, particles)
 js/app.js               App entry point, game flow, player bar controls
 js/game.js              Game state wrapper around chess.js

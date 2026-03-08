@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chess - Deploying...</title>
+  <link rel="icon" type="image/svg+xml" href="img/pieces/wQ.svg">
+  <link rel="stylesheet" href="css/deploy.css">
+</head>
+<body>
+  <div class="deploy-container">
+    <div id="deploy-active" style="display:none">
+      <div class="deploy-icon">
+        <div class="piece">&#9822;</div>
+        <div class="board-pattern">
+          <div class="sq light"></div>
+          <div class="sq dark"></div>
+          <div class="sq light"></div>
+          <div class="sq dark"></div>
+          <div class="sq light"></div>
+          <div class="sq dark"></div>
+          <div class="sq light"></div>
+          <div class="sq dark"></div>
+        </div>
+      </div>
+
+      <h1 class="deploy-title">Deploying Update</h1>
+      <p class="deploy-subtitle">
+        Target: <span class="deploy-target" id="deploy-target">--</span>
+      </p>
+
+      <div class="deploy-elapsed">
+        Elapsed: <span class="time" id="deploy-elapsed">0s</span>
+      </div>
+
+      <div id="reconnecting-banner" class="deploy-reconnecting" style="display:none">
+        Server restarting... waiting for reconnection
+      </div>
+
+      <div class="deploy-steps">
+        <h3>Progress</h3>
+        <div id="steps-list"></div>
+      </div>
+    </div>
+
+    <div id="deploy-complete" class="deploy-complete" style="display:none">
+      <div class="checkmark">&#10003;</div>
+      <h1 class="deploy-title">Deployment Complete</h1>
+      <p>Redirecting to the game in <span id="redirect-countdown">3</span>s...</p>
+    </div>
+
+    <div id="deploy-idle" class="deploy-idle" style="display:none">
+      <div class="icon">&#9812;</div>
+      <h2>No Active Deployment</h2>
+      <p>The game is running normally.</p>
+      <a href="./" class="home-link">Go to Chess</a>
+    </div>
+
+    <details class="deploy-history" id="history-section" style="display:none">
+      <summary>Deployment History</summary>
+      <div class="history-list" id="history-list"></div>
+    </details>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const POLL_INTERVAL = 2000;
+      const REDIRECT_DELAY = 3;
+      const STATUS_URL = 'deploy-status.json';
+
+      const STEP_LABELS = {
+        'starting':          'Starting deployment',
+        'checking-version':  'Checking version compatibility',
+        'pulling-server':    'Pulling server code',
+        'installing-deps':   'Installing dependencies',
+        'restarting-server':  'Restarting server',
+        'pulling-client':    'Pulling client code',
+        'complete':          'Deployment complete',
+      };
+
+      const STEP_ICONS = {
+        done:    '\u2713',   // checkmark
+        active:  '\u25E6',   // circle
+        pending: '\u2022',   // bullet
+        error:   '\u2717',   // x mark
+      };
+
+      let pollTimer = null;
+      let elapsedTimer = null;
+      let deployStartTime = null;
+      let redirectTimer = null;
+      let failCount = 0;
+
+      /* ---- DOM refs ---- */
+      const elActive   = document.getElementById('deploy-active');
+      const elComplete = document.getElementById('deploy-complete');
+      const elIdle     = document.getElementById('deploy-idle');
+      const elTarget   = document.getElementById('deploy-target');
+      const elElapsed  = document.getElementById('deploy-elapsed');
+      const elSteps    = document.getElementById('steps-list');
+      const elReconn   = document.getElementById('reconnecting-banner');
+      const elHistory  = document.getElementById('history-section');
+      const elHistList = document.getElementById('history-list');
+      const elCountdown = document.getElementById('redirect-countdown');
+
+      /* ---- Formatting helpers ---- */
+
+      function formatDuration(seconds) {
+        if (seconds < 60) return seconds + 's';
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return m + 'm ' + s + 's';
+      }
+
+      function formatDate(iso) {
+        try {
+          const d = new Date(iso);
+          return d.toLocaleDateString(undefined, {
+            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+          });
+        } catch (_) {
+          return iso;
+        }
+      }
+
+      /* ---- Render functions ---- */
+
+      function showSection(section) {
+        elActive.style.display   = section === 'active'   ? '' : 'none';
+        elComplete.style.display = section === 'complete' ? '' : 'none';
+        elIdle.style.display     = section === 'idle'     ? '' : 'none';
+      }
+
+      function renderSteps(steps) {
+        elSteps.innerHTML = '';
+        (steps || []).forEach(function (step) {
+          const div = document.createElement('div');
+          div.className = 'step';
+
+          const icon = document.createElement('span');
+          icon.className = 'step-icon ' + (step.status || 'pending');
+          icon.textContent = STEP_ICONS[step.status] || STEP_ICONS.pending;
+
+          const name = document.createElement('span');
+          name.className = 'step-name' + (step.status === 'pending' ? ' pending' : '');
+          name.textContent = STEP_LABELS[step.name] || step.name;
+
+          const time = document.createElement('span');
+          time.className = 'step-time';
+          if (step.time) {
+            const d = new Date(step.time);
+            time.textContent = d.toLocaleTimeString(undefined, {
+              hour: '2-digit', minute: '2-digit', second: '2-digit',
+            });
+          }
+
+          div.appendChild(icon);
+          div.appendChild(name);
+          div.appendChild(time);
+          elSteps.appendChild(div);
+        });
+      }
+
+      function renderHistory(history) {
+        if (!history || history.length === 0) {
+          elHistory.style.display = 'none';
+          return;
+        }
+        elHistory.style.display = '';
+        elHistList.innerHTML = '';
+
+        history.forEach(function (item) {
+          const div = document.createElement('div');
+          div.className = 'history-item';
+
+          const dot = document.createElement('span');
+          dot.className = 'history-status ' + (item.status || 'success');
+
+          const target = document.createElement('span');
+          target.className = 'history-target';
+          target.textContent = (item.target || 'unknown').toUpperCase();
+
+          const date = document.createElement('span');
+          date.className = 'history-date';
+          date.textContent = formatDate(item.startedAt);
+
+          const dur = document.createElement('span');
+          dur.className = 'history-duration';
+          dur.textContent = item.duration != null ? formatDuration(item.duration) : '--';
+
+          div.appendChild(dot);
+          div.appendChild(target);
+          div.appendChild(date);
+          div.appendChild(dur);
+          elHistList.appendChild(div);
+        });
+      }
+
+      function updateElapsed() {
+        if (!deployStartTime) return;
+        var seconds = Math.floor((Date.now() - deployStartTime) / 1000);
+        elElapsed.textContent = formatDuration(seconds);
+      }
+
+      /* ---- Polling ---- */
+
+      function handleStatus(data) {
+        failCount = 0;
+        elReconn.style.display = 'none';
+
+        renderHistory(data.history);
+
+        if (data.deploying) {
+          showSection('active');
+          elTarget.textContent = (data.target || 'unknown').toUpperCase();
+
+          if (data.startedAt) {
+            deployStartTime = new Date(data.startedAt).getTime();
+          }
+          if (!elapsedTimer) {
+            elapsedTimer = setInterval(updateElapsed, 1000);
+            updateElapsed();
+          }
+
+          renderSteps(data.steps);
+        } else {
+          // Deployment finished or not deploying
+          if (deployStartTime) {
+            // Was deploying, now complete — show completion and redirect
+            showSection('complete');
+            clearInterval(elapsedTimer);
+            elapsedTimer = null;
+            startRedirect();
+          } else {
+            // Never was deploying — show idle page
+            showSection('idle');
+          }
+        }
+      }
+
+      function handleFetchError() {
+        failCount++;
+        // During server restart, fetches may fail. Keep polling.
+        if (deployStartTime) {
+          elReconn.style.display = '';
+        }
+        // After many failures without ever seeing a deployment, show idle
+        if (!deployStartTime && failCount > 5) {
+          showSection('idle');
+          renderHistory([]);
+        }
+      }
+
+      function poll() {
+        fetch(STATUS_URL + '?t=' + Date.now())
+          .then(function (res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+          })
+          .then(handleStatus)
+          .catch(handleFetchError);
+      }
+
+      function startRedirect() {
+        var count = REDIRECT_DELAY;
+        elCountdown.textContent = count;
+        clearInterval(pollTimer);
+        redirectTimer = setInterval(function () {
+          count--;
+          elCountdown.textContent = count;
+          if (count <= 0) {
+            clearInterval(redirectTimer);
+            window.location.href = './';
+          }
+        }, 1000);
+      }
+
+      /* ---- Init ---- */
+      poll();
+      pollTimer = setInterval(poll, POLL_INTERVAL);
+    })();
+  </script>
+</body>
+</html>

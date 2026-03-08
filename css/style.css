@@ -329,7 +329,7 @@ body {
   position: absolute;
   inset: 0;
   background-color: var(--board-light);
-  opacity: 0.1;
+  opacity: 0.55;
   pointer-events: none;
   transition: opacity 0.3s ease;
   -webkit-mask: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 25% 25%;
@@ -340,7 +340,7 @@ body {
   position: absolute;
   inset: 0;
   background-color: var(--board-dark);
-  opacity: 0.1;
+  opacity: 0.55;
   pointer-events: none;
   transition: opacity 0.3s ease;
   -webkit-mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 25% 25%;
@@ -1059,6 +1059,15 @@ body {
   color: var(--text-primary);
   min-width: 32px;
   text-align: right;
+}
+
+.tint-slider-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  cursor: pointer;
 }
 
 /* Settings footer info */
