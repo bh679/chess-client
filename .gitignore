@@ -153,3 +153,6 @@ archive/
 # Test screenshots
 screenshots/
 test-results/
+
+# Deploy status (runtime file, written by deploy.php)
+deploy-status.json
