@@ -289,12 +289,12 @@ const videoUI = new VideoUI(videoChat);
 const videoBoard = new VideoBoard(boardEl);
 let videoActive = false;
 
-// Hide video toggles if browser doesn't support WebRTC
+// Hide video buttons if browser doesn't support WebRTC
 if (!VideoChat.isSupported()) {
-  const onlineVideoToggle = document.getElementById('ng-online-video');
-  const friendVideoToggle = document.getElementById('ng-friend-video');
-  if (onlineVideoToggle) onlineVideoToggle.closest('.ng-video-toggle')?.classList.add('hidden');
-  if (friendVideoToggle) friendVideoToggle.closest('.ng-video-toggle')?.classList.add('hidden');
+  const onlineVideoBtn = document.getElementById('ng-online-video-btn');
+  const friendVideoBtn = document.getElementById('ng-friend-video-btn');
+  if (onlineVideoBtn) onlineVideoBtn.classList.add('hidden');
+  if (friendVideoBtn) friendVideoBtn.classList.add('hidden');
 }
 
 // New Game Wizard
@@ -754,7 +754,7 @@ async function startNewGame() {
 }
 
 /** Start a multiplayer game (called by multiplayer event handlers) */
-function startMultiplayerGame(color, fen, timeControl, opponentName) {
+function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
   multiplayerActive = true;
 
   // Close any open panels/overlays
@@ -773,7 +773,8 @@ function startMultiplayerGame(color, fen, timeControl, opponentName) {
   newGameBtn.classList.remove('game-ended');
   startGameBtn.classList.add('hidden');
 
-  // Set up the game with the given FEN (default starting position)
+  // Set up the game with the server-provided FEN
+  // For chess960, the server already generates the randomized FEN — don't regenerate on client
   game.newGame(false, fen);
   board.getArrowOverlay().clear();
 
@@ -3021,7 +3022,7 @@ updateEloSliderRange('b');
 // When the server says a game has started
 mp.onGameStart = async (payload) => {
   lastMultiplayerGameRecord = null;
-  startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName);
+  startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 
   // If video is enabled, request camera and signal readiness
   if (payload.videoEnabled) {
@@ -3217,12 +3218,12 @@ mp.onRematchDeclined = () => {
 // Rematch starting
 mp.onRematchStart = (payload) => {
   mpUI.hideGameControls();
-  startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName);
+  startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 };
 
 // Reconnection
 mp.onReconnect = async (payload) => {
-  startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName);
+  startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 
   // Replay all moves to catch up
   for (const san of payload.moves) {
@@ -3530,7 +3531,7 @@ newGameMenu.onStart((config) => {
   startNewGame();
 });
 
-newGameMenu.onOnline(async (tc, name, videoEnabled) => {
+newGameMenu.onOnline(async (tc, name, videoEnabled, chess960) => {
   if (!mp.ws || mp.ws.readyState !== WebSocket.OPEN) {
     try {
       await mp.connect();
@@ -3540,13 +3541,13 @@ newGameMenu.onOnline(async (tc, name, videoEnabled) => {
     }
   }
   // Auto matchmaking — go straight to searching
-  mp.quickMatch(tc, name, videoEnabled);
+  mp.quickMatch(tc, name, videoEnabled, chess960);
   mpUI.showSearching();
   mpUI.modal.classList.remove('hidden');
   mpUI.backdrop.classList.remove('hidden');
 });
 
-newGameMenu.onFriend(async (action, tc, name, code, videoEnabled) => {
+newGameMenu.onFriend(async (action, tc, name, code, videoEnabled, chess960) => {
   if (!mp.ws || mp.ws.readyState !== WebSocket.OPEN) {
     try {
       await mp.connect();
@@ -3556,7 +3557,7 @@ newGameMenu.onFriend(async (action, tc, name, code, videoEnabled) => {
     }
   }
   if (action === 'create') {
-    mp.createRoom(tc, name, videoEnabled);
+    mp.createRoom(tc, name, videoEnabled, chess960);
     // mpUI will show waiting view via the room-created event
     mpUI.modal.classList.remove('hidden');
     mpUI.backdrop.classList.remove('hidden');

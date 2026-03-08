@@ -4359,20 +4359,29 @@ button.replay-summary-btn {
 }
 .vc-error-toast.hidden { display: none; }
 
-/* Video toggle in new-game menu */
-.ng-video-toggle {
+/* Toggle button row in new-game online/friend steps */
+.ng-toggle-row {
   display: flex;
-  align-items: center;
   gap: 8px;
-  margin: 12px 0;
-  color: var(--text-primary);
-  font-size: 0.85rem;
-  cursor: pointer;
+  margin-top: 12px;
+  justify-content: center;
 }
-.ng-video-toggle input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--accent);
+.ng-toggle-btn,
+.ng-video-btn {
+  flex: 1;
+  opacity: 0.5;
+  transition: background-color 0.15s, opacity 0.15s, border-color 0.15s;
+}
+.ng-toggle-btn.active,
+.ng-video-btn.active {
+  opacity: 1;
+  color: #fff;
+  background: rgba(100, 181, 246, 0.25);
+  border-color: var(--info);
+}
+.ng-toggle-btn.active:hover,
+.ng-video-btn.active:hover {
+  background: rgba(100, 181, 246, 0.4);
 }
 
 /* Responsive: reposition video on small screens */
