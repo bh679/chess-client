@@ -20,6 +20,7 @@ import { MultiplayerUI } from './multiplayer-ui.js';
 import { NewGameMenu } from './new-game-menu.js';
 import { VideoChat } from './video-chat.js';
 import { VideoUI } from './video-ui.js';
+import { VideoBoard } from './video-board.js';
 
 const PIECE_ORDER = { q: 0, r: 1, b: 2, n: 3, p: 4 };
 const PIECE_VALUES = { q: 9, r: 5, b: 3, n: 3, p: 1 };
@@ -285,6 +286,7 @@ gameBrowser.setOnRejoinGame(async (roomId) => {
 // Video Chat
 const videoChat = new VideoChat(mp);
 const videoUI = new VideoUI(videoChat);
+const videoBoard = new VideoBoard(boardEl);
 let videoActive = false;
 
 // Hide video toggles if browser doesn't support WebRTC
@@ -3139,6 +3141,7 @@ mp.onGameEnd = (payload) => {
   if (videoActive) {
     videoChat.stop();
     videoUI.hide();
+    videoBoard.disable();
     videoActive = false;
   }
 };
@@ -3251,6 +3254,10 @@ mp.onVideoStart = async (payload) => {
     await videoChat.startCall(payload.initiator);
     videoActive = true;
     videoUI.show();
+    // Enable video board — local stream is already set, remote arrives via onRemoteStream
+    if (mp.color) {
+      videoBoard.enable(videoChat._localStream, null, mp.color);
+    }
   } catch (e) {
     videoUI.showError('Video connection failed: ' + e.message);
   }
@@ -3261,8 +3268,18 @@ mp.onVideoPeerReady = () => {
 };
 
 // VideoChat events
-videoChat.onLocalStream = (stream) => videoUI.setLocalStream(stream);
-videoChat.onRemoteStream = (stream) => videoUI.setRemoteStream(stream);
+videoChat.onLocalStream = (stream) => {
+  videoUI.setLocalStream(stream);
+  if (mp.color) {
+    videoBoard.updateLocalStream(stream, mp.color);
+  }
+};
+videoChat.onRemoteStream = (stream) => {
+  videoUI.setRemoteStream(stream);
+  if (mp.color) {
+    videoBoard.updateRemoteStream(stream, mp.color);
+  }
+};
 videoChat.onDisconnected = () => videoUI.showError('Video disconnected');
 videoChat.onError = (msg) => videoUI.showError(msg);
 
@@ -3280,6 +3297,7 @@ videoUI.onPreviewCancel = () => {
 videoUI.onEndCall = () => {
   videoChat.stop();
   videoUI.hide();
+  videoBoard.disable();
   videoActive = false;
 };
 
