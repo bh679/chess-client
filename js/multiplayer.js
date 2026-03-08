@@ -34,6 +34,13 @@ export class MultiplayerClient {
     this.onConnected = null;
     this.onDisconnected = null;
     this.onError = null;
+
+    // WebRTC video signaling callbacks
+    this.onRtcOffer = null;
+    this.onRtcAnswer = null;
+    this.onRtcIce = null;
+    this.onVideoStart = null;
+    this.onVideoPeerReady = null;
   }
 
   /** Connect to the WebSocket server */
@@ -73,8 +80,8 @@ export class MultiplayerClient {
   }
 
   /** Create a new room */
-  createRoom(timeControl, name) {
-    this._send('create_room', { timeControl, name });
+  createRoom(timeControl, name, videoEnabled) {
+    this._send('create_room', { timeControl, name, videoEnabled: !!videoEnabled });
   }
 
   /** Join an existing room by code */
@@ -83,8 +90,8 @@ export class MultiplayerClient {
   }
 
   /** Join the quick match queue */
-  quickMatch(timeControl, name) {
-    this._send('quick_match', { timeControl, name });
+  quickMatch(timeControl, name, videoEnabled) {
+    this._send('quick_match', { timeControl, name, videoEnabled: !!videoEnabled });
   }
 
   /** Cancel queue search */
@@ -121,6 +128,18 @@ export class MultiplayerClient {
   respondToRematch(accept) {
     this._send('rematch_respond', { accept });
   }
+
+  /** Send WebRTC offer SDP */
+  sendRtcOffer(sdp) { this._send('rtc_offer', { sdp }); }
+
+  /** Send WebRTC answer SDP */
+  sendRtcAnswer(sdp) { this._send('rtc_answer', { sdp }); }
+
+  /** Send ICE candidate */
+  sendRtcIce(candidate) { this._send('rtc_ice', { candidate }); }
+
+  /** Notify server that local camera is ready */
+  sendVideoReady() { this._send('video_ready', {}); }
 
   /** Disconnect from the server */
   disconnect() {
@@ -240,6 +259,27 @@ export class MultiplayerClient {
         this.color = payload.color;
         this.active = true;
         if (this.onReconnect) this.onReconnect(payload);
+        break;
+
+      // WebRTC video signaling
+      case 'rtc_offer':
+        if (this.onRtcOffer) this.onRtcOffer(payload);
+        break;
+
+      case 'rtc_answer':
+        if (this.onRtcAnswer) this.onRtcAnswer(payload);
+        break;
+
+      case 'rtc_ice':
+        if (this.onRtcIce) this.onRtcIce(payload);
+        break;
+
+      case 'video_start':
+        if (this.onVideoStart) this.onVideoStart(payload);
+        break;
+
+      case 'video_peer_ready':
+        if (this.onVideoPeerReady) this.onVideoPeerReady();
         break;
 
       case 'error':
