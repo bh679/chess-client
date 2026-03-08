@@ -782,7 +782,7 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
 
   // Set up the game with the server-provided FEN
   // For chess960, the server already generates the randomized FEN — don't regenerate on client
-  game.newGame(false, fen);
+  game.newGame(!!chess960, fen);
   board.getArrowOverlay().clear();
 
   // Flip board if playing black

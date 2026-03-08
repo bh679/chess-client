@@ -9,12 +9,14 @@ class Game {
     this._timedOut = false;
   }
 
-  newGame(chess960 = false) {
+  newGame(chess960 = false, fen = null) {
     this._chess960 = chess960;
     this._timedOut = false;
-    if (chess960) {
-      const fen = this._generateChess960FEN();
+    if (fen) {
       this.chess.load(fen);
+    } else if (chess960) {
+      const generatedFen = this._generateChess960FEN();
+      this.chess.load(generatedFen);
     } else {
       this.chess.reset();
     }
