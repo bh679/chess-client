@@ -184,6 +184,11 @@ class Board {
         this.container.appendChild(el);
       }
     }
+
+    // Re-append arrow overlay SVG (innerHTML = '' removes it)
+    if (this._arrowOverlay && this._arrowOverlay._svg) {
+      this.container.appendChild(this._arrowOverlay._svg);
+    }
   }
 
   _bindEvents() {
