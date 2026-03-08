@@ -2194,6 +2194,124 @@ body {
   color: #e0e0e0;
 }
 
+/* --- Pending Challenges Section --- */
+
+.browser-pending-section {
+  border-bottom: 1px solid #444;
+  padding: 8px 12px;
+}
+
+.browser-pending-section.hidden {
+  display: none;
+}
+
+.browser-pending-heading {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: #4fc3f7;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.browser-pending-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  background: rgba(79, 195, 247, 0.08);
+  border: 1px solid rgba(79, 195, 247, 0.25);
+  border-radius: 6px;
+}
+
+.browser-pending-waiting {
+  border-color: rgba(255, 183, 77, 0.35);
+  background: rgba(255, 183, 77, 0.08);
+}
+
+.browser-pending-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.85em;
+}
+
+.browser-pending-status {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.75em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.browser-pending-waiting .browser-pending-status {
+  background: rgba(255, 183, 77, 0.2);
+  color: #ffb74d;
+}
+
+.browser-pending-item:not(.browser-pending-waiting) .browser-pending-status {
+  background: rgba(76, 175, 80, 0.2);
+  color: #81c784;
+}
+
+.browser-pending-code {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 1.05em;
+  color: #e0e0e0;
+  letter-spacing: 1px;
+}
+
+.browser-pending-tc,
+.browser-pending-time,
+.browser-pending-players {
+  color: #999;
+}
+
+.browser-pending-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.browser-pending-btn {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8em;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.browser-pending-copy {
+  background: #2a5298;
+  color: #e0e0e0;
+}
+
+.browser-pending-copy:hover {
+  background: #3567b7;
+}
+
+.browser-pending-cancel {
+  background: #5a2a2a;
+  color: #e0a0a0;
+}
+
+.browser-pending-cancel:hover {
+  background: #7a3a3a;
+}
+
+.browser-pending-rejoin {
+  background: #2a6b2a;
+  color: #a0e0a0;
+}
+
+.browser-pending-rejoin:hover {
+  background: #3a8a3a;
+}
+
 /* =========================================
    Replay on Main Board
    ========================================= */
