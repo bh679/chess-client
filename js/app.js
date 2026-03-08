@@ -3137,13 +3137,8 @@ mp.onGameEnd = (payload) => {
     );
   }
 
-  // Clean up video call if active
-  if (videoActive) {
-    videoChat.stop();
-    videoUI.hide();
-    videoBoard.disable();
-    videoActive = false;
-  }
+  // Video stays active after game end — players can continue chatting
+  // Video is stopped when either player clicks "End Call" or room expires
 };
 
 // Draw offered by opponent
@@ -3295,6 +3290,14 @@ videoUI.onPreviewCancel = () => {
 };
 
 videoUI.onEndCall = () => {
+  mp.sendVideoEnd();
+  videoChat.stop();
+  videoUI.hide();
+  videoBoard.disable();
+  videoActive = false;
+};
+
+mp.onVideoEnded = () => {
   videoChat.stop();
   videoUI.hide();
   videoBoard.disable();
