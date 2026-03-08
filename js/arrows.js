@@ -22,10 +22,15 @@ class ArrowOverlay {
     this._userHighlights = []; // { square, element }
     this._peerArrows = [];     // { from, to, side, element }
     this._markerCounter = 0;
+    this._flipped = false;
     this._createSVG();
   }
 
   /* ── Public API ─────────────────────────────────────── */
+
+  setFlipped(flipped) {
+    this._flipped = !!flipped;
+  }
 
   setEngineArrows(bestMoveUci, bestLineUci) {
     this.clearEngineArrows();
@@ -289,6 +294,9 @@ class ArrowOverlay {
     const fileIdx = FILES.indexOf(square[0]);
     const rankIdx = RANKS.indexOf(square[1]);
     if (fileIdx === -1 || rankIdx === -1) return null;
+    if (this._flipped) {
+      return { x: 7 - fileIdx + 0.5, y: 7 - rankIdx + 0.5 };
+    }
     return { x: fileIdx + 0.5, y: rankIdx + 0.5 };
   }
 

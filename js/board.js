@@ -32,6 +32,7 @@ class Board {
 
     this._buildGrid();
     this._arrowOverlay = new ArrowOverlay(containerEl);
+    this._arrowOverlay.setFlipped(this._flipped);
     this._bindEvents();
   }
 
@@ -50,6 +51,9 @@ class Board {
   setFlipped(flipped) {
     if (this._flipped === flipped) return;
     this._flipped = flipped;
+    if (this._arrowOverlay) {
+      this._arrowOverlay.setFlipped(flipped);
+    }
     this._buildGrid();
     this.render();
   }
