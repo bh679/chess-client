@@ -43,6 +43,16 @@ export class MultiplayerClient {
     this.onRtcIce = null;
     this.onVideoStart = null;
     this.onVideoPeerReady = null;
+    this.onVideoEnded = null;
+
+    // Shared review callbacks
+    this.onReviewEntered = null;
+    this.onReviewNavigate = null;
+    this.onReviewArrow = null;
+    this.onReviewClearArrows = null;
+    this.onReviewAnalysisStarted = null;
+    this.onReviewAnalysis = null;
+    this.onReviewExited = null;
   }
 
   /** Connect to the WebSocket server */
@@ -152,6 +162,32 @@ export class MultiplayerClient {
 
   /** Notify server that local camera is ready */
   sendVideoReady() { this._send('video_ready', {}); }
+
+  /** Notify server that we're ending our video */
+  sendVideoEnd() { this._send('video_end', {}); }
+
+  // --- Shared review methods ---
+
+  /** Enter shared post-game review */
+  sendReviewEnter() { this._send('review_enter', {}); }
+
+  /** Navigate to a specific ply in shared review */
+  sendReviewNavigate(ply) { this._send('review_navigate', { ply }); }
+
+  /** Send an arrow annotation to peer */
+  sendReviewArrow(action, from, to) { this._send('review_arrow', { action, from, to }); }
+
+  /** Clear our arrows (notify peer) */
+  sendReviewClearArrows() { this._send('review_clear_arrows', {}); }
+
+  /** Notify peer that we started analysis */
+  sendReviewAnalysisStarted() { this._send('review_analysis_started', {}); }
+
+  /** Share analysis results with peer */
+  sendReviewAnalysis(data) { this._send('review_analysis', data); }
+
+  /** Exit shared review */
+  sendReviewExit() { this._send('review_exit', {}); }
 
   /** Disconnect from the server */
   disconnect() {
@@ -302,6 +338,39 @@ export class MultiplayerClient {
 
       case 'video_peer_ready':
         if (this.onVideoPeerReady) this.onVideoPeerReady();
+        break;
+
+      case 'video_ended':
+        if (this.onVideoEnded) this.onVideoEnded(payload);
+        break;
+
+      // Shared review messages
+      case 'review_entered':
+        if (this.onReviewEntered) this.onReviewEntered(payload);
+        break;
+
+      case 'review_navigate':
+        if (this.onReviewNavigate) this.onReviewNavigate(payload);
+        break;
+
+      case 'review_arrow':
+        if (this.onReviewArrow) this.onReviewArrow(payload);
+        break;
+
+      case 'review_clear_arrows':
+        if (this.onReviewClearArrows) this.onReviewClearArrows(payload);
+        break;
+
+      case 'review_analysis_started':
+        if (this.onReviewAnalysisStarted) this.onReviewAnalysisStarted(payload);
+        break;
+
+      case 'review_analysis':
+        if (this.onReviewAnalysis) this.onReviewAnalysis(payload);
+        break;
+
+      case 'review_exited':
+        if (this.onReviewExited) this.onReviewExited(payload);
         break;
 
       case 'error':

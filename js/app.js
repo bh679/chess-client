@@ -1706,7 +1706,8 @@ function showConfirmation(message, title) {
 
 async function enterReplayMode(gameRecord) {
   // Confirm if there's an active live game (not if already in replay mode)
-  if (!isReplayMode && moveCount > 0 && !game.isGameOver()) {
+  // Skip confirmation for post-multiplayer review (game already ended)
+  if (!isReplayMode && moveCount > 0 && !game.isGameOver() && !lastMultiplayerGameRecord) {
     const confirmed = await showConfirmation(
       'You have a game in progress. Abandon it to review this game?',
       'Abandon Game?'
@@ -1806,10 +1807,24 @@ async function enterReplayMode(gameRecord) {
   if (gameRecord.id) {
     router.silentUpdate('/replay', { gameid: gameRecord.id });
   }
+
+  // Enter shared review if this is a post-multiplayer game
+  if (mp.roomId) {
+    sharedReviewActive = true;
+    mp.sendReviewEnter();
+  }
 }
 
 function exitReplayMode(startNew = true) {
   if (!isReplayMode) return;
+
+  // Exit shared review if active
+  if (sharedReviewActive) {
+    mp.sendReviewExit();
+    sharedReviewActive = false;
+    peerInReview = false;
+    peerAnalysisRunning = false;
+  }
 
   stopReplayPlayback();
 
@@ -1879,6 +1894,14 @@ function replayGoToMove(plyIndex) {
     updateEngineArrows();
   } else {
     board.getArrowOverlay().clearEngineArrows();
+  }
+
+  // Clear peer arrows on navigation (arrows are position-specific)
+  board.getArrowOverlay().clearPeerAnnotations();
+
+  // Sync navigation to peer in shared review
+  if (sharedReviewActive && !isRemoteNavigation) {
+    mp.sendReviewNavigate(replayPly);
   }
 }
 
@@ -2189,12 +2212,24 @@ function loadCachedAnalysis(serverId) {
 async function runMainBoardAnalysis(gameRecord) {
   if (!gameRecord || !gameRecord.moves || gameRecord.moves.length === 0) return;
 
+  // If peer is already running analysis during shared review, skip
+  if (sharedReviewActive && peerAnalysisRunning) return;
+
   // Check cache first
   const serverId = gameRecord.serverId || null;
   const cached = loadCachedAnalysis(serverId);
   if (cached) {
     setMainBoardAnalysis(cached);
+    // Share cached results with peer
+    if (sharedReviewActive) {
+      mp.sendReviewAnalysis(cached);
+    }
     return;
+  }
+
+  // Notify peer that we're starting analysis
+  if (sharedReviewActive) {
+    mp.sendReviewAnalysisStarted();
   }
 
   // Lazily create engine
@@ -2220,6 +2255,10 @@ async function runMainBoardAnalysis(gameRecord) {
       }
     );
     setMainBoardAnalysis(result);
+    // Share analysis results with peer
+    if (sharedReviewActive) {
+      mp.sendReviewAnalysis(result);
+    }
   } catch (err) {
     if (err !== 'stopped') {
       console.warn('Analysis failed:', err);
@@ -2981,6 +3020,7 @@ updateEloSliderRange('b');
 
 // When the server says a game has started
 mp.onGameStart = async (payload) => {
+  lastMultiplayerGameRecord = null;
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName);
 
   // If video is enabled, request camera and signal readiness
@@ -3132,6 +3172,7 @@ mp.onGameEnd = (payload) => {
 
   // Trigger post-game summary with analysis
   const record = buildMultiplayerGameRecord(result, reason);
+  lastMultiplayerGameRecord = record;
   if (record) {
     if (!postGameAnalysisEngine) {
       postGameAnalysisEngine = new AnalysisEngine();
@@ -3148,13 +3189,8 @@ mp.onGameEnd = (payload) => {
     );
   }
 
-  // Clean up video call if active
-  if (videoActive) {
-    videoChat.stop();
-    videoUI.hide();
-    videoBoard.disable();
-    videoActive = false;
-  }
+  // Video stays active after game end — players can continue chatting
+  // Video is stopped when either player clicks "End Call" or room expires
 };
 
 // Draw offered by opponent
@@ -3314,10 +3350,89 @@ videoUI.onPreviewCancel = () => {
 };
 
 videoUI.onEndCall = () => {
+  mp.sendVideoEnd();
   videoChat.stop();
   videoUI.hide();
   videoBoard.disable();
   videoActive = false;
+};
+
+mp.onVideoEnded = () => {
+  videoChat.stop();
+  videoUI.hide();
+  videoBoard.disable();
+  videoActive = false;
+};
+
+// --- Shared Post-Game Review ---
+
+let sharedReviewActive = false;
+let isRemoteNavigation = false;
+let peerInReview = false;
+let peerAnalysisRunning = false;
+let lastMultiplayerGameRecord = null;
+
+// Board arrow callbacks — broadcast to peer during shared review
+board.onUserArrowDrawn = (from, to) => {
+  if (sharedReviewActive) {
+    mp.sendReviewArrow('add', from, to);
+  }
+};
+
+board.onUserHighlightToggled = (square) => {
+  // Highlights are local-only for now
+};
+
+// Incoming peer arrows
+mp.onReviewArrow = (payload) => {
+  const { action, from, to, side } = payload;
+  const overlay = board.getArrowOverlay();
+  if (action === 'add') {
+    overlay.addPeerArrow(from, to, side);
+  } else if (action === 'remove') {
+    overlay.removePeerArrow(from, to, side);
+  }
+};
+
+mp.onReviewClearArrows = (payload) => {
+  board.getArrowOverlay().clearPeerAnnotations(payload.side);
+};
+
+// Peer entered/exited review
+mp.onReviewEntered = (payload) => {
+  peerInReview = true;
+  // Auto-enter review if peer started it and we're not already in replay
+  if (!isReplayMode && lastMultiplayerGameRecord) {
+    enterReplayMode(lastMultiplayerGameRecord);
+  }
+};
+
+mp.onReviewExited = (payload) => {
+  peerInReview = false;
+  peerAnalysisRunning = false;
+  board.getArrowOverlay().clearPeerAnnotations(payload.side);
+  updateStatus('Opponent left review');
+};
+
+// Navigation sync
+mp.onReviewNavigate = (payload) => {
+  if (!isReplayMode) return;
+  isRemoteNavigation = true;
+  replayGoToMove(payload.ply);
+  isRemoteNavigation = false;
+};
+
+// Analysis sharing
+mp.onReviewAnalysisStarted = (payload) => {
+  peerAnalysisRunning = true;
+  updateStatus('Opponent is analyzing...');
+};
+
+mp.onReviewAnalysis = (payload) => {
+  peerAnalysisRunning = false;
+  if (isReplayMode && payload) {
+    setMainBoardAnalysis(payload);
+  }
 };
 
 // Check URL for room code parameter (joining via shared link)

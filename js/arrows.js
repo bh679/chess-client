@@ -6,6 +6,8 @@ const COLORS = {
   engineBest: '#3b82f6',
   enginePV:   '#93c5fd',
   user:       '#dc2626',
+  peerWhite:  '#22c55e',
+  peerBlack:  '#a855f7',
 };
 
 class ArrowOverlay {
@@ -14,14 +16,21 @@ class ArrowOverlay {
     this._svg = null;
     this._defs = null;
     this._engineGroup = null;
+    this._peerGroup = null;
     this._userGroup = null;
     this._userArrows = [];     // { from, to, element }
     this._userHighlights = []; // { square, element }
+    this._peerArrows = [];     // { from, to, side, element }
     this._markerCounter = 0;
+    this._flipped = false;
     this._createSVG();
   }
 
   /* ── Public API ─────────────────────────────────────── */
+
+  setFlipped(flipped) {
+    this._flipped = !!flipped;
+  }
 
   setEngineArrows(bestMoveUci, bestLineUci) {
     this.clearEngineArrows();
@@ -85,9 +94,39 @@ class ArrowOverlay {
     this._userHighlights = [];
   }
 
+  addPeerArrow(from, to, side) {
+    const exists = this._peerArrows.some(a => a.from === from && a.to === to && a.side === side);
+    if (exists) return false;
+
+    const color = side === 'w' ? COLORS.peerWhite : COLORS.peerBlack;
+    const el = this._drawArrow(this._peerGroup, from, to, color, 0.7, 0.22);
+    this._peerArrows.push({ from, to, side, element: el });
+    return true;
+  }
+
+  removePeerArrow(from, to, side) {
+    const idx = this._peerArrows.findIndex(a => a.from === from && a.to === to && a.side === side);
+    if (idx !== -1) {
+      this._peerArrows[idx].element.remove();
+      this._peerArrows.splice(idx, 1);
+    }
+  }
+
+  clearPeerAnnotations(side) {
+    if (side) {
+      const toRemove = this._peerArrows.filter(a => a.side === side);
+      for (const a of toRemove) a.element.remove();
+      this._peerArrows = this._peerArrows.filter(a => a.side !== side);
+    } else {
+      for (const a of this._peerArrows) a.element.remove();
+      this._peerArrows = [];
+    }
+  }
+
   clear() {
     this.clearEngineArrows();
     this.clearUserAnnotations();
+    this.clearPeerAnnotations();
   }
 
   destroy() {
@@ -106,10 +145,14 @@ class ArrowOverlay {
     this._defs = document.createElementNS(SVG_NS, 'defs');
     this._svg.appendChild(this._defs);
 
-    // Layer groups — engine below user
+    // Layer groups — engine below peer below user
     this._engineGroup = document.createElementNS(SVG_NS, 'g');
     this._engineGroup.classList.add('engine-arrows');
     this._svg.appendChild(this._engineGroup);
+
+    this._peerGroup = document.createElementNS(SVG_NS, 'g');
+    this._peerGroup.classList.add('peer-annotations');
+    this._svg.appendChild(this._peerGroup);
 
     this._userGroup = document.createElementNS(SVG_NS, 'g');
     this._userGroup.classList.add('user-annotations');
@@ -251,6 +294,9 @@ class ArrowOverlay {
     const fileIdx = FILES.indexOf(square[0]);
     const rankIdx = RANKS.indexOf(square[1]);
     if (fileIdx === -1 || rankIdx === -1) return null;
+    if (this._flipped) {
+      return { x: 7 - fileIdx + 0.5, y: 7 - rankIdx + 0.5 };
+    }
     return { x: fileIdx + 0.5, y: rankIdx + 0.5 };
   }
 

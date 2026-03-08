@@ -27,9 +27,12 @@ class Board {
     this._rightClickStart = null;
     this._rightClickMoved = false;
     this._flipped = false;
+    this.onUserArrowDrawn = null;   // (from, to) => void
+    this.onUserHighlightToggled = null; // (square) => void
 
     this._buildGrid();
     this._arrowOverlay = new ArrowOverlay(containerEl);
+    this._arrowOverlay.setFlipped(this._flipped);
     this._bindEvents();
   }
 
@@ -48,6 +51,9 @@ class Board {
   setFlipped(flipped) {
     if (this._flipped === flipped) return;
     this._flipped = flipped;
+    if (this._arrowOverlay) {
+      this._arrowOverlay.setFlipped(flipped);
+    }
     this._buildGrid();
     this.render();
   }
@@ -178,6 +184,11 @@ class Board {
         this.container.appendChild(el);
       }
     }
+
+    // Re-append arrow overlay SVG (innerHTML = '' removes it)
+    if (this._arrowOverlay && this._arrowOverlay._svg) {
+      this.container.appendChild(this._arrowOverlay._svg);
+    }
   }
 
   _bindEvents() {
@@ -261,8 +272,10 @@ class Board {
     const endSquare = squareEl.dataset.square;
     if (endSquare === startSquare && !this._rightClickMoved) {
       this._arrowOverlay.toggleHighlight(endSquare);
+      if (this.onUserHighlightToggled) this.onUserHighlightToggled(endSquare);
     } else if (endSquare !== startSquare) {
       this._arrowOverlay.addUserArrow(startSquare, endSquare);
+      if (this.onUserArrowDrawn) this.onUserArrowDrawn(startSquare, endSquare);
     }
   }
 
