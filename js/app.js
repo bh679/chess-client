@@ -273,12 +273,12 @@ const videoChat = new VideoChat(mp);
 const videoUI = new VideoUI(videoChat);
 let videoActive = false;
 
-// Hide video toggles if browser doesn't support WebRTC
+// Hide video buttons if browser doesn't support WebRTC
 if (!VideoChat.isSupported()) {
-  const onlineVideoToggle = document.getElementById('ng-online-video');
-  const friendVideoToggle = document.getElementById('ng-friend-video');
-  if (onlineVideoToggle) onlineVideoToggle.closest('.ng-toggle')?.classList.add('hidden');
-  if (friendVideoToggle) friendVideoToggle.closest('.ng-toggle')?.classList.add('hidden');
+  const onlineVideoBtn = document.getElementById('ng-online-video-btn');
+  const friendVideoBtn = document.getElementById('ng-friend-video-btn');
+  if (onlineVideoBtn) onlineVideoBtn.classList.add('hidden');
+  if (friendVideoBtn) friendVideoBtn.classList.add('hidden');
 }
 
 // New Game Wizard

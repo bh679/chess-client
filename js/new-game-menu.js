@@ -86,13 +86,13 @@ export class NewGameMenu {
     // Online step elements
     this.onlineNameInput = document.getElementById('ng-online-name');
     this.onlineTcSelect = document.getElementById('ng-online-tc');
-    this.onlineVideoToggle = document.getElementById('ng-online-video');
+    this.onlineVideoBtn = document.getElementById('ng-online-video-btn');
     this.findOpponentBtn = document.getElementById('ng-find-opponent');
 
     // Friend step elements
     this.friendNameInput = document.getElementById('ng-friend-name');
     this.friendTcSelect = document.getElementById('ng-friend-tc');
-    this.friendVideoToggle = document.getElementById('ng-friend-video');
+    this.friendVideoBtn = document.getElementById('ng-friend-video-btn');
     this.createRoomBtn = document.getElementById('ng-create-room');
     this.joinCodeInput = document.getElementById('ng-join-code');
     this.joinRoomBtn = document.getElementById('ng-join-room');
@@ -152,11 +152,23 @@ export class NewGameMenu {
       });
     });
 
+    // --- Board-Face video toggle buttons ---
+    if (this.onlineVideoBtn) {
+      this.onlineVideoBtn.addEventListener('click', () => {
+        this.onlineVideoBtn.classList.toggle('active');
+      });
+    }
+    if (this.friendVideoBtn) {
+      this.friendVideoBtn.addEventListener('click', () => {
+        this.friendVideoBtn.classList.toggle('active');
+      });
+    }
+
     // --- Online step: Find Opponent ---
     this.findOpponentBtn.addEventListener('click', () => {
       const tc = this.onlineTcSelect.value;
       const name = this.onlineNameInput.value.trim() || null;
-      const videoEnabled = this.onlineVideoToggle?.checked || false;
+      const videoEnabled = this.onlineVideoBtn?.classList.contains('active') || false;
       this.close();
       if (this._onOnline) this._onOnline(tc, name, videoEnabled);
     });
@@ -165,7 +177,7 @@ export class NewGameMenu {
     this.createRoomBtn.addEventListener('click', () => {
       const tc = this.friendTcSelect.value;
       const name = this.friendNameInput.value.trim() || null;
-      const videoEnabled = this.friendVideoToggle?.checked || false;
+      const videoEnabled = this.friendVideoBtn?.classList.contains('active') || false;
       this.close();
       if (this._onFriend) this._onFriend('create', tc, name, null, videoEnabled);
     });

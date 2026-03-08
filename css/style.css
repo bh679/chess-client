@@ -4159,7 +4159,21 @@ button.replay-summary-btn {
 }
 .vc-error-toast.hidden { display: none; }
 
-
+/* Board-Face video toggle button in new-game menu */
+.ng-video-btn {
+  margin-top: 12px;
+  opacity: 0.5;
+  transition: background-color 0.15s, opacity 0.15s, border-color 0.15s;
+}
+.ng-video-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  opacity: 1;
+}
+.ng-video-btn.active:hover {
+  background: var(--accent-hover);
+}
 
 /* Responsive: reposition video on small screens */
 @media (max-width: 768px) {
