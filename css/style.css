@@ -324,11 +324,11 @@ body {
   mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 25% 25%;
 }
 
-/* Color tint overlays — white tint on light squares, brown tint on dark squares */
+/* Color tint overlays — board-colored tints on video feeds for turn indication */
 .video-board-light-tint {
   position: absolute;
   inset: 0;
-  background-color: #FFFFFF;
+  background-color: var(--board-light);
   opacity: 0.1;
   pointer-events: none;
   transition: opacity 0.3s ease;
@@ -339,7 +339,7 @@ body {
 .video-board-dark-tint {
   position: absolute;
   inset: 0;
-  background-color: #8B6914;
+  background-color: var(--board-dark);
   opacity: 0.1;
   pointer-events: none;
   transition: opacity 0.3s ease;
