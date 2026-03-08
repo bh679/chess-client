@@ -86,6 +86,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Archive menu**](https://github.com/bh679/Chess/wiki/Feature:-Archive-Browser) — dynamic archive discovery with navigation between versions; opens in new tab from main app, same tab within archives
 - [**Video board squares**](https://github.com/bh679/Chess/wiki/Feature:-Video-Board-Squares) — during video calls, camera feeds display as a mosaic across the board (white player on light squares, black player on dark squares) using CSS checkerboard masks
 - [**Video feed color tint**](https://github.com/bh679/Chess/wiki/Feature:-Video-Feed-Color-Tint) — board-colored tint overlay on video feeds indicating whose turn it is (10% on active side, 30% on waiting side)
+- [**Hidden video popup on board**](https://github.com/bh679/Chess/wiki/Feature:-Hide-Video-Popup-on-Board) — when video board mode is active, the floating video popup is hidden to avoid redundancy
 
 ## Roadmap
 
