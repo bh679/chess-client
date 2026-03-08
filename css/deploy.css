@@ -1,0 +1,348 @@
+/* Deployment Status Page Styles */
+
+:root {
+  --deploy-bg: #1a1a2e;
+  --deploy-surface: #16213e;
+  --deploy-accent: #e94560;
+  --deploy-text: #eaeaea;
+  --deploy-text-muted: #8a8a9a;
+  --deploy-success: #4ecca3;
+  --deploy-active: #f0c040;
+  --deploy-pending: #555;
+  --deploy-border: #2a2a4a;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--deploy-bg);
+  color: var(--deploy-text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.deploy-container {
+  max-width: 520px;
+  width: 90%;
+  padding: 2rem;
+}
+
+/* Chess piece animation */
+.deploy-icon {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.deploy-icon .piece {
+  font-size: 4rem;
+  display: inline-block;
+  animation: bounce 1.5s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-16px); }
+}
+
+/* Chess board pattern under the piece */
+.deploy-icon .board-pattern {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin-top: 0.25rem;
+}
+
+.deploy-icon .board-pattern .sq {
+  width: 20px;
+  height: 20px;
+  opacity: 0.3;
+}
+
+.deploy-icon .board-pattern .sq.light {
+  background: #b58863;
+}
+
+.deploy-icon .board-pattern .sq.dark {
+  background: #f0d9b5;
+}
+
+/* Title */
+.deploy-title {
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.deploy-subtitle {
+  text-align: center;
+  color: var(--deploy-text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 2rem;
+}
+
+/* Target badge */
+.deploy-target {
+  display: inline-block;
+  background: var(--deploy-accent);
+  color: #fff;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Elapsed time */
+.deploy-elapsed {
+  text-align: center;
+  color: var(--deploy-text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.deploy-elapsed .time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--deploy-text);
+}
+
+/* Steps list */
+.deploy-steps {
+  background: var(--deploy-surface);
+  border-radius: 8px;
+  border: 1px solid var(--deploy-border);
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.deploy-steps h3 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--deploy-text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.step + .step {
+  border-top: 1px solid var(--deploy-border);
+}
+
+.step-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+}
+
+.step-icon.done {
+  color: var(--deploy-success);
+}
+
+.step-icon.active {
+  color: var(--deploy-active);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.step-icon.pending {
+  color: var(--deploy-pending);
+}
+
+.step-icon.error {
+  color: var(--deploy-accent);
+}
+
+.step-name {
+  flex: 1;
+}
+
+.step-name.pending {
+  color: var(--deploy-text-muted);
+}
+
+.step-time {
+  font-size: 0.75rem;
+  color: var(--deploy-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Server restarting banner */
+.deploy-reconnecting {
+  text-align: center;
+  background: rgba(233, 69, 96, 0.15);
+  border: 1px solid rgba(233, 69, 96, 0.3);
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: var(--deploy-accent);
+}
+
+/* Complete state */
+.deploy-complete {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.deploy-complete .checkmark {
+  font-size: 3rem;
+  color: var(--deploy-success);
+  margin-bottom: 0.5rem;
+}
+
+.deploy-complete p {
+  color: var(--deploy-text-muted);
+  font-size: 0.9rem;
+}
+
+/* History section */
+.deploy-history {
+  margin-top: 1.5rem;
+}
+
+.deploy-history summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--deploy-text-muted);
+  padding: 0.5rem 0;
+  user-select: none;
+}
+
+.deploy-history summary:hover {
+  color: var(--deploy-text);
+}
+
+.history-list {
+  background: var(--deploy-surface);
+  border-radius: 8px;
+  border: 1px solid var(--deploy-border);
+  padding: 0.5rem 1rem;
+  margin-top: 0.5rem;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  font-size: 0.85rem;
+}
+
+.history-item + .history-item {
+  border-top: 1px solid var(--deploy-border);
+}
+
+.history-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.history-status.success {
+  background: var(--deploy-success);
+}
+
+.history-status.failed {
+  background: var(--deploy-accent);
+}
+
+.history-target {
+  font-weight: 600;
+  min-width: 50px;
+}
+
+.history-date {
+  flex: 1;
+  color: var(--deploy-text-muted);
+}
+
+.history-duration {
+  color: var(--deploy-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.history-empty {
+  color: var(--deploy-text-muted);
+  font-size: 0.85rem;
+  padding: 0.5rem 0;
+  font-style: italic;
+}
+
+/* Not deploying state */
+.deploy-idle {
+  text-align: center;
+}
+
+.deploy-idle .icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.deploy-idle h2 {
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.deploy-idle p {
+  color: var(--deploy-text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+.deploy-idle .home-link {
+  display: inline-block;
+  background: var(--deploy-accent);
+  color: #fff;
+  text-decoration: none;
+  padding: 0.6rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: opacity 0.2s;
+}
+
+.deploy-idle .home-link:hover {
+  opacity: 0.85;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .deploy-container {
+    padding: 1.5rem 1rem;
+  }
+
+  .deploy-icon .piece {
+    font-size: 3rem;
+  }
+
+  .deploy-title {
+    font-size: 1.25rem;
+  }
+}
