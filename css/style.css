@@ -4176,20 +4176,12 @@ button.replay-summary-btn {
 .ng-video-btn.active {
   opacity: 1;
   color: #fff;
-}
-.ng-video-btn.active {
-  background: var(--info);
+  background: rgba(100, 181, 246, 0.25);
   border-color: var(--info);
 }
+.ng-toggle-btn.active:hover,
 .ng-video-btn.active:hover {
-  background: #5199d9;
-}
-.ng-toggle-btn.active {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-.ng-toggle-btn.active:hover {
-  background: var(--accent-hover);
+  background: rgba(100, 181, 246, 0.4);
 }
 
 /* Responsive: reposition video on small screens */
