@@ -3270,10 +3270,12 @@ mp.onVideoStart = async (payload) => {
   try {
     await videoChat.startCall(payload.initiator);
     videoActive = true;
-    videoUI.show();
     // Enable video board — local stream is already set, remote arrives via onRemoteStream
     if (mp.color) {
       videoBoard.enable(videoChat._localStream, null, mp.color);
+    } else {
+      // Fallback: show floating popup only when board mode is unavailable
+      videoUI.show();
     }
   } catch (e) {
     videoUI.showError('Video connection failed: ' + e.message);
