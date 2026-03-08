@@ -87,12 +87,14 @@ export class NewGameMenu {
     this.onlineNameInput = document.getElementById('ng-online-name');
     this.onlineTcSelect = document.getElementById('ng-online-tc');
     this.onlineVideoBtn = document.getElementById('ng-online-video-btn');
+    this.online960Btn = document.getElementById('ng-online-960-btn');
     this.findOpponentBtn = document.getElementById('ng-find-opponent');
 
     // Friend step elements
     this.friendNameInput = document.getElementById('ng-friend-name');
     this.friendTcSelect = document.getElementById('ng-friend-tc');
     this.friendVideoBtn = document.getElementById('ng-friend-video-btn');
+    this.friend960Btn = document.getElementById('ng-friend-960-btn');
     this.createRoomBtn = document.getElementById('ng-create-room');
     this.joinCodeInput = document.getElementById('ng-join-code');
     this.joinRoomBtn = document.getElementById('ng-join-room');
@@ -152,7 +154,19 @@ export class NewGameMenu {
       });
     });
 
-    // --- Board-Face video toggle buttons ---
+    // --- Toggle buttons (Chess960 + Board-Face) ---
+    if (this.online960Btn) {
+      this.online960Btn.addEventListener('click', () => {
+        this.online960Btn.classList.toggle('active');
+        this.chess960Checkbox.checked = this.online960Btn.classList.contains('active');
+      });
+    }
+    if (this.friend960Btn) {
+      this.friend960Btn.addEventListener('click', () => {
+        this.friend960Btn.classList.toggle('active');
+        this.chess960Checkbox.checked = this.friend960Btn.classList.contains('active');
+      });
+    }
     if (this.onlineVideoBtn) {
       this.onlineVideoBtn.addEventListener('click', () => {
         this.onlineVideoBtn.classList.toggle('active');
@@ -351,6 +365,14 @@ export class NewGameMenu {
 
     if (step === 'settings') {
       this.botSettings.classList.toggle('hidden', this._mode !== 'bot');
+    }
+
+    // Sync Chess960 button state from settings checkbox
+    if (step === 'online' && this.online960Btn) {
+      this.online960Btn.classList.toggle('active', this.chess960Checkbox.checked);
+    }
+    if (step === 'friend' && this.friend960Btn) {
+      this.friend960Btn.classList.toggle('active', this.chess960Checkbox.checked);
     }
   }
 
