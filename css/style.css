@@ -575,6 +575,18 @@ body {
    Player Bars
    ========================================= */
 
+/* Explicit layout order (matches DOM order by default) */
+.header-bar    { order: 1; }
+.top-bar       { order: 2; }
+.board-row     { order: 3; }
+.bottom-bar    { order: 4; }
+#live-move-bar { order: 5; }
+
+/* When board is flipped (playing as black): swap player bars so
+   local player (black) is always at the bottom */
+.app.board-flipped .top-bar    { order: 4; }
+.app.board-flipped .bottom-bar { order: 2; }
+
 .player-bar {
   display: flex;
   align-items: center;
