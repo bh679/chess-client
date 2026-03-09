@@ -637,6 +637,8 @@ async function startNewGame() {
   gameId++;
   ai.stop();
   board.clearPremove();
+  board.setFlipped(false);
+  appEl.classList.remove('board-flipped');
   newGameBtn.classList.remove('game-ended');
   resetLiveMoveBar();
 
@@ -785,8 +787,9 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
   game.newGame(!!chess960, fen);
   board.getArrowOverlay().clear();
 
-  // Flip board if playing black
+  // Flip board if playing black, and reposition player bars accordingly
   board.setFlipped(color === 'b');
+  appEl.classList.toggle('board-flipped', color === 'b');
   board.render();
   moveCount = 0;
 
