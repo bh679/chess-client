@@ -86,6 +86,18 @@ export class VideoChat {
    */
   async startCall(isInitiator) {
     this._isInitiator = isInitiator;
+
+    // Guard: if handleOffer() already created a PC and processed an offer
+    // while we were waiting (e.g. during fetchIceServers()), don't overwrite it.
+    if (this._peerConnection && this._peerConnection.remoteDescription) {
+      return;
+    }
+
+    // If a stale PC exists without remote description, close it first
+    if (this._peerConnection) {
+      this._peerConnection.close();
+    }
+
     this._remoteDescriptionReady = false;
     this._pendingIceCandidates = [];
     this._peerConnection = this._createPeerConnection();
@@ -156,7 +168,11 @@ export class VideoChat {
    * @param {RTCIceCandidateInit} candidate
    */
   async handleIceCandidate(candidate) {
-    if (!this._peerConnection) return;
+    if (!this._peerConnection) {
+      // No PC yet — queue for later (startCall or handleOffer will flush)
+      this._pendingIceCandidates.push(candidate);
+      return;
+    }
     if (!this._remoteDescriptionReady) {
       this._pendingIceCandidates.push(candidate);
       return;
