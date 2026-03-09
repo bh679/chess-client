@@ -248,6 +248,13 @@ export class VideoChat {
   }
 
   /**
+   * @returns {boolean} true if ICE servers have been fetched from the server
+   */
+  hasIceServers() {
+    return this._iceServers !== null;
+  }
+
+  /**
    * @returns {boolean}
    */
   isActive() {
