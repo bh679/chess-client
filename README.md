@@ -93,6 +93,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Hidden video popup on board**](https://github.com/bh679/Chess/wiki/Feature:-Hide-Video-Popup-on-Board) — when video board mode is active, the floating video popup is hidden to avoid redundancy
 - [**WebRTC reliability fix**](https://github.com/bh679/Chess/wiki/Feature:-WebRTC-ICE-Fix) — ICE candidate queuing prevents race-condition drops; dynamic TURN server config via `/api/chess/ice-servers` for NAT traversal
 - [**Cropped video stream**](https://github.com/bh679/chess-client/wiki/Feature:-Cropped-Video-Stream) — face-tracked 480×480 canvas stream transmitted over WebRTC instead of raw camera; face tracking runs only on the local feed; both players see identical output regardless of board size
+- [**Video chat reliability**](https://github.com/bh679/chess-client/wiki/Feature:-Video-Chat) — Chrome-compatible face tracking (off-screen video instead of display:none), race condition fix for remote stream on joiners, face tracking fallback to raw camera, explicit play() for iOS Safari
 
 ## Roadmap
 
