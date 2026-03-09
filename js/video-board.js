@@ -236,8 +236,10 @@ export class VideoBoard {
       this._darkTracker = localTracker;
     }
 
-    // Create canvas-based cropped stream for WebRTC transmission
-    this._croppedStream = new CroppedStream(localVideo, localTracker);
+    // Create canvas-based cropped stream for WebRTC transmission.
+    // Pass localOffsetX so CroppedStream can strip the board display offset
+    // from translateX and crop centered on the actual face.
+    this._croppedStream = new CroppedStream(localVideo, localTracker, localOffsetX);
     const canvasStream = this._croppedStream.start();
     if (this.onCroppedStreamReady) {
       this.onCroppedStreamReady(canvasStream);
