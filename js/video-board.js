@@ -221,6 +221,7 @@ export class VideoBoard {
   _setStream(videoEl, stream) {
     if (videoEl) {
       videoEl.srcObject = stream || null;
+      if (stream) videoEl.play().catch(() => {});
     }
   }
 
@@ -233,7 +234,7 @@ export class VideoBoard {
    * canvas stream, so the face appears identical on both sides regardless
    * of board size.
    */
-  _startFaceTracking() {
+  async _startFaceTracking() {
     const localVideo = this._playerColor === 'w' ? this._lightVideo : this._darkVideo;
     const localOffsetX = this._playerColor === 'w' ? -19 : 19;
 
@@ -243,30 +244,41 @@ export class VideoBoard {
     trackingVideo.autoplay = true;
     trackingVideo.playsInline = true;
     trackingVideo.muted = true;
-    trackingVideo.style.display = 'none';
+    // Use off-screen positioning instead of display:none — Chrome does not
+    // decode video frames for display:none elements, which breaks MediaPipe
+    // face detection (zero-size framebuffers) and leaves the canvas blank.
+    trackingVideo.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
     trackingVideo.srcObject = this._localStream;
     document.body.appendChild(trackingVideo);
+    trackingVideo.play().catch(() => {});
     this._trackingVideo = trackingVideo;
 
-    const localTracker = new FaceTracker(trackingVideo, { offsetX: localOffsetX });
-    localTracker.start();
+    try {
+      const localTracker = new FaceTracker(trackingVideo, { offsetX: localOffsetX });
+      await localTracker.start();
 
-    if (this._playerColor === 'w') {
-      this._lightTracker = localTracker;
-    } else {
-      this._darkTracker = localTracker;
-    }
+      if (this._playerColor === 'w') {
+        this._lightTracker = localTracker;
+      } else {
+        this._darkTracker = localTracker;
+      }
 
-    // Canvas stream is cropped and pre-positioned for the receiver's board.
-    this._croppedStream = new CroppedStream(trackingVideo, localTracker);
-    const canvasStream = this._croppedStream.start();
+      // Canvas stream is cropped and pre-positioned for the receiver's board.
+      this._croppedStream = new CroppedStream(trackingVideo, localTracker);
+      const canvasStream = this._croppedStream.start();
 
-    // Display the canvas stream on the local board slot so both players
-    // see identical output — no CSS transforms needed.
-    this._setStream(localVideo, canvasStream);
+      // Display the canvas stream on the local board slot so both players
+      // see identical output — no CSS transforms needed.
+      this._setStream(localVideo, canvasStream);
 
-    if (this.onCroppedStreamReady) {
-      this.onCroppedStreamReady(canvasStream);
+      if (this.onCroppedStreamReady) {
+        this.onCroppedStreamReady(canvasStream);
+      }
+    } catch (err) {
+      // Face tracking failed (MediaPipe unavailable, WebGL issues, etc.)
+      // Fall back to showing the raw camera stream without face cropping.
+      console.warn('[VideoBoard] Face tracking unavailable, using raw camera feed:', err.message);
+      this._setStream(localVideo, this._localStream);
     }
   }
 
