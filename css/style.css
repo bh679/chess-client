@@ -306,22 +306,34 @@ body {
   overflow: hidden;
 }
 
-.video-board-layer video {
+/* Mask containers — checkerboard mask stays fixed on the board grid */
+.video-board-light-mask,
+.video-board-dark-mask {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.video-board-light-mask {
+  -webkit-mask: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 25% 25%;
+  mask: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 25% 25%;
+}
+
+.video-board-dark-mask {
+  -webkit-mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 25% 25%;
+  mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 25% 25%;
+}
+
+/* Video elements inside mask containers — can be transformed for face centering */
+.video-board-light-feed,
+.video-board-dark-feed {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.video-board-light-feed {
-  -webkit-mask: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 25% 25%;
-  mask: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 25% 25%;
-}
-
-.video-board-dark-feed {
-  -webkit-mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 25% 25%;
-  mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 25% 25%;
+  transform-origin: center center;
 }
 
 /* Color tint overlays — board-colored tints on video feeds for turn indication */
