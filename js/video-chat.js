@@ -5,7 +5,7 @@
  * Media flows peer-to-peer via RTCPeerConnection.
  */
 
-const ICE_SERVERS = [
+const FALLBACK_ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
 ];
@@ -20,6 +20,11 @@ export class VideoChat {
     this._localStream = null;
     this._remoteStream = null;
     this._isInitiator = false;
+    this._iceServers = null;
+
+    // ICE candidate queue — holds candidates received before remote description is set
+    this._pendingIceCandidates = [];
+    this._remoteDescriptionReady = false;
 
     // Event callbacks — set by app.js
     this.onLocalStream = null;   // (stream: MediaStream) => void
@@ -29,6 +34,21 @@ export class VideoChat {
   }
 
   // --- Public API ---
+
+  /**
+   * Fetch ICE server config (STUN + optional TURN) from the server.
+   * Falls back to STUN-only if the endpoint is unavailable.
+   */
+  async fetchIceServers() {
+    try {
+      const res = await fetch('/api/chess/ice-servers');
+      if (res.ok) {
+        this._iceServers = await res.json();
+      }
+    } catch {
+      // Network error — fall back to STUN only
+    }
+  }
 
   /**
    * Request camera and microphone access.
@@ -66,6 +86,8 @@ export class VideoChat {
    */
   async startCall(isInitiator) {
     this._isInitiator = isInitiator;
+    this._remoteDescriptionReady = false;
+    this._pendingIceCandidates = [];
     this._peerConnection = this._createPeerConnection();
 
     // Add local tracks to the connection
@@ -92,6 +114,8 @@ export class VideoChat {
    */
   async handleOffer(sdp) {
     if (!this._peerConnection) {
+      this._remoteDescriptionReady = false;
+      this._pendingIceCandidates = [];
       this._peerConnection = this._createPeerConnection();
       if (this._localStream) {
         for (const track of this._localStream.getTracks()) {
@@ -101,6 +125,8 @@ export class VideoChat {
     }
     try {
       await this._peerConnection.setRemoteDescription(new RTCSessionDescription(sdp));
+      this._remoteDescriptionReady = true;
+      await this._flushIceCandidates();
       const answer = await this._peerConnection.createAnswer();
       await this._peerConnection.setLocalDescription(answer);
       this._mp.sendRtcAnswer(this._peerConnection.localDescription);
@@ -117,6 +143,8 @@ export class VideoChat {
     if (!this._peerConnection) return;
     try {
       await this._peerConnection.setRemoteDescription(new RTCSessionDescription(sdp));
+      this._remoteDescriptionReady = true;
+      await this._flushIceCandidates();
     } catch (err) {
       if (this.onError) this.onError('Failed to handle video answer: ' + err.message);
     }
@@ -124,10 +152,15 @@ export class VideoChat {
 
   /**
    * Handle incoming ICE candidate from opponent.
+   * Queues candidates if the remote description is not yet set.
    * @param {RTCIceCandidateInit} candidate
    */
   async handleIceCandidate(candidate) {
     if (!this._peerConnection) return;
+    if (!this._remoteDescriptionReady) {
+      this._pendingIceCandidates.push(candidate);
+      return;
+    }
     try {
       await this._peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (err) {
@@ -171,6 +204,8 @@ export class VideoChat {
       this._localStream = null;
     }
     this._remoteStream = null;
+    this._remoteDescriptionReady = false;
+    this._pendingIceCandidates = [];
     if (this._peerConnection) {
       this._peerConnection.close();
       this._peerConnection = null;
@@ -194,8 +229,23 @@ export class VideoChat {
 
   // --- Private ---
 
+  /**
+   * Flush queued ICE candidates now that remote description is set.
+   */
+  async _flushIceCandidates() {
+    const pending = this._pendingIceCandidates.splice(0);
+    for (const candidate of pending) {
+      try {
+        await this._peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.warn('ICE candidate flush error:', err.message);
+      }
+    }
+  }
+
   _createPeerConnection() {
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const iceServers = this._iceServers || FALLBACK_ICE_SERVERS;
+    const pc = new RTCPeerConnection({ iceServers });
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
