@@ -274,8 +274,8 @@ class Board {
       this._arrowOverlay.toggleHighlight(endSquare);
       if (this.onUserHighlightToggled) this.onUserHighlightToggled(endSquare);
     } else if (endSquare !== startSquare) {
-      this._arrowOverlay.addUserArrow(startSquare, endSquare);
-      if (this.onUserArrowDrawn) this.onUserArrowDrawn(startSquare, endSquare);
+      const action = this._arrowOverlay.addUserArrow(startSquare, endSquare);
+      if (this.onUserArrowDrawn) this.onUserArrowDrawn(startSquare, endSquare, action);
     }
   }
 

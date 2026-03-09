@@ -3394,9 +3394,9 @@ let peerAnalysisRunning = false;
 let lastMultiplayerGameRecord = null;
 
 // Board arrow callbacks — broadcast to peer during shared review
-board.onUserArrowDrawn = (from, to) => {
+board.onUserArrowDrawn = (from, to, action) => {
   if (sharedReviewActive) {
-    mp.sendReviewArrow('add', from, to);
+    mp.sendReviewArrow(action || 'add', from, to);
   }
 };
 
@@ -3425,6 +3425,12 @@ mp.onReviewEntered = (payload) => {
   // Auto-enter review if peer started it and we're not already in replay
   if (!isReplayMode && lastMultiplayerGameRecord) {
     enterReplayMode(lastMultiplayerGameRecord);
+  }
+  // Share any existing analysis with the newly joined peer.
+  // Cached analysis runs synchronously before sharedReviewActive is set,
+  // so it cannot be shared at analysis time — share it here instead.
+  if (sharedReviewActive && replayAnalysisData) {
+    mp.sendReviewAnalysis(replayAnalysisData);
   }
 };
 
