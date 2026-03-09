@@ -44,9 +44,12 @@ export class VideoChat {
       const res = await fetch('/api/chess/ice-servers');
       if (res.ok) {
         this._iceServers = await res.json();
+        console.log('[VideoChat] Fetched', this._iceServers.length, 'ICE servers');
+      } else {
+        console.warn('[VideoChat] ICE servers endpoint returned', res.status, '— using fallback STUN');
       }
-    } catch {
-      // Network error — fall back to STUN only
+    } catch (err) {
+      console.warn('[VideoChat] ICE servers fetch failed:', err.message, '— using fallback STUN');
     }
   }
 
@@ -86,6 +89,18 @@ export class VideoChat {
    */
   async startCall(isInitiator) {
     this._isInitiator = isInitiator;
+
+    // Guard: if handleOffer() already created a PC and processed an offer
+    // while we were waiting (e.g. during fetchIceServers()), don't overwrite it.
+    if (this._peerConnection && this._peerConnection.remoteDescription) {
+      return;
+    }
+
+    // If a stale PC exists without remote description, close it first
+    if (this._peerConnection) {
+      this._peerConnection.close();
+    }
+
     this._remoteDescriptionReady = false;
     this._pendingIceCandidates = [];
     this._peerConnection = this._createPeerConnection();
@@ -156,7 +171,11 @@ export class VideoChat {
    * @param {RTCIceCandidateInit} candidate
    */
   async handleIceCandidate(candidate) {
-    if (!this._peerConnection) return;
+    if (!this._peerConnection) {
+      // No PC yet — queue for later (startCall or handleOffer will flush)
+      this._pendingIceCandidates.push(candidate);
+      return;
+    }
     if (!this._remoteDescriptionReady) {
       this._pendingIceCandidates.push(candidate);
       return;
@@ -229,6 +248,13 @@ export class VideoChat {
   }
 
   /**
+   * @returns {boolean} true if ICE servers have been fetched from the server
+   */
+  hasIceServers() {
+    return this._iceServers !== null;
+  }
+
+  /**
    * @returns {boolean}
    */
   isActive() {
@@ -261,6 +287,7 @@ export class VideoChat {
 
   _createPeerConnection() {
     const iceServers = this._iceServers || FALLBACK_ICE_SERVERS;
+    console.log('[VideoChat] Creating PC with', iceServers.length, 'ICE servers');
     const pc = new RTCPeerConnection({ iceServers });
 
     pc.onicecandidate = (event) => {
@@ -270,12 +297,18 @@ export class VideoChat {
     };
 
     pc.ontrack = (event) => {
+      console.log('[VideoChat] Remote track received:', event.track.kind);
       this._remoteStream = event.streams[0];
       if (this.onRemoteStream) this.onRemoteStream(event.streams[0]);
     };
 
+    pc.oniceconnectionstatechange = () => {
+      console.log('[VideoChat] ICE state:', pc.iceConnectionState);
+    };
+
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
+      console.log('[VideoChat] Connection state:', state);
       if (state === 'disconnected' || state === 'failed') {
         if (this.onDisconnected) this.onDisconnected();
       }
