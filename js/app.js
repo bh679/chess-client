@@ -5,7 +5,7 @@ import { Timer } from './timer.js?v=2';
 import { AI } from './ai.js?v=3';
 import { getAllEngines, getEngineInfo } from './engines/registry.js';
 import { GameDatabase } from './database.js?v=6';
-import { GameBrowser } from './browser.js?v=3';
+import { GameBrowser } from './browser.js?v=4';
 import { ReplayViewer } from './replay.js';
 import { AnalysisEngine } from './analysis.js';
 import { EvalBar } from './eval-bar.js';
