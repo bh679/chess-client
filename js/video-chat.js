@@ -44,9 +44,12 @@ export class VideoChat {
       const res = await fetch('/api/chess/ice-servers');
       if (res.ok) {
         this._iceServers = await res.json();
+        console.log('[VideoChat] Fetched', this._iceServers.length, 'ICE servers');
+      } else {
+        console.warn('[VideoChat] ICE servers endpoint returned', res.status, '— using fallback STUN');
       }
-    } catch {
-      // Network error — fall back to STUN only
+    } catch (err) {
+      console.warn('[VideoChat] ICE servers fetch failed:', err.message, '— using fallback STUN');
     }
   }
 
@@ -277,6 +280,7 @@ export class VideoChat {
 
   _createPeerConnection() {
     const iceServers = this._iceServers || FALLBACK_ICE_SERVERS;
+    console.log('[VideoChat] Creating PC with', iceServers.length, 'ICE servers');
     const pc = new RTCPeerConnection({ iceServers });
 
     pc.onicecandidate = (event) => {
@@ -286,12 +290,18 @@ export class VideoChat {
     };
 
     pc.ontrack = (event) => {
+      console.log('[VideoChat] Remote track received:', event.track.kind);
       this._remoteStream = event.streams[0];
       if (this.onRemoteStream) this.onRemoteStream(event.streams[0]);
     };
 
+    pc.oniceconnectionstatechange = () => {
+      console.log('[VideoChat] ICE state:', pc.iceConnectionState);
+    };
+
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
+      console.log('[VideoChat] Connection state:', state);
       if (state === 'disconnected' || state === 'failed') {
         if (this.onDisconnected) this.onDisconnected();
       }
