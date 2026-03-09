@@ -91,21 +91,25 @@ function lerp(current, target, factor) {
 export class FaceTracker {
   /**
    * @param {HTMLVideoElement} videoEl — the video element to track
+   * @param {object} [options]
+   * @param {number} [options.offsetX=0] — horizontal offset in percentage
+   *   (negative = shift face left, positive = shift face right)
    */
-  constructor(videoEl) {
+  constructor(videoEl, options = {}) {
     this._video = videoEl;
+    this._offsetX = options.offsetX || 0;
     this._running = false;
     this._rafId = null;
     this._lastDetectionTime = 0;
     this._detector = null;
 
     // Current smoothed transform values
-    this._currentTX = 0;
+    this._currentTX = this._offsetX;
     this._currentTY = 0;
     this._currentScale = 1.0;
 
     // Target transform values (from latest detection)
-    this._targetTX = 0;
+    this._targetTX = this._offsetX;
     this._targetTY = 0;
     this._targetScale = 1.0;
 
@@ -226,9 +230,12 @@ export class FaceTracker {
     const tx = (0.5 - faceCX) * 100;
     const ty = (0.5 - faceCY) * 100;
 
+    // Apply horizontal offset (shifts face left or right on the board)
+    const offsetTX = tx + this._offsetX;
+
     // Clamp translation so video edges don't leave the container
     const maxTranslate = ((scale - 1) / scale) * 50;
-    this._targetTX = Math.max(-maxTranslate, Math.min(tx, maxTranslate));
+    this._targetTX = Math.max(-maxTranslate, Math.min(offsetTX, maxTranslate));
     this._targetTY = Math.max(-maxTranslate, Math.min(ty, maxTranslate));
     this._targetScale = scale;
   }
@@ -238,7 +245,7 @@ export class FaceTracker {
    */
   _interpolate() {
     const factor = this._faceDetected ? SMOOTHING_FACTOR : RETURN_TO_CENTER_SPEED;
-    const targetTX = this._faceDetected ? this._targetTX : 0;
+    const targetTX = this._faceDetected ? this._targetTX : this._offsetX;
     const targetTY = this._faceDetected ? this._targetTY : 0;
     const targetScale = this._faceDetected ? this._targetScale : 1.0;
 

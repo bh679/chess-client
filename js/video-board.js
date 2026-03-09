@@ -199,8 +199,9 @@ export class VideoBoard {
    * Start face tracking on both video feeds.
    */
   _startFaceTracking() {
-    this._lightTracker = new FaceTracker(this._lightVideo);
-    this._darkTracker = new FaceTracker(this._darkVideo);
+    // Offset faces horizontally: white player left, black player right
+    this._lightTracker = new FaceTracker(this._lightVideo, { offsetX: -25 });
+    this._darkTracker = new FaceTracker(this._darkVideo, { offsetX: 25 });
 
     this._lightTracker.start();
     this._darkTracker.start();
