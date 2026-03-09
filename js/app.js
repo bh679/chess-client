@@ -3324,6 +3324,7 @@ mp.onRtcIce = (payload) => videoChat.handleIceCandidate(payload.candidate);
 // Server says both players have cameras ready — start WebRTC handshake
 mp.onVideoStart = async (payload) => {
   try {
+    await videoChat.fetchIceServers();
     await videoChat.startCall(payload.initiator);
     videoActive = true;
     // Enable video board — local stream is already set, remote arrives via onRemoteStream
