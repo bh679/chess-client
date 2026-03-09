@@ -200,8 +200,8 @@ export class VideoBoard {
    */
   _startFaceTracking() {
     // Offset faces horizontally: white player left, black player right
-    this._lightTracker = new FaceTracker(this._lightVideo, { offsetX: -25 });
-    this._darkTracker = new FaceTracker(this._darkVideo, { offsetX: 25 });
+    this._lightTracker = new FaceTracker(this._lightVideo, { offsetX: -19 });
+    this._darkTracker = new FaceTracker(this._darkVideo, { offsetX: 19 });
 
     this._lightTracker.start();
     this._darkTracker.start();
