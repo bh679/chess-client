@@ -91,6 +91,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Video feed color tint**](https://github.com/bh679/Chess/wiki/Feature:-Video-Feed-Color-Tint) — board-colored tint overlay on video feeds indicating whose turn it is (10% on active side, 30% on waiting side)
 - [**Face tracking video centering**](https://github.com/bh679/Chess/wiki/Feature:-Face-Tracking-Video-Centering) — real-time face detection (MediaPipe) centers and normalizes faces on the board; white player offset left, black player offset right for a facing-each-other effect
 - [**Hidden video popup on board**](https://github.com/bh679/Chess/wiki/Feature:-Hide-Video-Popup-on-Board) — when video board mode is active, the floating video popup is hidden to avoid redundancy
+- [**WebRTC reliability fix**](https://github.com/bh679/Chess/wiki/Feature:-WebRTC-ICE-Fix) — ICE candidate queuing prevents race-condition drops; dynamic TURN server config via `/api/chess/ice-servers` for NAT traversal
 
 ## Roadmap
 
