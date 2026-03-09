@@ -67,12 +67,13 @@ class ArrowOverlay {
     if (idx !== -1) {
       this._userArrows[idx].element.remove();
       this._userArrows.splice(idx, 1);
-      return;
+      return 'removed';
     }
 
     const el = this._drawArrow(this._userGroup, from, to,
       COLORS.user, 0.75, 0.24);
     this._userArrows.push({ from, to, element: el });
+    return 'added';
   }
 
   toggleHighlight(square) {
