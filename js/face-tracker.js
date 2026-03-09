@@ -17,7 +17,7 @@ const SMOOTHING_FACTOR = 0.08;
 const SCALE_SMOOTHING_FACTOR = 0.04;
 const TARGET_FACE_FRACTION = 0.3;
 const MIN_SCALE = 1.0;
-const MAX_SCALE = 2.0;
+const MAX_SCALE = 3.0;
 const RETURN_TO_CENTER_SPEED = 0.05;
 
 /** @type {Promise<typeof import('@mediapipe/tasks-vision')>|null} */
