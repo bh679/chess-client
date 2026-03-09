@@ -194,6 +194,22 @@ export class VideoChat {
   }
 
   /**
+   * Replace the outgoing video track with a pre-processed one (e.g. canvas crop).
+   * Uses RTCRtpSender.replaceTrack() — no SDP renegotiation required.
+   * Safe to call before or after the peer connection is established;
+   * does nothing if no video sender exists yet.
+   * @param {MediaStreamTrack} newTrack
+   */
+  async replaceVideoTrack(newTrack) {
+    if (!this._peerConnection) return;
+    const sender = this._peerConnection.getSenders()
+      .find(s => s.track && s.track.kind === 'video');
+    if (sender) {
+      await sender.replaceTrack(newTrack);
+    }
+  }
+
+  /**
    * Stop all media and close the peer connection.
    */
   stop() {

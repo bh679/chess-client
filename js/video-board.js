@@ -6,11 +6,14 @@
  * feed (not duplicates), using CSS masks to clip the video into a
  * checkerboard pattern.
  *
- * Face tracking (via MediaPipe) automatically centers and normalizes each
- * player's face so both appear at the same position and size.
+ * Face tracking (via MediaPipe) runs only on the LOCAL camera feed.
+ * A CroppedStream captures the tracked feed to a canvas and provides a
+ * bandwidth-efficient MediaStream for WebRTC transmission. The remote
+ * feed is received pre-cropped and displayed without additional tracking.
  */
 
 import { FaceTracker } from './face-tracker.js';
+import { CroppedStream } from './cropped-stream.js';
 
 export class VideoBoard {
   /**
@@ -29,6 +32,13 @@ export class VideoBoard {
     this._darkTracker = null;
     this._transformRafId = null;
     this._active = false;
+    this._playerColor = null;
+    this._croppedStream = null;
+
+    // Fired with the canvas MediaStream once the local tracker is ready.
+    // app.js wires this to videoChat.replaceVideoTrack() to send the
+    // pre-cropped stream to the remote peer instead of the raw camera feed.
+    this.onCroppedStreamReady = null;
   }
 
   /**
@@ -41,6 +51,8 @@ export class VideoBoard {
     if (!this._layer) {
       this._buildLayer();
     }
+
+    this._playerColor = playerColor;
 
     const lightStream = playerColor === 'w' ? localStream : remoteStream;
     const darkStream = playerColor === 'w' ? remoteStream : localStream;
@@ -87,6 +99,11 @@ export class VideoBoard {
 
     this._stopFaceTracking();
 
+    if (this._croppedStream) {
+      this._croppedStream.stop();
+      this._croppedStream = null;
+    }
+
     if (this._lightVideo) this._lightVideo.srcObject = null;
     if (this._darkVideo) this._darkVideo.srcObject = null;
 
@@ -100,6 +117,8 @@ export class VideoBoard {
       this._lightTint = null;
       this._darkTint = null;
     }
+
+    this._playerColor = null;
   }
 
   /**
@@ -196,15 +215,33 @@ export class VideoBoard {
   }
 
   /**
-   * Start face tracking on both video feeds.
+   * Start face tracking on the LOCAL feed only.
+   *
+   * The remote feed is received pre-cropped from the remote peer — no
+   * tracking is needed on that side. A CroppedStream is created from the
+   * local feed so the tracked/cropped output can be sent over WebRTC.
    */
   _startFaceTracking() {
-    // Offset faces horizontally: white player left, black player right
-    this._lightTracker = new FaceTracker(this._lightVideo, { offsetX: -19 });
-    this._darkTracker = new FaceTracker(this._darkVideo, { offsetX: 19 });
+    // Local feed: white = light squares, black = dark squares
+    const localVideo = this._playerColor === 'w' ? this._lightVideo : this._darkVideo;
+    const localOffsetX = this._playerColor === 'w' ? -19 : 19;
 
-    this._lightTracker.start();
-    this._darkTracker.start();
+    // Track only the local feed
+    const localTracker = new FaceTracker(localVideo, { offsetX: localOffsetX });
+    localTracker.start();
+
+    if (this._playerColor === 'w') {
+      this._lightTracker = localTracker;
+    } else {
+      this._darkTracker = localTracker;
+    }
+
+    // Create canvas-based cropped stream for WebRTC transmission
+    this._croppedStream = new CroppedStream(localVideo, localTracker);
+    const canvasStream = this._croppedStream.start();
+    if (this.onCroppedStreamReady) {
+      this.onCroppedStreamReady(canvasStream);
+    }
 
     this._applyTransforms();
   }
@@ -229,7 +266,10 @@ export class VideoBoard {
 
   /**
    * Animation loop that reads face tracker transforms and applies them
-   * to the video elements each frame.
+   * to the LOCAL video element each frame.
+   *
+   * The remote video element has no tracker — it receives a pre-cropped
+   * stream and is displayed without any additional CSS transform.
    */
   _applyTransforms() {
     if (!this._active) return;
@@ -244,6 +284,13 @@ export class VideoBoard {
       const t = this._darkTracker.getTransform();
       this._darkVideo.style.transform =
         `scale(${t.scale}) translate(${t.translateX}%, ${t.translateY}%)`;
+    }
+
+    // Ensure the remote video (no tracker) has no residual transform
+    if (this._playerColor === 'w' && this._darkVideo) {
+      this._darkVideo.style.transform = 'none';
+    } else if (this._playerColor === 'b' && this._lightVideo) {
+      this._lightVideo.style.transform = 'none';
     }
 
     this._transformRafId = requestAnimationFrame(() => this._applyTransforms());

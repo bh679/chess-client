@@ -3343,6 +3343,13 @@ mp.onVideoPeerReady = () => {
   // Opponent's camera is ready — UI hint (optional)
 };
 
+// VideoBoard: send the canvas-cropped stream over WebRTC instead of the raw feed.
+// Face tracking runs locally only — the remote peer receives a pre-cropped stream
+// and doesn't need to run face detection on it.
+videoBoard.onCroppedStreamReady = (canvasStream) => {
+  videoChat.replaceVideoTrack(canvasStream.getVideoTracks()[0]);
+};
+
 // VideoChat events
 videoChat.onLocalStream = (stream) => {
   videoUI.setLocalStream(stream);
