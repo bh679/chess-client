@@ -6,11 +6,17 @@
  * feed (not duplicates), using CSS masks to clip the video into a
  * checkerboard pattern.
  *
- * Face tracking (via MediaPipe) automatically centers and normalizes each
- * player's face so both appear at the same position and size.
+ * Face tracking (via MediaPipe) runs only on the LOCAL camera feed.
+ * A CroppedStream captures the tracked feed to a canvas and provides a
+ * bandwidth-efficient MediaStream for WebRTC transmission. The remote
+ * feed is received pre-cropped and displayed without additional tracking.
+ *
+ * Both local and remote players display the same 480×480 canvas stream,
+ * ensuring feeds are visually identical regardless of board size.
  */
 
 import { FaceTracker } from './face-tracker.js';
+import { CroppedStream } from './cropped-stream.js';
 
 export class VideoBoard {
   /**
@@ -27,8 +33,16 @@ export class VideoBoard {
     this._darkTint = null;
     this._lightTracker = null;
     this._darkTracker = null;
-    this._transformRafId = null;
     this._active = false;
+    this._playerColor = null;
+    this._localStream = null;
+    this._trackingVideo = null;
+    this._croppedStream = null;
+
+    // Fired with the canvas MediaStream once the local tracker is ready.
+    // app.js wires this to videoChat.replaceVideoTrack() to send the
+    // pre-cropped stream to the remote peer instead of the raw camera feed.
+    this.onCroppedStreamReady = null;
   }
 
   /**
@@ -42,11 +56,13 @@ export class VideoBoard {
       this._buildLayer();
     }
 
-    const lightStream = playerColor === 'w' ? localStream : remoteStream;
-    const darkStream = playerColor === 'w' ? remoteStream : localStream;
+    this._playerColor = playerColor;
+    this._localStream = localStream;
 
-    this._setStream(this._lightVideo, lightStream);
-    this._setStream(this._darkVideo, darkStream);
+    // Set remote stream on the remote board slot immediately.
+    // Local slot will be updated to show the canvas stream once tracking starts.
+    const remoteVideo = playerColor === 'w' ? this._darkVideo : this._lightVideo;
+    this._setStream(remoteVideo, remoteStream);
 
     this._boardEl.classList.add('video-board-active');
     this._active = true;
@@ -74,8 +90,13 @@ export class VideoBoard {
   updateLocalStream(localStream, playerColor) {
     if (!this._active || !this._layer) return;
 
-    const targetVideo = playerColor === 'w' ? this._lightVideo : this._darkVideo;
-    this._setStream(targetVideo, localStream);
+    this._localStream = localStream;
+
+    // Update the hidden tracking video — the canvas stream on the display
+    // video will automatically reflect the new source next frame.
+    if (this._trackingVideo) {
+      this._trackingVideo.srcObject = localStream;
+    }
   }
 
   /**
@@ -86,6 +107,11 @@ export class VideoBoard {
     this._active = false;
 
     this._stopFaceTracking();
+
+    if (this._croppedStream) {
+      this._croppedStream.stop();
+      this._croppedStream = null;
+    }
 
     if (this._lightVideo) this._lightVideo.srcObject = null;
     if (this._darkVideo) this._darkVideo.srcObject = null;
@@ -100,6 +126,9 @@ export class VideoBoard {
       this._lightTint = null;
       this._darkTint = null;
     }
+
+    this._playerColor = null;
+    this._localStream = null;
   }
 
   /**
@@ -165,7 +194,7 @@ export class VideoBoard {
     const mask = document.createElement('div');
     mask.className = `video-board-${type}-mask`;
 
-    const video = document.createElement('video');
+    const video = document.createElement('video')
     video.className = `video-board-${type}-feed`;
     video.autoplay = true;
     video.playsInline = true;
@@ -196,21 +225,53 @@ export class VideoBoard {
   }
 
   /**
-   * Start face tracking on both video feeds.
+   * Start face tracking on the LOCAL feed only.
+   *
+   * Uses a hidden off-screen video element as the tracking source so the
+   * display video can show the canvas stream without creating a feedback
+   * loop. Both local and remote board slots display the same 480×480
+   * canvas stream, so the face appears identical on both sides regardless
+   * of board size.
    */
   _startFaceTracking() {
-    // Offset faces horizontally: white player left, black player right
-    this._lightTracker = new FaceTracker(this._lightVideo, { offsetX: -19 });
-    this._darkTracker = new FaceTracker(this._darkVideo, { offsetX: 19 });
+    const localVideo = this._playerColor === 'w' ? this._lightVideo : this._darkVideo;
+    const localOffsetX = this._playerColor === 'w' ? -19 : 19;
 
-    this._lightTracker.start();
-    this._darkTracker.start();
+    // Hidden video reads the raw camera stream — FaceTracker and CroppedStream
+    // operate on this so the canvas output doesn't feed back into itself.
+    const trackingVideo = document.createElement('video');
+    trackingVideo.autoplay = true;
+    trackingVideo.playsInline = true;
+    trackingVideo.muted = true;
+    trackingVideo.style.display = 'none';
+    trackingVideo.srcObject = this._localStream;
+    document.body.appendChild(trackingVideo);
+    this._trackingVideo = trackingVideo;
 
-    this._applyTransforms();
+    const localTracker = new FaceTracker(trackingVideo, { offsetX: localOffsetX });
+    localTracker.start();
+
+    if (this._playerColor === 'w') {
+      this._lightTracker = localTracker;
+    } else {
+      this._darkTracker = localTracker;
+    }
+
+    // Canvas stream is cropped and pre-positioned for the receiver's board.
+    this._croppedStream = new CroppedStream(trackingVideo, localTracker);
+    const canvasStream = this._croppedStream.start();
+
+    // Display the canvas stream on the local board slot so both players
+    // see identical output — no CSS transforms needed.
+    this._setStream(localVideo, canvasStream);
+
+    if (this.onCroppedStreamReady) {
+      this.onCroppedStreamReady(canvasStream);
+    }
   }
 
   /**
-   * Stop face tracking and cancel animation loop.
+   * Stop face tracking and release the hidden tracking video.
    */
   _stopFaceTracking() {
     if (this._lightTracker) {
@@ -221,31 +282,10 @@ export class VideoBoard {
       this._darkTracker.stop();
       this._darkTracker = null;
     }
-    if (this._transformRafId) {
-      cancelAnimationFrame(this._transformRafId);
-      this._transformRafId = null;
+    if (this._trackingVideo) {
+      this._trackingVideo.srcObject = null;
+      this._trackingVideo.remove();
+      this._trackingVideo = null;
     }
-  }
-
-  /**
-   * Animation loop that reads face tracker transforms and applies them
-   * to the video elements each frame.
-   */
-  _applyTransforms() {
-    if (!this._active) return;
-
-    if (this._lightTracker && this._lightVideo) {
-      const t = this._lightTracker.getTransform();
-      this._lightVideo.style.transform =
-        `scale(${t.scale}) translate(${t.translateX}%, ${t.translateY}%)`;
-    }
-
-    if (this._darkTracker && this._darkVideo) {
-      const t = this._darkTracker.getTransform();
-      this._darkVideo.style.transform =
-        `scale(${t.scale}) translate(${t.translateX}%, ${t.translateY}%)`;
-    }
-
-    this._transformRafId = requestAnimationFrame(() => this._applyTransforms());
   }
 }
