@@ -103,13 +103,17 @@ export class CroppedStream {
     const cropW = vw / t.scale;
     const cropH = vh / t.scale;
 
-    const rawX = faceCX * vw - cropW / 2;
-    const rawY = faceCY * vh - cropH / 2;
+    // Use a square crop (shorter dimension) to avoid squishing the output when
+    // the source is non-square (e.g. 640×480 camera → 480×480 canvas).
+    const cropSide = Math.min(cropW, cropH);
+
+    const rawX = faceCX * vw - cropSide / 2;
+    const rawY = faceCY * vh - cropSide / 2;
 
     // Clamp so we never read outside the video frame
-    const srcX = Math.max(0, Math.min(rawX, vw - cropW));
-    const srcY = Math.max(0, Math.min(rawY, vh - cropH));
+    const srcX = Math.max(0, Math.min(rawX, vw - cropSide));
+    const srcY = Math.max(0, Math.min(rawY, vh - cropSide));
 
-    this._ctx.drawImage(v, srcX, srcY, cropW, cropH, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+    this._ctx.drawImage(v, srcX, srcY, cropSide, cropSide, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
   }
 }
