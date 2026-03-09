@@ -13,7 +13,8 @@ const MEDIAPIPE_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@late
 const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
 
 const DETECTION_INTERVAL_MS = 100;
-const SMOOTHING_FACTOR = 0.15;
+const SMOOTHING_FACTOR = 0.08;
+const SCALE_SMOOTHING_FACTOR = 0.04;
 const TARGET_FACE_FRACTION = 0.45;
 const MIN_SCALE = 1.0;
 const MAX_SCALE = 3.0;
@@ -249,8 +250,9 @@ export class FaceTracker {
     const targetTY = this._faceDetected ? this._targetTY : 0;
     const targetScale = this._faceDetected ? this._targetScale : 1.0;
 
+    const scaleFactor = this._faceDetected ? SCALE_SMOOTHING_FACTOR : RETURN_TO_CENTER_SPEED;
     this._currentTX = lerp(this._currentTX, targetTX, factor);
     this._currentTY = lerp(this._currentTY, targetTY, factor);
-    this._currentScale = lerp(this._currentScale, targetScale, factor);
+    this._currentScale = lerp(this._currentScale, targetScale, scaleFactor);
   }
 }
