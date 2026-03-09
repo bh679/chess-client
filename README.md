@@ -92,6 +92,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Face tracking video centering**](https://github.com/bh679/Chess/wiki/Feature:-Face-Tracking-Video-Centering) — real-time face detection (MediaPipe) centers and normalizes faces on the board; white player offset left, black player offset right for a facing-each-other effect
 - [**Hidden video popup on board**](https://github.com/bh679/Chess/wiki/Feature:-Hide-Video-Popup-on-Board) — when video board mode is active, the floating video popup is hidden to avoid redundancy
 - [**WebRTC reliability fix**](https://github.com/bh679/Chess/wiki/Feature:-WebRTC-ICE-Fix) — ICE candidate queuing prevents race-condition drops; dynamic TURN server config via `/api/chess/ice-servers` for NAT traversal
+- [**Cropped video stream**](https://github.com/bh679/chess-client/wiki/Feature:-Cropped-Video-Stream) — face-tracked 480×480 canvas stream transmitted over WebRTC instead of raw camera; face tracking runs only on the local feed; both players see identical output regardless of board size
 
 ## Roadmap
 
@@ -154,6 +155,7 @@ js/friends.js           Friends modal (add, accept, reject, remove)
 js/replay.js            Replay viewer with board, move strip, and clock reconstruction
 js/face-tracker.js      Face detection (MediaPipe) for video board centering
 js/video-board.js       Video board mode (camera feeds as board mosaic)
+js/cropped-stream.js    Face-tracked canvas stream for WebRTC transmission
 js/chess.js             chess.js engine (full rule enforcement)
 js/lib/stockfish.js     Stockfish WASM engine (Web Worker)
 blog/                   Weekly development blog (auto-generated)
