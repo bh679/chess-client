@@ -17,14 +17,10 @@ export class CroppedStream {
   /**
    * @param {HTMLVideoElement} videoEl — local camera video element
    * @param {import('./face-tracker.js').FaceTracker} tracker — face tracker for this feed
-   * @param {number} [displayOffsetX=0] — the offsetX passed to FaceTracker (board display only).
-   *   FaceTracker.getTransform().translateX includes this display offset, which shifts the face
-   *   sideways on the board. The crop must subtract it to center on the actual face.
    */
-  constructor(videoEl, tracker, displayOffsetX = 0) {
+  constructor(videoEl, tracker) {
     this._video = videoEl;
     this._tracker = tracker;
-    this._displayOffsetX = displayOffsetX;
     this._canvas = null;
     this._ctx = null;
     this._stream = null;
@@ -97,14 +93,13 @@ export class CroppedStream {
 
     // Translate FaceTracker CSS transform values into a source crop rectangle.
     // FaceTracker produces: translateX (%), translateY (%), scale
-    // translateX includes a display-only offsetX (shifts face left/right on the board).
-    // Strip it out so the crop centers on the actual face, not the display-shifted position.
-    //   pureTX  = translateX - displayOffsetX  (pure face centering, no board offset)
-    //   faceCX  = 0.5 - pureTX / 100           (face center as fraction of videoWidth)
-    //   faceCY  = 0.5 - translateY / 100        (face center as fraction of videoHeight)
+    // translateX includes the board offsetX, which intentionally shifts the face
+    // sideways (white left, black right) so the crop arrives pre-positioned for
+    // the receiver's board display. The receiver just shows it with transform:none.
+    //   faceCX = 0.5 - translateX / 100  (face crop center as fraction of videoWidth)
+    //   faceCY = 0.5 - translateY / 100  (face crop center as fraction of videoHeight)
     // At scale S, the visible crop covers vw/S × vh/S source pixels.
-    const pureTX = t.translateX - this._displayOffsetX;
-    const faceCX = 0.5 - pureTX / 100;
+    const faceCX = 0.5 - t.translateX / 100;
     const faceCY = 0.5 - t.translateY / 100;
     const cropW = vw / t.scale;
     const cropH = vh / t.scale;
