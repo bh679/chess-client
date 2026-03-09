@@ -3335,6 +3335,13 @@ mp.onVideoStart = async (payload) => {
     // Enable video board — local stream is already set, remote arrives via onRemoteStream
     if (mp.color) {
       videoBoard.enable(videoChat._localStream, null, mp.color);
+      // If the remote stream already arrived during the async ICE/offer setup
+      // (race condition: handleOffer() completes before enable() runs), apply it now.
+      // Without this, updateRemoteStream() silently discards the stream because
+      // the board wasn't active yet when onRemoteStream fired.
+      if (videoChat._remoteStream) {
+        videoBoard.updateRemoteStream(videoChat._remoteStream, mp.color);
+      }
     } else {
       // Fallback: show floating popup only when board mode is unavailable
       videoUI.show();
