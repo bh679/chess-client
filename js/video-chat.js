@@ -143,6 +143,10 @@ export class VideoChat {
   async handleOffer(sdp) {
     if (this._diag) this._diag.sdpExchange('received', 'offer');
     if (!this._peerConnection) {
+      // Ensure ICE servers (including TURN) are fetched before creating the peer connection.
+      // The offer can arrive while onVideoStart is still awaiting fetchIceServers(), so we
+      // must guard here too — otherwise the responder gets STUN-only and ICE fails on mobile.
+      if (!this._iceServers) await this.fetchIceServers();
       this._remoteDescriptionReady = false;
       this._pendingIceCandidates = [];
       this._peerConnection = this._createPeerConnection();
