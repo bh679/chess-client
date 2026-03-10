@@ -3298,8 +3298,18 @@ mp.onOpponentReconnected = () => {
 };
 
 // Connection status
-mp.onConnected = () => {
-  mpUI.setConnectionStatus('connected');
+mp.onConnected = (payload) => {
+  if (payload && payload.inRoom) {
+    mpUI.setConnectionStatus('connected');
+  } else if (mp.isActive()) {
+    // Authenticated but room is gone — game is over
+    mpUI.setConnectionStatus('connection-lost');
+    multiplayerActive = false;
+    mp.active = false;
+    updateStatus('Game ended — connection to room was lost');
+  } else {
+    mpUI.setConnectionStatus('connected');
+  }
 };
 
 mp.onDisconnected = () => {
@@ -3308,8 +3318,19 @@ mp.onDisconnected = () => {
   }
 };
 
+mp.onReconnecting = (attempt, maxAttempts) => {
+  mpUI.setConnectionStatus('reconnecting', `Reconnecting... (${attempt}/${maxAttempts})`);
+};
+
+mp.onConnectionLost = () => {
+  mpUI.setConnectionStatus('connection-lost');
+  multiplayerActive = false;
+  updateStatus('Connection lost — game may have ended');
+};
+
 mp.onError = (msg) => {
   console.warn('Multiplayer error:', msg);
+  // "Not in a room" during active game is handled by multiplayer.js (triggers reconnect)
   // Don't show alerts or reset state during shared post-game review
   if (!mp.isActive() && !sharedReviewActive) {
     multiplayerActive = false;

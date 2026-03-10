@@ -3588,9 +3588,18 @@ button.replay-summary-btn {
   font-weight: 600;
 }
 .mp-connection-status.connected { color: var(--accent-soft); }
-.mp-connection-status.reconnecting { color: var(--warning); }
+.mp-connection-status.reconnecting {
+  color: var(--warning);
+  animation: mp-pulse 1.5s ease-in-out infinite;
+}
 .mp-connection-status.disconnected { color: var(--danger); }
 .mp-connection-status.opponent-disconnected { color: var(--warning); }
+.mp-connection-status.connection-lost { color: var(--danger); }
+
+@keyframes mp-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
 
 /* Draw offer toast */
 .mp-draw-toast {
