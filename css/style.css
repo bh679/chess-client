@@ -648,6 +648,14 @@ body {
   color: var(--text-primary);
 }
 
+.player-name.multiplayer-opponent {
+  cursor: default;
+}
+
+.player-name.multiplayer-opponent:hover {
+  color: #ccc;
+}
+
 .player-name-input {
   background: var(--bg-sunken);
   color: var(--text-primary);
@@ -3001,6 +3009,14 @@ button.replay-summary-btn {
 .pgs-class-count-black {
   color: #b0b0b0;
 }
+
+/* Progressive loading animation for count/accuracy numbers */
+@keyframes pgs-count-flash {
+  0%   { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+.pgs-count-loading { opacity: 0.3; }
+.pgs-count-flash   { animation: pgs-count-flash 0.7s ease-out forwards; }
 
 .pgs-class-icon {
   font-weight: 700;

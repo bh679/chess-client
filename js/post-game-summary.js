@@ -42,6 +42,12 @@ class PostGameSummary {
     this._onNewGame = null;
     this._onClose = null;
     this._currentRecord = null;
+    // Progressive update refs (set by _renderProgressiveBody)
+    this._wAccuracyEl = null;
+    this._bAccuracyEl = null;
+    this._wAccuracyFillEl = null;
+    this._bAccuracyFillEl = null;
+    this._classCountEls = {};
     this._buildDOM();
   }
 
@@ -70,9 +76,9 @@ class PostGameSummary {
     this._onNewGame = callbacks.onNewGame || null;
     this._onClose = callbacks.onClose || null;
 
-    // Show modal with progress bar
+    // Show modal with progress bar and skeleton body
     this._renderResult(gameRecord);
-    this._bodyEl.innerHTML = '';
+    this._renderProgressiveBody(gameRecord);
     this._progressEl.classList.remove('hidden');
     this._progressTextEl.classList.remove('hidden');
     this._progressFillEl.style.width = '0%';
@@ -85,9 +91,10 @@ class PostGameSummary {
         {
           depth: 18,
           serverId: serverId,
-          onProgress: ({ current, total }) => {
+          onProgress: ({ current, total, summary }) => {
             const pct = total > 0 ? (current / total * 100) : 0;
             this._progressFillEl.style.width = `${pct}%`;
+            if (summary) this._updateSummary(summary);
           }
         }
       );
@@ -265,6 +272,128 @@ class PostGameSummary {
     const m = Math.floor(seconds / 60);
     const s = Math.round(seconds % 60);
     return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  /**
+   * Render the body skeleton immediately with 0 counts so numbers can
+   * populate progressively during analysis. Stores DOM refs for live updates.
+   */
+  _renderProgressiveBody(gameRecord) {
+    this._bodyEl.innerHTML = '';
+    this._classCountEls = {};
+
+    // Player accuracy section
+    const playersRow = document.createElement('div');
+    playersRow.className = 'pgs-players';
+
+    for (const side of ['white', 'black']) {
+      const playerInfo = gameRecord[side];
+
+      const col = document.createElement('div');
+      col.className = `pgs-player pgs-player-${side}`;
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'pgs-player-name';
+      nameEl.textContent = playerInfo ? playerInfo.name : (side === 'white' ? 'White' : 'Black');
+      col.appendChild(nameEl);
+
+      const accVal = document.createElement('div');
+      accVal.className = 'pgs-accuracy-value pgs-count-loading';
+      accVal.textContent = '0%';
+      col.appendChild(accVal);
+
+      const barOuter = document.createElement('div');
+      barOuter.className = 'pgs-accuracy-bar';
+      const barFill = document.createElement('div');
+      barFill.className = `pgs-accuracy-fill pgs-accuracy-fill-${side}`;
+      barFill.style.width = '0%';
+      barOuter.appendChild(barFill);
+      col.appendChild(barOuter);
+
+      if (side === 'white') {
+        this._wAccuracyEl = accVal;
+        this._wAccuracyFillEl = barFill;
+      } else {
+        this._bAccuracyEl = accVal;
+        this._bAccuracyFillEl = barFill;
+      }
+
+      playersRow.appendChild(col);
+    }
+
+    this._bodyEl.appendChild(playersRow);
+
+    // Classification breakdown grid — all 10 rows shown during analysis
+    const grid = document.createElement('div');
+    grid.className = 'pgs-classifications';
+
+    for (const type of CLASSIFICATION_ORDER) {
+      const meta = CLASSIFICATION_META[type];
+
+      const row = document.createElement('div');
+      row.className = 'pgs-class-row';
+
+      const wCountEl = document.createElement('span');
+      wCountEl.className = 'pgs-class-count pgs-class-count-white pgs-count-loading';
+      wCountEl.textContent = '0';
+
+      const iconEl = document.createElement('span');
+      iconEl.className = `pgs-class-icon ${meta.cls}`;
+      iconEl.textContent = meta.icon;
+
+      const labelEl = document.createElement('span');
+      labelEl.className = 'pgs-class-label';
+      labelEl.textContent = meta.label;
+
+      const bCountEl = document.createElement('span');
+      bCountEl.className = 'pgs-class-count pgs-class-count-black pgs-count-loading';
+      bCountEl.textContent = '0';
+
+      const centerEl = document.createElement('span');
+      centerEl.className = 'pgs-class-center';
+      centerEl.appendChild(iconEl);
+      centerEl.appendChild(labelEl);
+
+      row.appendChild(wCountEl);
+      row.appendChild(centerEl);
+      row.appendChild(bCountEl);
+      grid.appendChild(row);
+
+      this._classCountEls[`white_${type}`] = wCountEl;
+      this._classCountEls[`black_${type}`] = bCountEl;
+    }
+
+    this._bodyEl.appendChild(grid);
+  }
+
+  /**
+   * Update accuracy and classification counts from a partial/running summary.
+   * Called on each onProgress tick during analysis.
+   */
+  _updateSummary(summary) {
+    this._flashUpdate(this._wAccuracyEl, `${summary.white.accuracy}%`);
+    this._flashUpdate(this._bAccuracyEl, `${summary.black.accuracy}%`);
+    if (this._wAccuracyFillEl) this._wAccuracyFillEl.style.width = `${summary.white.accuracy}%`;
+    if (this._bAccuracyFillEl) this._bAccuracyFillEl.style.width = `${summary.black.accuracy}%`;
+
+    for (const type of CLASSIFICATION_ORDER) {
+      this._flashUpdate(this._classCountEls[`white_${type}`], String(summary.white[type] || 0));
+      this._flashUpdate(this._classCountEls[`black_${type}`], String(summary.black[type] || 0));
+    }
+  }
+
+  /**
+   * Update element text and trigger flash animation if value changed.
+   */
+  _flashUpdate(el, newText) {
+    if (!el) return;
+    if (el.textContent === newText) return;
+    el.textContent = newText;
+    el.classList.remove('pgs-count-flash');
+    // Force reflow so removing+adding the class restarts the animation
+    void el.offsetWidth;
+    el.classList.remove('pgs-count-loading');
+    el.classList.add('pgs-count-flash');
   }
 
   _renderBody(gameRecord, summary) {
