@@ -3315,12 +3315,24 @@ mp.onRematchStart = (payload) => {
 mp.onReconnect = async (payload) => {
   diagnostics.setContext(payload.dbGameId, payload.roomId);
   diagnostics.record('lifecycle', 'reconnected', { color: payload.color });
-  startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
+  // Use startingFen (null = standard) so the board starts at the correct initial position
+  // before replaying moves. Using payload.fen (current state) would cause "Invalid move"
+  // errors because moves would be applied on top of an already-advanced board.
+  startMultiplayerGame(payload.color, payload.startingFen || null, payload.timeControl, payload.opponentName, payload.chess960);
 
-  // Replay all moves to catch up
-  for (const san of payload.moves) {
-    game.makeMoveSan(san);
-    moveCount++;
+  // Replay all moves to restore game state and populate the move strip
+  if (payload.moves && payload.moves.length > 0) {
+    const scratch = new Chess(payload.startingFen || undefined);
+    for (const san of payload.moves) {
+      const result = scratch.move(san);
+      if (!result) break;
+      game.makeMoveSan(san);
+      moveCount++;
+      appendLiveMove(san, result.color, moveCount - 1);
+      liveReviewMoves.push({ san, fen: scratch.fen(), from: result.from, to: result.to, side: result.color });
+    }
+    activateLiveMoveBar();
+    updateLiveMoveBarButtons();
   }
   board.render();
   renderCaptured();
