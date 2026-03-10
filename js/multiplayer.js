@@ -50,6 +50,9 @@ export class MultiplayerClient {
     this.onVideoPeerReady = null;
     this.onVideoEnded = null;
 
+    // Name change callback
+    this.onNameChange = null;
+
     // Shared review callbacks
     this.onReviewEntered = null;
     this.onReviewNavigate = null;
@@ -145,6 +148,11 @@ export class MultiplayerClient {
   /** Respond to a rematch offer */
   respondToRematch(accept) {
     this._send('rematch_respond', { accept });
+  }
+
+  /** Change display name (broadcast to opponent) */
+  changeName(name) {
+    this._send('name_change', { name });
   }
 
   /** Request list of active/pending rooms */
@@ -358,6 +366,10 @@ export class MultiplayerClient {
 
       case 'video_ended':
         if (this.onVideoEnded) this.onVideoEnded(payload);
+        break;
+
+      case 'name_change':
+        if (this.onNameChange) this.onNameChange(payload);
         break;
 
       // Shared review messages

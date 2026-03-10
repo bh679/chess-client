@@ -963,11 +963,11 @@ class ReplayViewer {
 
     const reason = reasons[game.resultReason] || '';
 
-    if (game.result === 'draw') {
+    if (game.result === '1/2-1/2') {
       return reason ? `Draw \u2014 ${reason}` : 'Draw';
     }
 
-    const winner = game.result === 'white' ? 'White' : 'Black';
+    const winner = game.result === '1-0' ? 'White' : 'Black';
     return reason ? `${reason}! ${winner} wins` : `${winner} wins`;
   }
 

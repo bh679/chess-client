@@ -21,6 +21,7 @@ import { NewGameMenu } from './new-game-menu.js';
 import { VideoChat } from './video-chat.js';
 import { VideoUI } from './video-ui.js';
 import { VideoBoard } from './video-board.js';
+import { Diagnostics } from './diagnostics.js';
 
 const PIECE_ORDER = { q: 0, r: 1, b: 2, n: 3, p: 4 };
 const PIECE_VALUES = { q: 9, r: 5, b: 3, n: 3, p: 1 };
@@ -290,8 +291,30 @@ gameBrowser.setOnRejoinGame(async (roomId) => {
   }
 });
 
+// Diagnostics — collects WebRTC events, errors, and device info for debugging
+const diagnostics = new Diagnostics();
+diagnostics.setSessionId(mp.sessionId);
+diagnostics.start();
+
+// Global error capture
+window.addEventListener('error', (event) => {
+  diagnostics.jsError(
+    event.message,
+    event.filename,
+    event.lineno,
+    event.colno,
+    event.error?.stack
+  );
+});
+window.addEventListener('unhandledrejection', (event) => {
+  diagnostics.record('error', 'unhandled_rejection', {
+    message: String(event.reason),
+    stack: event.reason?.stack?.substring(0, 1000) || null,
+  });
+});
+
 // Video Chat
-const videoChat = new VideoChat(mp);
+const videoChat = new VideoChat(mp, diagnostics);
 const videoUI = new VideoUI(videoChat);
 const videoBoard = new VideoBoard(boardEl);
 let videoActive = false;
@@ -499,20 +522,20 @@ function triggerAIMove() {
 
 function getGameResult() {
   if (game.chess.isCheckmate()) {
-    const winner = game.getTurn() === 'w' ? 'black' : 'white';
-    return { result: winner, reason: 'checkmate' };
+    const result = game.getTurn() === 'w' ? '0-1' : '1-0';
+    return { result, reason: 'checkmate' };
   }
   if (game.chess.isStalemate()) {
-    return { result: 'draw', reason: 'stalemate' };
+    return { result: '1/2-1/2', reason: 'stalemate' };
   }
   if (game.chess.isInsufficientMaterial()) {
-    return { result: 'draw', reason: 'insufficient' };
+    return { result: '1/2-1/2', reason: 'insufficient' };
   }
   if (game.chess.isThreefoldRepetition()) {
-    return { result: 'draw', reason: 'threefold' };
+    return { result: '1/2-1/2', reason: 'threefold' };
   }
   // 50-move rule or other draw
-  return { result: 'draw', reason: 'draw' };
+  return { result: '1/2-1/2', reason: 'draw' };
 }
 
 function getTimeControlLabel() {
@@ -821,6 +844,9 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
   playerIconBlack.textContent = '\uD83C\uDF10';
   playerNameWhite.textContent = color === 'w' ? 'You' : opponentName || 'Opponent';
   playerNameBlack.textContent = color === 'b' ? 'You' : opponentName || 'Opponent';
+  // Mark opponent name as non-editable
+  playerNameWhite.classList.toggle('multiplayer-opponent', color !== 'w');
+  playerNameBlack.classList.toggle('multiplayer-opponent', color !== 'b');
   playerEloWhite.classList.add('hidden');
   playerEloBlack.classList.add('hidden');
 
@@ -878,6 +904,7 @@ board.onMove((result) => {
   // Multiplayer: send move to server, disable board until opponent moves
   if (mp.isActive()) {
     mp.sendMove(result.san);
+    diagnostics.flush();
     board.setInteractive(false);
     if (videoBoard.isActive()) {
       videoBoard.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
@@ -975,7 +1002,7 @@ timer.onTimeout((loser) => {
   updateStatus(`Time out! ${winner} wins`);
 
   // Save timeout result to local-first database
-  const dbResult = loser === 'White' ? 'black' : 'white';
+  const dbResult = loser === 'White' ? '0-1' : '1-0';
   db.endGame(currentDbGameId, dbResult, 'timeout');
 
   // Auto-trigger post-game summary
@@ -1032,6 +1059,12 @@ function startNameEdit(nameEl, side) {
     const newName = input.value.trim() || (side === 'white' ? 'Human' : 'Human');
     nameEl.textContent = newName;
 
+    // In multiplayer, broadcast name change to opponent
+    if (multiplayerActive) {
+      mp.changeName(newName);
+      return;
+    }
+
     // Only save custom name for human players
     const isAI = side === 'white' ? aiWhiteToggle.checked : aiBlackToggle.checked;
     if (!isAI) {
@@ -1069,7 +1102,7 @@ function startNameEdit(nameEl, side) {
 }
 
 function startEngineSwitch(nameEl, side) {
-  if (isReplayMode) return;
+  if (isReplayMode || multiplayerActive) return;
   if (nameEl.querySelector('.engine-switch-select')) return;
 
   const isWhite = side === 'white';
@@ -1125,6 +1158,13 @@ function startEngineSwitch(nameEl, side) {
 
 playerNameWhite.addEventListener('click', (e) => {
   e.stopPropagation();
+  if (multiplayerActive) {
+    // In multiplayer: only allow editing own name, not opponent's
+    if (mp.color === 'w') {
+      startNameEdit(playerNameWhite, 'white');
+    }
+    return;
+  }
   if (aiWhiteToggle.checked) {
     startEngineSwitch(playerNameWhite, 'white');
   } else {
@@ -1134,6 +1174,13 @@ playerNameWhite.addEventListener('click', (e) => {
 
 playerNameBlack.addEventListener('click', (e) => {
   e.stopPropagation();
+  if (multiplayerActive) {
+    // In multiplayer: only allow editing own name, not opponent's
+    if (mp.color === 'b') {
+      startNameEdit(playerNameBlack, 'black');
+    }
+    return;
+  }
   if (aiBlackToggle.checked) {
     startEngineSwitch(playerNameBlack, 'black');
   } else {
@@ -1515,14 +1562,14 @@ function closeAllPopups() {
 
 // Click player icon to toggle Human ↔ AI (only before first move)
 playerIconWhite.addEventListener('click', () => {
-  if (isReplayMode || moveCount > 0) return;
+  if (isReplayMode || multiplayerActive || moveCount > 0) return;
   aiWhiteToggle.checked = !aiWhiteToggle.checked;
   aiWhiteToggle.dispatchEvent(new Event('change'));
   startNewGame();
 });
 
 playerIconBlack.addEventListener('click', () => {
-  if (isReplayMode || moveCount > 0) return;
+  if (isReplayMode || multiplayerActive || moveCount > 0) return;
   aiBlackToggle.checked = !aiBlackToggle.checked;
   aiBlackToggle.dispatchEvent(new Event('change'));
   startNewGame();
@@ -2212,8 +2259,8 @@ function formatReplayResult(gameRecord) {
   };
 
   const reason = reasons[gameRecord.resultReason] || '';
-  if (gameRecord.result === 'draw') return reason ? `Draw \u2014 ${reason}` : 'Draw';
-  const winner = gameRecord.result === 'white' ? 'White' : 'Black';
+  if (gameRecord.result === '1/2-1/2') return reason ? `Draw \u2014 ${reason}` : 'Draw';
+  const winner = gameRecord.result === '1-0' ? 'White' : 'Black';
   return reason ? `${reason}! ${winner} wins` : `${winner} wins`;
 }
 
@@ -3044,6 +3091,12 @@ updateEloSliderRange('b');
 // When the server says a game has started
 mp.onGameStart = async (payload) => {
   lastMultiplayerGameRecord = null;
+  diagnostics.setContext(payload.dbGameId, payload.roomId);
+  diagnostics.record('lifecycle', 'game_start', {
+    color: payload.color,
+    videoEnabled: payload.videoEnabled,
+    timeControl: payload.timeControl,
+  });
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 
   // If video is enabled, request camera and signal readiness
@@ -3170,11 +3223,24 @@ mp.onMoveAck = (payload) => {
   }
 };
 
+// Opponent changed their name
+mp.onNameChange = (payload) => {
+  const opponentNameEl = mp.color === 'w' ? playerNameBlack : playerNameWhite;
+  opponentNameEl.textContent = payload.name || 'Opponent';
+};
+
 // Game ended (from server — timeout, resignation, draw, checkmate)
 mp.onGameEnd = (payload) => {
+  diagnostics.record('lifecycle', 'game_end', {
+    result: payload.result,
+    reason: payload.reason,
+  });
+  diagnostics.flush();
   if (isLiveReview) exitLiveReview();
   fadeLiveMoveBar();
   multiplayerActive = false;
+  playerNameWhite.classList.remove('multiplayer-opponent');
+  playerNameBlack.classList.remove('multiplayer-opponent');
   timer.stop();
   board.clearPremove();
   board.setInteractive(false);
@@ -3239,12 +3305,16 @@ mp.onRematchDeclined = () => {
 
 // Rematch starting
 mp.onRematchStart = (payload) => {
+  diagnostics.setContext(payload.dbGameId, payload.roomId);
+  diagnostics.record('lifecycle', 'rematch_start', { color: payload.color });
   mpUI.hideGameControls();
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 };
 
 // Reconnection
 mp.onReconnect = async (payload) => {
+  diagnostics.setContext(payload.dbGameId, payload.roomId);
+  diagnostics.record('lifecycle', 'reconnected', { color: payload.color });
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 
   // Replay all moves to catch up
@@ -3283,6 +3353,7 @@ mp.onReconnect = async (payload) => {
 
 // Opponent disconnected
 mp.onOpponentDisconnected = (payload) => {
+  diagnostics.record('lifecycle', 'opponent_disconnected', { timeout: payload.timeout });
   mpUI.setConnectionStatus('opponent-disconnected');
   updateStatus(`Opponent disconnected — ${payload.timeout}s to reconnect`);
 };
@@ -3299,6 +3370,7 @@ mp.onOpponentReconnected = () => {
 
 // Connection status
 mp.onConnected = (payload) => {
+  diagnostics.record('network', 'ws_connected', { inRoom: payload?.inRoom });
   if (payload && payload.inRoom) {
     mpUI.setConnectionStatus('connected');
   } else if (mp.isActive()) {
@@ -3313,6 +3385,7 @@ mp.onConnected = (payload) => {
 };
 
 mp.onDisconnected = () => {
+  diagnostics.record('network', 'ws_disconnected', {});
   if (mp.isActive()) {
     mpUI.setConnectionStatus('reconnecting');
   }
