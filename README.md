@@ -81,6 +81,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 
 ### [Deployment](https://github.com/bh679/Chess/wiki/Feature:-Deployment-Status-Page)
 - [**Deployment status page**](https://github.com/bh679/Chess/wiki/Feature:-Deployment-Status-Page) — standalone page showing real-time deployment progress with step-by-step status, elapsed timer, deployment history, and auto-redirect on completion; index.html redirects visitors to the deployment page during active deploys
+- [**Reliable deploy script**](https://github.com/bh679/chess-client/wiki/Feature:-Deploy-Script-Git-Reset) — deploy script uses `git fetch + reset --hard` instead of `git pull` to prevent deployment failures when the production server has local modifications (e.g. package.json modified after npm install)
 
 ### UI
 - [**Captured pieces display**](https://github.com/bh679/Chess/wiki/Feature:-Captured-Pieces) — shows captured pieces with material advantage indicators
