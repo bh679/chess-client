@@ -74,13 +74,14 @@ export class MultiplayerUI {
   }
 
   /** Update connection status indicator */
-  setConnectionStatus(status) {
+  setConnectionStatus(status, detail) {
     this.connectionStatus.className = 'mp-connection-status ' + status;
     const labels = {
       connected: 'Connected',
-      reconnecting: 'Reconnecting...',
+      reconnecting: detail || 'Reconnecting...',
       disconnected: 'Disconnected',
       'opponent-disconnected': 'Opponent disconnected',
+      'connection-lost': 'Connection lost',
     };
     this.connectionStatus.textContent = labels[status] || status;
   }

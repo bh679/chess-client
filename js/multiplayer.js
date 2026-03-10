@@ -9,10 +9,13 @@ export class MultiplayerClient {
     this.roomId = null;
     this.color = null; // 'w' or 'b'
     this.active = false;
+    this._roomConnected = false;
     this._reconnectAttempts = 0;
-    this._maxReconnectAttempts = 3;
+    this._maxReconnectAttempts = 10;
     this._reconnectTimer = null;
     this._serverUrl = null;
+    this._heartbeatInterval = null;
+    this._heartbeatTimeout = null;
 
     // Event callbacks (set by app.js)
     this.onGameStart = null;
@@ -35,6 +38,8 @@ export class MultiplayerClient {
     this.onRoomCancelled = null;
     this.onConnected = null;
     this.onDisconnected = null;
+    this.onReconnecting = null;
+    this.onConnectionLost = null;
     this.onError = null;
 
     // WebRTC video signaling callbacks
@@ -81,6 +86,7 @@ export class MultiplayerClient {
       };
 
       this.ws.onclose = () => {
+        this._stopHeartbeat();
         if (this.active) {
           this._attemptReconnect();
         }
@@ -202,6 +208,8 @@ export class MultiplayerClient {
     this.active = false;
     this.roomId = null;
     this.color = null;
+    this._roomConnected = false;
+    this._stopHeartbeat();
     clearTimeout(this._reconnectTimer);
     if (this.ws) {
       this.ws.close();
@@ -212,6 +220,11 @@ export class MultiplayerClient {
   /** Whether we're in an active multiplayer game */
   isActive() {
     return this.active;
+  }
+
+  /** Whether we're authenticated and in a room on the server */
+  isRoomConnected() {
+    return this._roomConnected;
   }
 
   /** Whether it's our turn */
@@ -237,8 +250,10 @@ export class MultiplayerClient {
 
     switch (type) {
       case 'auth_ok':
-        if (this.onConnected) this.onConnected();
+        this._roomConnected = !!(payload && payload.inRoom);
+        if (this.onConnected) this.onConnected(payload);
         if (connectResolve) connectResolve();
+        this._startHeartbeat();
         break;
 
       case 'room_created':
@@ -314,6 +329,7 @@ export class MultiplayerClient {
         this.roomId = payload.roomId;
         this.color = payload.color;
         this.active = true;
+        this._roomConnected = true;
         if (this.onReconnect) this.onReconnect(payload);
         break;
 
@@ -386,7 +402,18 @@ export class MultiplayerClient {
         break;
 
       case 'error':
+        if (payload.message === 'Not in a room' && this.active) {
+          // Room was lost — trigger reconnection instead of surfacing error
+          this._roomConnected = false;
+          this.ws.close();
+          return;
+        }
         if (this.onError) this.onError(payload.message);
+        break;
+
+      case 'pong':
+        clearTimeout(this._heartbeatTimeout);
+        this._heartbeatTimeout = null;
         break;
     }
   }
@@ -394,18 +421,42 @@ export class MultiplayerClient {
   _attemptReconnect() {
     if (this._reconnectAttempts >= this._maxReconnectAttempts) {
       this.active = false;
-      if (this.onError) this.onError('Disconnected — could not reconnect');
+      this._roomConnected = false;
+      if (this.onConnectionLost) this.onConnectionLost();
       return;
     }
 
     this._reconnectAttempts++;
-    const delay = Math.min(1000 * Math.pow(2, this._reconnectAttempts - 1), 8000);
+    const delay = Math.min(1000 * Math.pow(2, this._reconnectAttempts - 1), 30000);
+
+    if (this.onReconnecting) {
+      this.onReconnecting(this._reconnectAttempts, this._maxReconnectAttempts);
+    }
 
     this._reconnectTimer = setTimeout(() => {
       this.connect(this._serverUrl).catch(() => {
         this._attemptReconnect();
       });
     }, delay);
+  }
+
+  _startHeartbeat() {
+    this._stopHeartbeat();
+    this._heartbeatInterval = setInterval(() => {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+      this._send('ping', { ts: Date.now() });
+      this._heartbeatTimeout = setTimeout(() => {
+        // No pong received — connection is stale
+        if (this.ws) this.ws.close();
+      }, 5000);
+    }, 15000);
+  }
+
+  _stopHeartbeat() {
+    clearInterval(this._heartbeatInterval);
+    this._heartbeatInterval = null;
+    clearTimeout(this._heartbeatTimeout);
+    this._heartbeatTimeout = null;
   }
 
   _getOrCreateSessionId() {
