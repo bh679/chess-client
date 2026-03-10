@@ -522,20 +522,20 @@ function triggerAIMove() {
 
 function getGameResult() {
   if (game.chess.isCheckmate()) {
-    const winner = game.getTurn() === 'w' ? 'black' : 'white';
-    return { result: winner, reason: 'checkmate' };
+    const result = game.getTurn() === 'w' ? '0-1' : '1-0';
+    return { result, reason: 'checkmate' };
   }
   if (game.chess.isStalemate()) {
-    return { result: 'draw', reason: 'stalemate' };
+    return { result: '1/2-1/2', reason: 'stalemate' };
   }
   if (game.chess.isInsufficientMaterial()) {
-    return { result: 'draw', reason: 'insufficient' };
+    return { result: '1/2-1/2', reason: 'insufficient' };
   }
   if (game.chess.isThreefoldRepetition()) {
-    return { result: 'draw', reason: 'threefold' };
+    return { result: '1/2-1/2', reason: 'threefold' };
   }
   // 50-move rule or other draw
-  return { result: 'draw', reason: 'draw' };
+  return { result: '1/2-1/2', reason: 'draw' };
 }
 
 function getTimeControlLabel() {
@@ -1002,7 +1002,7 @@ timer.onTimeout((loser) => {
   updateStatus(`Time out! ${winner} wins`);
 
   // Save timeout result to local-first database
-  const dbResult = loser === 'White' ? 'black' : 'white';
+  const dbResult = loser === 'White' ? '0-1' : '1-0';
   db.endGame(currentDbGameId, dbResult, 'timeout');
 
   // Auto-trigger post-game summary
@@ -2259,8 +2259,8 @@ function formatReplayResult(gameRecord) {
   };
 
   const reason = reasons[gameRecord.resultReason] || '';
-  if (gameRecord.result === 'draw') return reason ? `Draw \u2014 ${reason}` : 'Draw';
-  const winner = gameRecord.result === 'white' ? 'White' : 'Black';
+  if (gameRecord.result === '1/2-1/2') return reason ? `Draw \u2014 ${reason}` : 'Draw';
+  const winner = gameRecord.result === '1-0' ? 'White' : 'Black';
   return reason ? `${reason}! ${winner} wins` : `${winner} wins`;
 }
 
