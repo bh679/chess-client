@@ -1538,14 +1538,14 @@ function closeAllPopups() {
 
 // Click player icon to toggle Human ↔ AI (only before first move)
 playerIconWhite.addEventListener('click', () => {
-  if (isReplayMode || moveCount > 0) return;
+  if (isReplayMode || multiplayerActive || moveCount > 0) return;
   aiWhiteToggle.checked = !aiWhiteToggle.checked;
   aiWhiteToggle.dispatchEvent(new Event('change'));
   startNewGame();
 });
 
 playerIconBlack.addEventListener('click', () => {
-  if (isReplayMode || moveCount > 0) return;
+  if (isReplayMode || multiplayerActive || moveCount > 0) return;
   aiBlackToggle.checked = !aiBlackToggle.checked;
   aiBlackToggle.dispatchEvent(new Event('change'));
   startNewGame();
