@@ -298,7 +298,7 @@ class PostGameSummary {
       col.appendChild(nameEl);
 
       const accVal = document.createElement('div');
-      accVal.className = 'pgs-accuracy-value';
+      accVal.className = 'pgs-accuracy-value pgs-count-loading';
       accVal.textContent = '0%';
       col.appendChild(accVal);
 
@@ -334,7 +334,7 @@ class PostGameSummary {
       row.className = 'pgs-class-row';
 
       const wCountEl = document.createElement('span');
-      wCountEl.className = 'pgs-class-count pgs-class-count-white';
+      wCountEl.className = 'pgs-class-count pgs-class-count-white pgs-count-loading';
       wCountEl.textContent = '0';
 
       const iconEl = document.createElement('span');
@@ -346,7 +346,7 @@ class PostGameSummary {
       labelEl.textContent = meta.label;
 
       const bCountEl = document.createElement('span');
-      bCountEl.className = 'pgs-class-count pgs-class-count-black';
+      bCountEl.className = 'pgs-class-count pgs-class-count-black pgs-count-loading';
       bCountEl.textContent = '0';
 
       const centerEl = document.createElement('span');
@@ -371,17 +371,29 @@ class PostGameSummary {
    * Called on each onProgress tick during analysis.
    */
   _updateSummary(summary) {
-    if (this._wAccuracyEl) this._wAccuracyEl.textContent = `${summary.white.accuracy}%`;
-    if (this._bAccuracyEl) this._bAccuracyEl.textContent = `${summary.black.accuracy}%`;
+    this._flashUpdate(this._wAccuracyEl, `${summary.white.accuracy}%`);
+    this._flashUpdate(this._bAccuracyEl, `${summary.black.accuracy}%`);
     if (this._wAccuracyFillEl) this._wAccuracyFillEl.style.width = `${summary.white.accuracy}%`;
     if (this._bAccuracyFillEl) this._bAccuracyFillEl.style.width = `${summary.black.accuracy}%`;
 
     for (const type of CLASSIFICATION_ORDER) {
-      const wEl = this._classCountEls[`white_${type}`];
-      const bEl = this._classCountEls[`black_${type}`];
-      if (wEl) wEl.textContent = summary.white[type] || 0;
-      if (bEl) bEl.textContent = summary.black[type] || 0;
+      this._flashUpdate(this._classCountEls[`white_${type}`], String(summary.white[type] || 0));
+      this._flashUpdate(this._classCountEls[`black_${type}`], String(summary.black[type] || 0));
     }
+  }
+
+  /**
+   * Update element text and trigger flash animation if value changed.
+   */
+  _flashUpdate(el, newText) {
+    if (!el) return;
+    if (el.textContent === newText) return;
+    el.textContent = newText;
+    el.classList.remove('pgs-count-flash');
+    // Force reflow so removing+adding the class restarts the animation
+    void el.offsetWidth;
+    el.classList.remove('pgs-count-loading');
+    el.classList.add('pgs-count-flash');
   }
 
   _renderBody(gameRecord, summary) {
