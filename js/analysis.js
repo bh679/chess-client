@@ -313,6 +313,8 @@ class AnalysisEngine {
 
   /**
    * Run the full analysis pipeline.
+   * Classifies each move inline as evaluations arrive so onProgress can
+   * carry a live running summary for progressive UI updates.
    */
   async _runAnalysis(moves, startingFen, depth, onProgress, serverId) {
     // Send ucinewgame and wait for readyok
@@ -321,6 +323,20 @@ class AnalysisEngine {
     const fens = [startingFen, ...moves.map(m => m.fen)];
     const total = fens.length;
     const positions = [];
+
+    // Running summary updated after each move is classified
+    const runningSummary = {
+      white: {
+        brilliant: 0, great: 0, best: 0, excellent: 0, good: 0,
+        book: 0, inaccuracy: 0, mistake: 0, miss: 0, blunder: 0,
+        _totalAccuracy: 0, _moveCount: 0, accuracy: 0
+      },
+      black: {
+        brilliant: 0, great: 0, best: 0, excellent: 0, good: 0,
+        book: 0, inaccuracy: 0, mistake: 0, miss: 0, blunder: 0,
+        _totalAccuracy: 0, _moveCount: 0, accuracy: 0
+      }
+    };
 
     for (let i = 0; i < total; i++) {
       if (this._cancelled) throw 'stopped';
@@ -362,35 +378,53 @@ class AnalysisEngine {
         cpLoss: 0
       });
 
+      // Classify the move we just evaluated (position i, played on top of i-1).
+      // All positions needed for classification (i-1, i-2) are already in the array.
+      if (!isStarting) {
+        const prev = positions[i - 1];
+        const curr = positions[i];
+        const side = curr.playedSide;
+
+        const isTerminal = i === total - 1 && curr.bestMoveUci == null;
+        if (isTerminal && Math.abs(curr.eval) >= MATE_CP) {
+          curr.cpLoss = 0;
+          curr.classification = 'best';
+        } else {
+          let cpLoss;
+          if (side === 'w') {
+            cpLoss = prev.eval - curr.eval;
+          } else {
+            cpLoss = curr.eval - prev.eval;
+          }
+          cpLoss = Math.max(0, cpLoss);
+          curr.cpLoss = cpLoss;
+          curr.classification = this._classifyMove(cpLoss, prev.eval, curr.eval, side, prev.fen, curr.fen, i, positions);
+        }
+
+        // Update running summary
+        const sideKey = side === 'w' ? 'white' : 'black';
+        const s = runningSummary[sideKey];
+        s[curr.classification]++;
+        s._moveCount++;
+
+        const prevWP = this._winProbability(prev.eval);
+        const currWP = this._winProbability(curr.eval);
+        const prevSideWP = side === 'w' ? prevWP : 1 - prevWP;
+        const currSideWP = side === 'w' ? currWP : 1 - currWP;
+        const epLost = Math.max(0, prevSideWP - currSideWP);
+        const moveAcc = Math.max(0, Math.min(100, 100 * (1 - epLost * 2)));
+        s._totalAccuracy += moveAcc;
+        s.accuracy = Math.round(s._totalAccuracy / s._moveCount * 10) / 10;
+      }
+
       if (onProgress) {
-        onProgress({ current: i + 1, total, fen });
+        // Build a clean snapshot (exclude internal tracking fields)
+        const summarySnapshot = isStarting ? null : {
+          white: { ...runningSummary.white },
+          black: { ...runningSummary.black }
+        };
+        onProgress({ current: i + 1, total, fen, summary: summarySnapshot });
       }
-    }
-
-    // Classify moves (skip starting position)
-    for (let i = 1; i < positions.length; i++) {
-      const prev = positions[i - 1];
-      const curr = positions[i];
-      const side = curr.playedSide;
-
-      // Delivering checkmate is always the best move — skip cpLoss calculation
-      const isTerminal = i === positions.length - 1 && curr.bestMoveUci == null;
-      if (isTerminal && Math.abs(curr.eval) >= MATE_CP) {
-        curr.cpLoss = 0;
-        curr.classification = 'best';
-        continue;
-      }
-
-      let cpLoss;
-      if (side === 'w') {
-        cpLoss = prev.eval - curr.eval;
-      } else {
-        cpLoss = curr.eval - prev.eval;
-      }
-      cpLoss = Math.max(0, cpLoss);
-
-      curr.cpLoss = cpLoss;
-      curr.classification = this._classifyMove(cpLoss, prev.eval, curr.eval, side, prev.fen, curr.fen, i, positions);
     }
 
     const criticalMoments = this._findCriticalMoments(positions);

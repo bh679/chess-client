@@ -3002,6 +3002,14 @@ button.replay-summary-btn {
   color: #b0b0b0;
 }
 
+/* Progressive loading animation for count/accuracy numbers */
+@keyframes pgs-count-flash {
+  0%   { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+.pgs-count-loading { opacity: 0.3; }
+.pgs-count-flash   { animation: pgs-count-flash 0.7s ease-out forwards; }
+
 .pgs-class-icon {
   font-weight: 700;
   font-size: 0.85rem;
