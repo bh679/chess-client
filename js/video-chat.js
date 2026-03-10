@@ -13,9 +13,11 @@ const FALLBACK_ICE_SERVERS = [
 export class VideoChat {
   /**
    * @param {import('./multiplayer.js').MultiplayerClient} multiplayerClient
+   * @param {import('./diagnostics.js').Diagnostics} [diagnostics]
    */
-  constructor(multiplayerClient) {
+  constructor(multiplayerClient, diagnostics) {
     this._mp = multiplayerClient;
+    this._diag = diagnostics || null;
     this._peerConnection = null;
     this._localStream = null;
     this._remoteStream = null;
@@ -45,11 +47,19 @@ export class VideoChat {
       if (res.ok) {
         this._iceServers = await res.json();
         console.log('[VideoChat] Fetched', this._iceServers.length, 'ICE servers');
+        if (this._diag) {
+          const hasTurn = this._iceServers.some(s =>
+            Array.isArray(s.urls) ? s.urls.some(u => u.startsWith('turn')) : String(s.urls).startsWith('turn')
+          );
+          this._diag.iceServersConfig(this._iceServers.length, hasTurn);
+        }
       } else {
         console.warn('[VideoChat] ICE servers endpoint returned', res.status, '— using fallback STUN');
+        if (this._diag) this._diag.record('webrtc', 'ice_servers_fetch_failed', { status: res.status });
       }
     } catch (err) {
       console.warn('[VideoChat] ICE servers fetch failed:', err.message, '— using fallback STUN');
+      if (this._diag) this._diag.record('webrtc', 'ice_servers_fetch_error', { message: err.message });
     }
   }
 
@@ -89,6 +99,7 @@ export class VideoChat {
    */
   async startCall(isInitiator) {
     this._isInitiator = isInitiator;
+    if (this._diag) this._diag.record('webrtc', 'call_start', { isInitiator });
 
     // Guard: if handleOffer() already created a PC and processed an offer
     // while we were waiting (e.g. during fetchIceServers()), don't overwrite it.
@@ -117,7 +128,9 @@ export class VideoChat {
         const offer = await this._peerConnection.createOffer();
         await this._peerConnection.setLocalDescription(offer);
         this._mp.sendRtcOffer(this._peerConnection.localDescription);
+        if (this._diag) this._diag.sdpExchange('sent', 'offer');
       } catch (err) {
+        if (this._diag) this._diag.webrtcError('createOffer', err.message);
         if (this.onError) this.onError('Failed to create video offer: ' + err.message);
       }
     }
@@ -128,6 +141,7 @@ export class VideoChat {
    * @param {RTCSessionDescriptionInit} sdp
    */
   async handleOffer(sdp) {
+    if (this._diag) this._diag.sdpExchange('received', 'offer');
     if (!this._peerConnection) {
       this._remoteDescriptionReady = false;
       this._pendingIceCandidates = [];
@@ -145,7 +159,9 @@ export class VideoChat {
       const answer = await this._peerConnection.createAnswer();
       await this._peerConnection.setLocalDescription(answer);
       this._mp.sendRtcAnswer(this._peerConnection.localDescription);
+      if (this._diag) this._diag.sdpExchange('sent', 'answer');
     } catch (err) {
+      if (this._diag) this._diag.webrtcError('handleOffer', err.message);
       if (this.onError) this.onError('Failed to handle video offer: ' + err.message);
     }
   }
@@ -155,12 +171,14 @@ export class VideoChat {
    * @param {RTCSessionDescriptionInit} sdp
    */
   async handleAnswer(sdp) {
+    if (this._diag) this._diag.sdpExchange('received', 'answer');
     if (!this._peerConnection) return;
     try {
       await this._peerConnection.setRemoteDescription(new RTCSessionDescription(sdp));
       this._remoteDescriptionReady = true;
       await this._flushIceCandidates();
     } catch (err) {
+      if (this._diag) this._diag.webrtcError('handleAnswer', err.message);
       if (this.onError) this.onError('Failed to handle video answer: ' + err.message);
     }
   }
@@ -293,27 +311,55 @@ export class VideoChat {
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         this._mp.sendRtcIce(event.candidate);
+        if (this._diag && event.candidate.candidate) {
+          const parsed = this._parseCandidate(event.candidate.candidate);
+          this._diag.iceCandidateLocal(parsed);
+        }
+      } else if (this._diag) {
+        this._diag.record('webrtc', 'ice_gathering_complete', {});
       }
     };
 
     pc.ontrack = (event) => {
       console.log('[VideoChat] Remote track received:', event.track.kind);
+      if (this._diag) this._diag.remoteTrackReceived(event.track.kind);
       this._remoteStream = event.streams[0];
       if (this.onRemoteStream) this.onRemoteStream(event.streams[0]);
     };
 
     pc.oniceconnectionstatechange = () => {
       console.log('[VideoChat] ICE state:', pc.iceConnectionState);
+      if (this._diag) this._diag.iceStateChange(pc.iceConnectionState);
     };
 
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
       console.log('[VideoChat] Connection state:', state);
+      if (this._diag) this._diag.connectionStateChange(state);
       if (state === 'disconnected' || state === 'failed') {
         if (this.onDisconnected) this.onDisconnected();
       }
     };
 
+    pc.onicegatheringstatechange = () => {
+      if (this._diag) this._diag.record('webrtc', 'ice_gathering_state', {
+        state: pc.iceGatheringState,
+      });
+    };
+
     return pc;
+  }
+
+  /**
+   * Parse an ICE candidate string for diagnostic logging.
+   * Extracts candidate type (host/srflx/relay) and protocol.
+   */
+  _parseCandidate(candidateStr) {
+    const typeMatch = candidateStr.match(/typ\s+(host|srflx|prflx|relay)/);
+    const protoMatch = candidateStr.match(/\s(udp|tcp)\s/i);
+    return {
+      type: typeMatch ? typeMatch[1] : 'unknown',
+      protocol: protoMatch ? protoMatch[1].toLowerCase() : 'unknown',
+    };
   }
 }
