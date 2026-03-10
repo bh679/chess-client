@@ -21,6 +21,7 @@ import { NewGameMenu } from './new-game-menu.js';
 import { VideoChat } from './video-chat.js';
 import { VideoUI } from './video-ui.js';
 import { VideoBoard } from './video-board.js';
+import { Diagnostics } from './diagnostics.js';
 
 const PIECE_ORDER = { q: 0, r: 1, b: 2, n: 3, p: 4 };
 const PIECE_VALUES = { q: 9, r: 5, b: 3, n: 3, p: 1 };
@@ -290,8 +291,30 @@ gameBrowser.setOnRejoinGame(async (roomId) => {
   }
 });
 
+// Diagnostics — collects WebRTC events, errors, and device info for debugging
+const diagnostics = new Diagnostics();
+diagnostics.setSessionId(mp.sessionId);
+diagnostics.start();
+
+// Global error capture
+window.addEventListener('error', (event) => {
+  diagnostics.jsError(
+    event.message,
+    event.filename,
+    event.lineno,
+    event.colno,
+    event.error?.stack
+  );
+});
+window.addEventListener('unhandledrejection', (event) => {
+  diagnostics.record('error', 'unhandled_rejection', {
+    message: String(event.reason),
+    stack: event.reason?.stack?.substring(0, 1000) || null,
+  });
+});
+
 // Video Chat
-const videoChat = new VideoChat(mp);
+const videoChat = new VideoChat(mp, diagnostics);
 const videoUI = new VideoUI(videoChat);
 const videoBoard = new VideoBoard(boardEl);
 let videoActive = false;
@@ -881,6 +904,7 @@ board.onMove((result) => {
   // Multiplayer: send move to server, disable board until opponent moves
   if (mp.isActive()) {
     mp.sendMove(result.san);
+    diagnostics.flush();
     board.setInteractive(false);
     if (videoBoard.isActive()) {
       videoBoard.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
@@ -3067,6 +3091,12 @@ updateEloSliderRange('b');
 // When the server says a game has started
 mp.onGameStart = async (payload) => {
   lastMultiplayerGameRecord = null;
+  diagnostics.setContext(payload.dbGameId, payload.roomId);
+  diagnostics.record('lifecycle', 'game_start', {
+    color: payload.color,
+    videoEnabled: payload.videoEnabled,
+    timeControl: payload.timeControl,
+  });
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 
   // If video is enabled, request camera and signal readiness
@@ -3201,6 +3231,11 @@ mp.onNameChange = (payload) => {
 
 // Game ended (from server — timeout, resignation, draw, checkmate)
 mp.onGameEnd = (payload) => {
+  diagnostics.record('lifecycle', 'game_end', {
+    result: payload.result,
+    reason: payload.reason,
+  });
+  diagnostics.flush();
   if (isLiveReview) exitLiveReview();
   fadeLiveMoveBar();
   multiplayerActive = false;
@@ -3270,12 +3305,16 @@ mp.onRematchDeclined = () => {
 
 // Rematch starting
 mp.onRematchStart = (payload) => {
+  diagnostics.setContext(payload.dbGameId, payload.roomId);
+  diagnostics.record('lifecycle', 'rematch_start', { color: payload.color });
   mpUI.hideGameControls();
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 };
 
 // Reconnection
 mp.onReconnect = async (payload) => {
+  diagnostics.setContext(payload.dbGameId, payload.roomId);
+  diagnostics.record('lifecycle', 'reconnected', { color: payload.color });
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 
   // Replay all moves to catch up
@@ -3314,6 +3353,7 @@ mp.onReconnect = async (payload) => {
 
 // Opponent disconnected
 mp.onOpponentDisconnected = (payload) => {
+  diagnostics.record('lifecycle', 'opponent_disconnected', { timeout: payload.timeout });
   mpUI.setConnectionStatus('opponent-disconnected');
   updateStatus(`Opponent disconnected — ${payload.timeout}s to reconnect`);
 };
@@ -3330,10 +3370,12 @@ mp.onOpponentReconnected = () => {
 
 // Connection status
 mp.onConnected = () => {
+  diagnostics.record('network', 'ws_connected', {});
   mpUI.setConnectionStatus('connected');
 };
 
 mp.onDisconnected = () => {
+  diagnostics.record('network', 'ws_disconnected', {});
   if (mp.isActive()) {
     mpUI.setConnectionStatus('reconnecting');
   }
