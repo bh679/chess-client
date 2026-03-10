@@ -821,6 +821,9 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
   playerIconBlack.textContent = '\uD83C\uDF10';
   playerNameWhite.textContent = color === 'w' ? 'You' : opponentName || 'Opponent';
   playerNameBlack.textContent = color === 'b' ? 'You' : opponentName || 'Opponent';
+  // Mark opponent name as non-editable
+  playerNameWhite.classList.toggle('multiplayer-opponent', color !== 'w');
+  playerNameBlack.classList.toggle('multiplayer-opponent', color !== 'b');
   playerEloWhite.classList.add('hidden');
   playerEloBlack.classList.add('hidden');
 
@@ -1032,6 +1035,12 @@ function startNameEdit(nameEl, side) {
     const newName = input.value.trim() || (side === 'white' ? 'Human' : 'Human');
     nameEl.textContent = newName;
 
+    // In multiplayer, broadcast name change to opponent
+    if (multiplayerActive) {
+      mp.changeName(newName);
+      return;
+    }
+
     // Only save custom name for human players
     const isAI = side === 'white' ? aiWhiteToggle.checked : aiBlackToggle.checked;
     if (!isAI) {
@@ -1069,7 +1078,7 @@ function startNameEdit(nameEl, side) {
 }
 
 function startEngineSwitch(nameEl, side) {
-  if (isReplayMode) return;
+  if (isReplayMode || multiplayerActive) return;
   if (nameEl.querySelector('.engine-switch-select')) return;
 
   const isWhite = side === 'white';
@@ -1125,6 +1134,13 @@ function startEngineSwitch(nameEl, side) {
 
 playerNameWhite.addEventListener('click', (e) => {
   e.stopPropagation();
+  if (multiplayerActive) {
+    // In multiplayer: only allow editing own name, not opponent's
+    if (mp.color === 'w') {
+      startNameEdit(playerNameWhite, 'white');
+    }
+    return;
+  }
   if (aiWhiteToggle.checked) {
     startEngineSwitch(playerNameWhite, 'white');
   } else {
@@ -1134,6 +1150,13 @@ playerNameWhite.addEventListener('click', (e) => {
 
 playerNameBlack.addEventListener('click', (e) => {
   e.stopPropagation();
+  if (multiplayerActive) {
+    // In multiplayer: only allow editing own name, not opponent's
+    if (mp.color === 'b') {
+      startNameEdit(playerNameBlack, 'black');
+    }
+    return;
+  }
   if (aiBlackToggle.checked) {
     startEngineSwitch(playerNameBlack, 'black');
   } else {
@@ -3170,11 +3193,19 @@ mp.onMoveAck = (payload) => {
   }
 };
 
+// Opponent changed their name
+mp.onNameChange = (payload) => {
+  const opponentNameEl = mp.color === 'w' ? playerNameBlack : playerNameWhite;
+  opponentNameEl.textContent = payload.name || 'Opponent';
+};
+
 // Game ended (from server — timeout, resignation, draw, checkmate)
 mp.onGameEnd = (payload) => {
   if (isLiveReview) exitLiveReview();
   fadeLiveMoveBar();
   multiplayerActive = false;
+  playerNameWhite.classList.remove('multiplayer-opponent');
+  playerNameBlack.classList.remove('multiplayer-opponent');
   timer.stop();
   board.clearPremove();
   board.setInteractive(false);
