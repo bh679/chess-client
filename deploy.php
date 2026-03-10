@@ -138,7 +138,7 @@ if ($target === 'server' || $target === 'both') {
     // Step: Pull server code
     addStep($status, 'pulling-server');
     writeStatus($statusFile, $status);
-    $result = runCmd('sudo -u bitnami bash -c "cd /home/bitnami/server/chess-api && git pull origin main"');
+    $result = runCmd('sudo -u bitnami bash -c "cd /home/bitnami/server/chess-api && git checkout -- package-lock.json && git pull origin main"');
     $allOutput = array_merge($allOutput, $result['output']);
     if ($result['rc'] !== 0) {
         $failed = true;
