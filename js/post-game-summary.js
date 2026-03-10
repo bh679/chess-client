@@ -216,10 +216,10 @@ class PostGameSummary {
 
     const reason = reasons[gameRecord.resultReason] || '';
     let text;
-    if (gameRecord.result === 'draw') {
+    if (gameRecord.result === '1/2-1/2') {
       text = reason ? `Draw \u2014 ${reason}` : 'Draw';
     } else {
-      const winner = gameRecord.result === 'white' ? 'White' : 'Black';
+      const winner = gameRecord.result === '1-0' ? 'White' : 'Black';
       text = reason ? `${reason}! ${winner} wins` : `${winner} wins`;
     }
 
