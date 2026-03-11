@@ -130,12 +130,17 @@ class Board {
         // Place piece
         const piece = board[row][col];
         if (piece) {
-          const img = document.createElement('img');
-          img.className = 'piece';
-          img.src = `${window.chessPiecePath || 'img/pieces'}/${piece.color}${PIECE_MAP[piece.type]}.svg`;
-          img.alt = `${piece.color}${piece.type}`;
-          img.draggable = false;
-          el.appendChild(img);
+          let pieceEl;
+          if (window.kingCam?.isActive() && piece.type === 'k') {
+            pieceEl = window.kingCam.createKingElement(piece.color);
+          } else {
+            pieceEl = document.createElement('img');
+            pieceEl.className = 'piece';
+            pieceEl.src = `${window.chessPiecePath || 'img/pieces'}/${piece.color}${PIECE_MAP[piece.type]}.svg`;
+            pieceEl.alt = `${piece.color}${piece.type}`;
+            pieceEl.draggable = false;
+          }
+          el.appendChild(pieceEl);
         }
 
         // Highlight last move

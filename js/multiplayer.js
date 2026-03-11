@@ -101,8 +101,9 @@ export class MultiplayerClient {
   }
 
   /** Create a new room */
-  createRoom(timeControl, name, videoEnabled, chess960) {
-    this._send('create_room', { timeControl, name, videoEnabled: !!videoEnabled, chess960: !!chess960 });
+  createRoom(timeControl, name, camMode, chess960) {
+    const videoEnabled = camMode !== 'none';
+    this._send('create_room', { timeControl, name, camMode: camMode ?? 'none', videoEnabled, chess960: !!chess960 });
   }
 
   /** Join an existing room by code */
@@ -111,8 +112,9 @@ export class MultiplayerClient {
   }
 
   /** Join the quick match queue */
-  quickMatch(timeControl, name, videoEnabled, chess960) {
-    this._send('quick_match', { timeControl, name, videoEnabled: !!videoEnabled, chess960: !!chess960 });
+  quickMatch(timeControl, name, camMode, chess960) {
+    const videoEnabled = camMode !== 'none';
+    this._send('quick_match', { timeControl, name, camMode: camMode ?? 'none', videoEnabled, chess960: !!chess960 });
   }
 
   /** Cancel queue search */

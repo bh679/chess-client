@@ -4490,3 +4490,64 @@ button.replay-summary-btn {
     height: 52px;
   }
 }
+
+/* ========================
+   King Cam Mode
+   ======================== */
+
+/* 3-way cam mode picker in new game menu */
+.ng-cam-picker {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.ng-cam-btn {
+  flex: 1;
+  padding: 6px 4px;
+  font-size: 11px;
+  font-family: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.ng-cam-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ng-cam-btn.selected {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* King cam piece container */
+.king-cam-piece {
+  position: relative;
+  width: 90%;
+  height: 90%;
+}
+
+/* Live camera feed — clipped to circle */
+.king-cam-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+/* Crown portrait frame overlay */
+.king-cam-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
