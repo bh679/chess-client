@@ -61,6 +61,11 @@ export class MultiplayerClient {
     this.onReviewAnalysisStarted = null;
     this.onReviewAnalysis = null;
     this.onReviewExited = null;
+
+    // Lobby callbacks
+    this.onLobbyJoined = null;
+    this.onSettingChanged = null;
+    this.onReadyState = null;
   }
 
   /** Connect to the WebSocket server */
@@ -204,6 +209,14 @@ export class MultiplayerClient {
 
   /** Exit shared review */
   sendReviewExit() { this._send('review_exit', {}); }
+
+  // --- Lobby methods ---
+
+  /** Propose a setting change */
+  proposeSetting(field, value) { this._send('setting_change', { field, value }); }
+
+  /** Set ready state */
+  setReady(ready) { this._send('player_ready', { ready }); }
 
   /** Disconnect from the server */
   disconnect() {
@@ -401,6 +414,21 @@ export class MultiplayerClient {
 
       case 'review_exited':
         if (this.onReviewExited) this.onReviewExited(payload);
+        break;
+
+      // Lobby messages
+      case 'lobby_joined':
+        this.roomId = payload.roomId;
+        this.color = payload.color;
+        if (this.onLobbyJoined) this.onLobbyJoined(payload);
+        break;
+
+      case 'setting_changed':
+        if (this.onSettingChanged) this.onSettingChanged(payload);
+        break;
+
+      case 'ready_state':
+        if (this.onReadyState) this.onReadyState(payload);
         break;
 
       case 'error':
