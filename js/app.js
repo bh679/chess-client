@@ -597,14 +597,14 @@ function triggerPostGameSummary() {
 
 /**
  * Build a game record from the current multiplayer game state.
- * Used for post-game summary since multiplayer games aren't in the local DB.
+ * Used for post-game summary from in-memory game state.
  */
 function buildMultiplayerGameRecord(result, reason) {
   const verboseHistory = game.chess.history({ verbose: true });
   if (!verboseHistory || verboseHistory.length === 0) return null;
 
-  const startingFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-  const replay = new Chess();
+  const startingFen = verboseHistory[0].before;
+  const replay = new Chess(startingFen);
   const moves = [];
 
   for (let i = 0; i < verboseHistory.length; i++) {
@@ -861,8 +861,20 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
   closeAllPopups();
   renderCaptured();
 
-  // DB persistence — let the server handle it for multiplayer
-  currentDbGameId = null;
+  // DB persistence — save multiplayer games locally for replay/history
+  currentDbGameId = db.createGame({
+    gameType: chess960 ? 'chess960' : 'standard',
+    timeControl: timeControl || 'Online',
+    startingFen: game.chess.fen(),
+    white: {
+      name: color === 'w' ? 'You' : (opponentName || 'Opponent'),
+      isAI: false,
+    },
+    black: {
+      name: color === 'b' ? 'You' : (opponentName || 'Opponent'),
+      isAI: false,
+    },
+  });
 
   // Disable eval bar during multiplayer (no engine assistance in online play)
   if (evalBarToggle) evalBarToggle.checked = false;
@@ -929,6 +941,18 @@ board.onMove((result) => {
 
     // Update live eval bar
     if (evalBarToggle && evalBarToggle.checked) liveEval();
+
+    // Save move to local database
+    if (currentDbGameId) {
+      const side = game.getTurn() === 'w' ? 'b' : 'w';
+      db.addMove(currentDbGameId, {
+        ply: moveCount - 1,
+        san: result.san,
+        fen: game.chess.fen(),
+        timestamp: Date.now(),
+        side,
+      });
+    }
 
     // Check for game over (checkmate/stalemate detected client-side, server will confirm)
     if (game.isGameOver()) {
@@ -3155,6 +3179,17 @@ mp.onOpponentMove = (payload) => {
       const idx = liveReviewMoves.length - 1;
       appendLiveMove(san, result.color, idx);
       updateLiveMoveBarButtons();
+
+      // Save opponent's move to local database even during live review
+      if (currentDbGameId) {
+        db.addMove(currentDbGameId, {
+          ply: moveCount - 1,
+          san,
+          fen: scratch.fen(),
+          timestamp: Date.now(),
+          side: result.color,
+        });
+      }
     }
 
     // Sync clocks even during review
@@ -3176,6 +3211,17 @@ mp.onOpponentMove = (payload) => {
   appendLiveMove(san, opponentSide, moveCount - 1);
   if (moveCount === 1) activateLiveMoveBar();
   updateLiveMoveBarButtons();
+
+  // Save opponent's move to local database
+  if (currentDbGameId) {
+    db.addMove(currentDbGameId, {
+      ply: moveCount - 1,
+      san,
+      fen: game.chess.fen(),
+      timestamp: Date.now(),
+      side: opponentSide,
+    });
+  }
 
   // Disable pre-game state
   if (moveCount === 1) {
@@ -3253,6 +3299,12 @@ mp.onGameEnd = (payload) => {
   newGameBtn.classList.add('game-ended');
 
   const { result, reason } = payload;
+
+  // Persist game result to local database
+  if (currentDbGameId) {
+    db.endGame(currentDbGameId, result, reason);
+  }
+
   let statusText;
   if (result === '1/2-1/2') {
     statusText = `Draw — ${reason}`;
@@ -3341,6 +3393,17 @@ mp.onReconnect = async (payload) => {
       moveCount++;
       appendLiveMove(san, result.color, moveCount - 1);
       liveReviewMoves.push({ san, fen: scratch.fen(), from: result.from, to: result.to, side: result.color });
+
+      // Record replayed move to local database
+      if (currentDbGameId) {
+        db.addMove(currentDbGameId, {
+          ply: moveCount - 1,
+          san,
+          fen: scratch.fen(),
+          timestamp: Date.now(),
+          side: result.color,
+        });
+      }
     }
     activateLiveMoveBar();
     updateLiveMoveBarButtons();
