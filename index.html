@@ -111,6 +111,7 @@
   <!-- Multiplayer in-game controls (resign, draw, connection status) -->
   <div id="mp-game-controls" class="mp-game-controls hidden">
     <div id="mp-connection-status" class="mp-connection-status connected">Connected</div>
+    <button id="ir-flag-btn" class="ir-flag-btn hidden" title="Report an issue">&#9873;</button>
     <button id="mp-draw-offer-btn" class="mp-btn">Offer Draw</button>
     <button id="mp-resign-btn" class="mp-btn mp-btn-danger">Resign</button>
   </div>
@@ -132,7 +133,12 @@
   <div id="mp-backdrop" class="mp-backdrop hidden"></div>
   <div id="mp-modal" class="mp-modal hidden">
     <div class="mp-modal-content">
-      <h3>Play Online</h3>
+      <div class="mp-modal-header">
+        <h3>Play Online</h3>
+        <button id="mp-lobby-close" class="mp-lobby-close-btn hidden" aria-label="Leave lobby">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 4.9a1 1 0 0 0-1.4 1.4L8.6 10l-3.7 3.7a1 1 0 1 0 1.4 1.4L10 11.4l3.7 3.7a1 1 0 0 0 1.4-1.4L11.4 10l3.7-3.7a1 1 0 0 0-1.4-1.4L10 8.6 6.3 4.9z"/></svg>
+        </button>
+      </div>
 
       <!-- Menu view -->
       <div id="mp-menu" class="mp-view">
@@ -185,6 +191,63 @@
           <p>Finding an opponent...</p>
         </div>
         <button id="mp-cancel-search" class="mp-btn mp-btn-danger mp-btn-block">Cancel</button>
+      </div>
+
+      <!-- Lobby view (friends room, pre-game settings) -->
+      <div id="mp-lobby" class="mp-view hidden">
+        <div class="mp-lobby-header">
+          <div class="mp-lobby-room-code-wrap">
+            <span class="mp-lobby-label">Room</span>
+            <span id="mp-lobby-room-code" class="mp-code-big">------</span>
+          </div>
+          <div class="mp-lobby-opponent-wrap">
+            <span class="mp-lobby-label">vs</span>
+            <span id="mp-lobby-opponent" class="mp-lobby-opponent-name">Opponent</span>
+          </div>
+        </div>
+
+        <div class="mp-lobby-settings">
+          <div class="mp-lobby-setting">
+            <span class="mp-lobby-setting-label">Time Control</span>
+            <span id="mp-lobby-tc" class="mp-lobby-setting-value">5+0</span>
+            <select id="mp-lobby-tc-select" class="mp-lobby-tc-select hidden">
+              <option value="1+0">Bullet 1+0</option>
+              <option value="3+2">Blitz 3+2</option>
+              <option value="5+0">Rapid 5+0</option>
+              <option value="10+0">Rapid 10+0</option>
+              <option value="15+10">Classical 15+10</option>
+              <option value="30+0">Classical 30+0</option>
+              <option value="none">No Timer</option>
+              <option value="custom">Custom...</option>
+            </select>
+            <button id="mp-lobby-tc-edit" class="mp-lobby-edit-btn">Edit</button>
+          </div>
+          <div class="mp-lobby-setting">
+            <span class="mp-lobby-setting-label">Variant</span>
+            <span id="mp-lobby-960" class="mp-lobby-setting-value">Standard</span>
+            <button id="mp-lobby-960-btn" class="mp-lobby-edit-btn">Toggle</button>
+          </div>
+          <div class="mp-lobby-setting">
+            <span class="mp-lobby-setting-label">Colors</span>
+            <span id="mp-lobby-color" class="mp-lobby-setting-value">Random</span>
+            <button id="mp-lobby-swap-btn" class="mp-lobby-edit-btn">Swap</button>
+          </div>
+        </div>
+
+        <div class="mp-lobby-ready-status">
+          <div class="mp-lobby-ready-indicator" id="mp-lobby-ready-you">
+            <span class="mp-lobby-ready-dot"></span>
+            <span class="mp-lobby-ready-name">You</span>
+          </div>
+          <div class="mp-lobby-ready-indicator" id="mp-lobby-ready-opp">
+            <span class="mp-lobby-ready-dot"></span>
+            <span class="mp-lobby-ready-name">Opponent</span>
+          </div>
+        </div>
+
+        <div class="mp-lobby-actions">
+          <button id="mp-lobby-ready-btn" class="mp-btn mp-btn-primary mp-btn-block">Ready</button>
+        </div>
       </div>
     </div>
   </div>
@@ -281,6 +344,7 @@
             <option value="15+10">Classical 15+10</option>
             <option value="30+0">Classical 30+0</option>
             <option value="none">No Timer</option>
+            <option value="custom">Custom...</option>
           </select>
         </div>
         <div class="ng-toggle-row">
@@ -505,8 +569,8 @@
         <label>Minutes per side: <input type="number" id="custom-minutes" min="1" max="180" value="10"></label>
       </div>
       <div id="odds-time-fields" class="hidden">
-        <label>White minutes: <input type="number" id="custom-white-minutes" min="1" max="180" value="10"></label>
-        <label>Black minutes: <input type="number" id="custom-black-minutes" min="1" max="180" value="5"></label>
+        <label><span id="custom-white-label">White minutes:</span> <input type="number" id="custom-white-minutes" min="1" max="180" value="10"></label>
+        <label><span id="custom-black-label">Black minutes:</span> <input type="number" id="custom-black-minutes" min="1" max="180" value="5"></label>
       </div>
       <label>Increment (sec): <input type="number" id="custom-increment" min="0" max="60" value="0"></label>
       <div class="modal-buttons">

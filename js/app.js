@@ -22,6 +22,7 @@ import { VideoChat } from './video-chat.js';
 import { VideoUI } from './video-ui.js';
 import { VideoBoard } from './video-board.js';
 import { Diagnostics } from './diagnostics.js';
+import { IssueReporter } from './issue-reporter.js';
 
 const PIECE_ORDER = { q: 0, r: 1, b: 2, n: 3, p: 4 };
 const PIECE_VALUES = { q: 9, r: 5, b: 3, n: 3, p: 1 };
@@ -75,6 +76,8 @@ const sameTimeFields = document.getElementById('same-time-fields');
 const oddsTimeFields = document.getElementById('odds-time-fields');
 const customTimeOk = document.getElementById('custom-time-ok');
 const customTimeCancel = document.getElementById('custom-time-cancel');
+const customWhiteLabel = document.getElementById('custom-white-label');
+const customBlackLabel = document.getElementById('custom-black-label');
 const chess960Toggle = document.getElementById('chess960-toggle');
 const animationsToggle = document.getElementById('animations-toggle');
 const evalBarToggle = document.getElementById('eval-bar-toggle');
@@ -156,6 +159,7 @@ const db = new GameDatabase();
 db.setAuth(auth);
 const replayViewer = new ReplayViewer();
 const postGameSummary = new PostGameSummary();
+const issueReporter = new IssueReporter();
 const gameBrowser = new GameBrowser(db, replayViewer, enterReplayMode);
 const profile = new Profile(auth, { onGameClick: (id) => loadGameById(id) });
 const friends = new Friends(auth);
@@ -305,12 +309,14 @@ window.addEventListener('error', (event) => {
     event.colno,
     event.error?.stack
   );
+  issueReporter.recordError();
 });
 window.addEventListener('unhandledrejection', (event) => {
   diagnostics.record('error', 'unhandled_rejection', {
     message: String(event.reason),
     stack: event.reason?.stack?.substring(0, 1000) || null,
   });
+  issueReporter.recordError();
 });
 
 // Video Chat
@@ -339,6 +345,8 @@ let customBlackName = null;
 // Replay-on-board state
 let isReplayMode = false;
 let multiplayerActive = false;
+let multiplayerGameStartTime = null;
+let multiplayerMoveTimes = [];
 let replayGame = null;
 let replayPly = -1;
 let replayPlaying = false;
@@ -583,6 +591,8 @@ function triggerPostGameSummary() {
     onClose: () => {},
   });
 
+  postGameSummary.addActionButton(issueReporter.createPostGameFlagButton());
+
   postGameSummary.showWithAnalysis(
     record,
     postGameAnalysisEngine,
@@ -597,14 +607,14 @@ function triggerPostGameSummary() {
 
 /**
  * Build a game record from the current multiplayer game state.
- * Used for post-game summary since multiplayer games aren't in the local DB.
+ * Used for post-game summary from in-memory game state.
  */
 function buildMultiplayerGameRecord(result, reason) {
   const verboseHistory = game.chess.history({ verbose: true });
   if (!verboseHistory || verboseHistory.length === 0) return null;
 
-  const startingFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-  const replay = new Chess();
+  const startingFen = verboseHistory[0].before;
+  const replay = new Chess(startingFen);
   const moves = [];
 
   for (let i = 0; i < verboseHistory.length; i++) {
@@ -621,6 +631,7 @@ function buildMultiplayerGameRecord(result, reason) {
       fen: replay.fen(),
       ply: i,
       side,
+      timestamp: multiplayerMoveTimes[i] || null,
     });
   }
 
@@ -633,6 +644,7 @@ function buildMultiplayerGameRecord(result, reason) {
     black: { name: mp.color === 'b' ? 'You' : 'Opponent', isAI: false },
     timeControl: 'Online',
     gameType: 'online',
+    startTime: multiplayerGameStartTime,
   };
 }
 
@@ -646,6 +658,8 @@ async function startNewGame() {
   if (postGameSummary.isOpen()) {
     postGameSummary.close();
   }
+  // Reset issue reporter for new game
+  issueReporter.reset();
   // Stop post-game analysis engine if running
   if (postGameAnalysisEngine) {
     postGameAnalysisEngine.stop();
@@ -794,6 +808,8 @@ async function startNewGame() {
 /** Start a multiplayer game (called by multiplayer event handlers) */
 function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
   multiplayerActive = true;
+  multiplayerGameStartTime = Date.now();
+  multiplayerMoveTimes = [];
 
   // Close any open panels/overlays
   if (postGameSummary.isOpen()) postGameSummary.close();
@@ -826,12 +842,21 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
   ai.configure({ whiteEnabled: false, blackEnabled: false });
   board.setAI(ai);
 
-  // Configure timer from multiplayer time control (format: "5+0")
+  // Configure timer from multiplayer time control (format: "5+0" or odds "10/5+3")
   const tcMatch = timeControl ? timeControl.match(/^(\d+)\+(\d+)$/) : null;
+  const tcOddsMatch = timeControl ? timeControl.match(/^(\d+)\/(\d+)\+(\d+)$/) : null;
   if (tcMatch) {
     const minutes = parseInt(tcMatch[1], 10);
     const increment = parseInt(tcMatch[2], 10);
     timer.configure(minutes * 60, increment);
+    timer.setServerAuthoritative(true);
+    board.setAnimationsEnabled(false);
+    animationsToggle.checked = false;
+  } else if (tcOddsMatch) {
+    const wMin = parseInt(tcOddsMatch[1], 10);
+    const bMin = parseInt(tcOddsMatch[2], 10);
+    const increment = parseInt(tcOddsMatch[3], 10);
+    timer.configure(wMin * 60, increment, bMin * 60);
     timer.setServerAuthoritative(true);
     board.setAnimationsEnabled(false);
     animationsToggle.checked = false;
@@ -861,8 +886,20 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
   closeAllPopups();
   renderCaptured();
 
-  // DB persistence — let the server handle it for multiplayer
-  currentDbGameId = null;
+  // DB persistence — save multiplayer games locally for replay/history
+  currentDbGameId = db.createGame({
+    gameType: chess960 ? 'chess960' : 'standard',
+    timeControl: timeControl || 'Online',
+    startingFen: game.chess.fen(),
+    white: {
+      name: color === 'w' ? 'You' : (opponentName || 'Opponent'),
+      isAI: false,
+    },
+    black: {
+      name: color === 'b' ? 'You' : (opponentName || 'Opponent'),
+      isAI: false,
+    },
+  });
 
   // Disable eval bar during multiplayer (no engine assistance in online play)
   if (evalBarToggle) evalBarToggle.checked = false;
@@ -909,6 +946,7 @@ board.onMove((result) => {
 
   // Multiplayer: send move to server, disable board until opponent moves
   if (mp.isActive()) {
+    multiplayerMoveTimes.push(Date.now());
     mp.sendMove(result.san);
     diagnostics.flush();
     board.setInteractive(false);
@@ -929,6 +967,18 @@ board.onMove((result) => {
 
     // Update live eval bar
     if (evalBarToggle && evalBarToggle.checked) liveEval();
+
+    // Save move to local database
+    if (currentDbGameId) {
+      const side = game.getTurn() === 'w' ? 'b' : 'w';
+      db.addMove(currentDbGameId, {
+        ply: moveCount - 1,
+        san: result.san,
+        fen: game.chess.fen(),
+        timestamp: Date.now(),
+        side,
+      });
+    }
 
     // Check for game over (checkmate/stalemate detected client-side, server will confirm)
     if (game.isGameOver()) {
@@ -1243,6 +1293,20 @@ customTimeOk.addEventListener('click', () => {
   opt.selected = true;
   timeControlSelect.insertBefore(opt, timeControlSelect.querySelector('[value="custom"]'));
   customTimeModal.classList.add('hidden');
+  customWhiteLabel.textContent = 'White minutes:';
+  customBlackLabel.textContent = 'Black minutes:';
+
+  // If a lobby custom TC is pending, apply it to the lobby
+  if (mpUI && mpUI.hasPendingLobbyCustomTc()) {
+    mpUI.applyCustomTc(wMin, bMin, increment);
+    return;
+  }
+
+  // If a friend game triggered this, update the friend TC select and reopen wizard
+  if (newGameMenu.hasPendingFriendCustomTime()) {
+    newGameMenu.resumeFriendWithCustomTc(wMin, bMin, increment);
+    return;
+  }
 
   // If the new game wizard triggered this, resume at settings step
   if (newGameMenu.hasPendingCustomTime()) {
@@ -1254,6 +1318,18 @@ customTimeOk.addEventListener('click', () => {
 
 customTimeCancel.addEventListener('click', () => {
   customTimeModal.classList.add('hidden');
+  customWhiteLabel.textContent = 'White minutes:';
+  customBlackLabel.textContent = 'Black minutes:';
+  // If a lobby custom TC is pending, cancel it
+  if (mpUI && mpUI.hasPendingLobbyCustomTc()) {
+    mpUI.resetLobbyCustomTc();
+    return;
+  }
+  // If a friend game triggered this, restore the wizard at the friend step
+  if (newGameMenu.hasPendingFriendCustomTime()) {
+    newGameMenu.resetFriendCustomTime();
+    return;
+  }
   timeControlSelect.value = '600|0'; // fallback to Rapid 10+0
 });
 
@@ -3103,10 +3179,12 @@ mp.onGameStart = async (payload) => {
     videoEnabled: payload.videoEnabled,
     timeControl: payload.timeControl,
   });
+  issueReporter.setGameContext(payload.dbGameId, mp.sessionId, !!payload.videoEnabled);
+  issueReporter.showButton();
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 
-  // If video is enabled, request camera and signal readiness
-  if (payload.videoEnabled) {
+  // If video is enabled, request camera (skip if already started in lobby)
+  if (payload.videoEnabled && !videoChat.hasLocalStream()) {
     try {
       const stream = await videoChat.requestCamera();
       videoUI.showCameraPreview(stream);
@@ -3121,6 +3199,32 @@ mp.onRoomCreated = (payload) => {
   mpUI.showWaiting(payload.roomId);
 };
 
+// Lobby joined — show pre-game settings lobby
+mp.onLobbyJoined = async (payload) => {
+  multiplayerActive = true;
+  mpUI.showLobby(payload);
+
+  // Start video at lobby entry so both players can see each other while choosing settings
+  if (payload.settings?.videoEnabled) {
+    try {
+      const stream = await videoChat.requestCamera();
+      videoUI.showCameraPreview(stream);
+    } catch (e) {
+      videoUI.showError(e.message || 'Camera access failed.');
+    }
+  }
+};
+
+// Setting changed (applied immediately, no approval needed)
+mp.onSettingChanged = (payload) => {
+  mpUI.showSettingChanged(payload);
+};
+
+// Ready state update
+mp.onReadyState = (payload) => {
+  mpUI.updateReadyState(payload);
+};
+
 // Queue joined
 mp.onQueueJoined = (payload) => {
   mpUI.showSearching();
@@ -3129,6 +3233,7 @@ mp.onQueueJoined = (payload) => {
 // Opponent made a move
 mp.onOpponentMove = (payload) => {
   const { san, fen, clocks } = payload;
+  multiplayerMoveTimes.push(Date.now());
 
   // If in live review, buffer the move instead of applying immediately
   if (isLiveReview) {
@@ -3155,6 +3260,17 @@ mp.onOpponentMove = (payload) => {
       const idx = liveReviewMoves.length - 1;
       appendLiveMove(san, result.color, idx);
       updateLiveMoveBarButtons();
+
+      // Save opponent's move to local database even during live review
+      if (currentDbGameId) {
+        db.addMove(currentDbGameId, {
+          ply: moveCount - 1,
+          san,
+          fen: scratch.fen(),
+          timestamp: Date.now(),
+          side: result.color,
+        });
+      }
     }
 
     // Sync clocks even during review
@@ -3176,6 +3292,17 @@ mp.onOpponentMove = (payload) => {
   appendLiveMove(san, opponentSide, moveCount - 1);
   if (moveCount === 1) activateLiveMoveBar();
   updateLiveMoveBarButtons();
+
+  // Save opponent's move to local database
+  if (currentDbGameId) {
+    db.addMove(currentDbGameId, {
+      ply: moveCount - 1,
+      san,
+      fen: game.chess.fen(),
+      timestamp: Date.now(),
+      side: opponentSide,
+    });
+  }
 
   // Disable pre-game state
   if (moveCount === 1) {
@@ -3253,6 +3380,12 @@ mp.onGameEnd = (payload) => {
   newGameBtn.classList.add('game-ended');
 
   const { result, reason } = payload;
+
+  // Persist game result to local database
+  if (currentDbGameId) {
+    db.endGame(currentDbGameId, result, reason);
+  }
+
   let statusText;
   if (result === '1/2-1/2') {
     statusText = `Draw — ${reason}`;
@@ -3277,6 +3410,7 @@ mp.onGameEnd = (payload) => {
     if (!postGameAnalysisEngine) {
       postGameAnalysisEngine = new AnalysisEngine();
     }
+    postGameSummary.addActionButton(issueReporter.createPostGameFlagButton());
     postGameSummary.showWithAnalysis(
       record,
       postGameAnalysisEngine,
@@ -3318,6 +3452,8 @@ mp.onRematchDeclined = () => {
 mp.onRematchStart = async (payload) => {
   diagnostics.setContext(payload.dbGameId, payload.roomId);
   diagnostics.record('lifecycle', 'rematch_start', { color: payload.color });
+  issueReporter.setGameContext(payload.dbGameId, mp.sessionId, videoActive);
+  issueReporter.showButton();
   mpUI.hideGameControls();
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 
@@ -3358,6 +3494,17 @@ mp.onReconnect = async (payload) => {
       moveCount++;
       appendLiveMove(san, result.color, moveCount - 1);
       liveReviewMoves.push({ san, fen: scratch.fen(), from: result.from, to: result.to, side: result.color });
+
+      // Record replayed move to local database
+      if (currentDbGameId) {
+        db.addMove(currentDbGameId, {
+          ply: moveCount - 1,
+          san,
+          fen: scratch.fen(),
+          timestamp: Date.now(),
+          side: result.color,
+        });
+      }
     }
     activateLiveMoveBar();
     updateLiveMoveBarButtons();
@@ -3445,11 +3592,13 @@ mp.onReconnecting = (attempt, maxAttempts) => {
 mp.onConnectionLost = () => {
   mpUI.setConnectionStatus('connection-lost');
   multiplayerActive = false;
+  issueReporter.recordError();
   updateStatus('Connection lost — game may have ended');
 };
 
 mp.onError = (msg) => {
   console.warn('Multiplayer error:', msg);
+  issueReporter.recordError();
   // "Not in a room" during active game is handled by multiplayer.js (triggers reconnect)
   // Don't show alerts or reset state during shared post-game review
   if (!mp.isActive() && !sharedReviewActive) {
@@ -3516,8 +3665,8 @@ videoChat.onRemoteStream = (stream) => {
     videoBoard.updateRemoteStream(stream, mp.color);
   }
 };
-videoChat.onDisconnected = () => videoUI.showError('Video disconnected');
-videoChat.onError = (msg) => videoUI.showError(msg);
+videoChat.onDisconnected = () => { videoUI.showError('Video disconnected'); issueReporter.recordError(); };
+videoChat.onError = (msg) => { videoUI.showError(msg); issueReporter.recordError(); };
 
 // VideoUI events
 videoUI.onPreviewConfirm = () => {
@@ -3755,6 +3904,10 @@ newGameMenu.onFriend(async (action, tc, name, code, videoEnabled, chess960) => {
 });
 
 newGameMenu.onCustomTime(() => {
+  if (newGameMenu.hasPendingFriendCustomTime()) {
+    customWhiteLabel.textContent = 'Your time (min):';
+    customBlackLabel.textContent = "Opponent's time (min):";
+  }
   customTimeModal.classList.remove('hidden');
 });
 

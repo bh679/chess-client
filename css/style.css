@@ -2879,6 +2879,10 @@ button.replay-summary-btn {
   padding: 12px 0;
 }
 
+.pgs-progress-text.hidden {
+  display: none;
+}
+
 .pgs-error {
   text-align: center;
   color: #999;
@@ -3427,6 +3431,19 @@ button.replay-summary-btn {
   pointer-events: auto;
 }
 
+.mp-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 16px;
+}
+.mp-modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  text-align: center;
+  flex: 1;
+}
 .mp-modal-content h3 {
   margin: 0 0 16px;
   font-size: 1.1rem;
@@ -3584,6 +3601,138 @@ button.replay-summary-btn {
 }
 @keyframes mp-spin {
   to { transform: rotate(360deg); }
+}
+
+/* Lobby view */
+.mp-lobby-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+.mp-lobby-room-code-wrap,
+.mp-lobby-opponent-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.mp-lobby-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted, #888);
+}
+.mp-lobby-opponent-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.mp-lobby-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.mp-lobby-setting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--surface, rgba(255,255,255,0.05));
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+}
+.mp-lobby-setting-label {
+  font-size: 0.78rem;
+  color: var(--text-muted, #888);
+  min-width: 90px;
+}
+.mp-lobby-setting-value {
+  flex: 1;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.mp-lobby-tc-select {
+  flex: 1;
+  background: var(--bg, #1a1a1a);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  padding: 2px 6px;
+  font-size: 0.85rem;
+}
+.mp-lobby-tc-select.hidden { display: none; }
+.mp-lobby-setting-value.hidden { display: none; }
+.mp-lobby-edit-btn {
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.mp-lobby-edit-btn:hover {
+  background: var(--surface, rgba(255,255,255,0.08));
+}
+.mp-lobby-edit-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.mp-lobby-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  position: absolute;
+  right: 0;
+}
+.mp-lobby-close-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+.mp-lobby-close-btn.hidden { display: none; }
+.mp-lobby-ready-status {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+.mp-lobby-ready-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+.mp-lobby-ready-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--border, #555);
+  transition: background 0.2s;
+}
+.mp-lobby-ready-indicator.ready .mp-lobby-ready-dot {
+  background: #4caf50;
+}
+.mp-lobby-ready-name {
+  color: var(--text-muted, #888);
+  font-size: 0.8rem;
+}
+.mp-lobby-ready-indicator.ready .mp-lobby-ready-name {
+  color: var(--text);
+  font-weight: 600;
+}
+.mp-lobby-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* In-game controls */
@@ -4489,4 +4638,219 @@ button.replay-summary-btn {
     width: 70px;
     height: 52px;
   }
+}
+
+/* ============================================
+   Issue Reporter — Flag Button & Feedback Modal
+   ============================================ */
+
+/* In-game flag button (next to connection status) */
+.ir-flag-btn {
+  background: none;
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  color: rgba(255, 107, 107, 0.6);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.ir-flag-btn:hover {
+  color: var(--danger);
+  border-color: rgba(255, 107, 107, 0.5);
+  background: rgba(255, 107, 107, 0.08);
+}
+.ir-flag-btn.ir-expanded {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+  color: #fff;
+  font-weight: 600;
+  animation: ir-pulse 2s ease-in-out infinite;
+}
+.ir-flag-btn.ir-expanded:hover {
+  background: var(--danger);
+}
+.ir-flag-btn.ir-flagged {
+  color: var(--accent-soft);
+  border-color: rgba(126, 200, 148, 0.4);
+  cursor: default;
+  pointer-events: none;
+}
+.ir-flag-btn.hidden { display: none; }
+
+@keyframes ir-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Post-game summary flag button */
+.pgs-btn-flag {
+  flex: 0 0 44px;
+  background: rgba(255, 107, 107, 0.15);
+  color: rgba(255, 107, 107, 0.7);
+  font-size: 1rem;
+}
+.pgs-btn-flag:hover {
+  background: var(--danger-bg);
+  color: #fff;
+}
+.pgs-btn-flag.ir-expanded {
+  background: var(--danger-bg);
+  color: #fff;
+  animation: ir-pulse 2s ease-in-out infinite;
+}
+.pgs-btn-flag.ir-flagged {
+  background: rgba(126, 200, 148, 0.15);
+  color: var(--accent-soft);
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Feedback modal overlay */
+.ir-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2200;
+}
+.ir-modal.hidden { display: none; }
+
+.ir-content {
+  background: #272522;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 380px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  color: #e0e0e0;
+}
+
+.ir-header {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ir-header-icon {
+  color: var(--danger);
+  font-size: 1.2rem;
+}
+
+.ir-subtext {
+  font-size: 0.82rem;
+  color: #999;
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+
+/* Step containers */
+.ir-step { }
+.ir-step.hidden { display: none; }
+
+/* Checkboxes */
+.ir-checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.ir-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid transparent;
+  transition: all 0.15s;
+}
+.ir-checkbox-label:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--border);
+}
+.ir-checkbox-label input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Textarea */
+.ir-textarea {
+  width: 100%;
+  min-height: 100px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: #e0e0e0;
+  padding: 10px 12px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  resize: vertical;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+}
+.ir-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.ir-textarea::placeholder {
+  color: #777;
+}
+
+/* Buttons */
+.ir-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.ir-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.ir-btn-primary {
+  background: var(--accent);
+  color: #fff;
+  flex: 1;
+}
+.ir-btn-primary:hover {
+  background: var(--accent-hover);
+}
+.ir-btn-skip {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 0.82rem;
+  padding: 8px 12px;
+}
+.ir-btn-skip:hover {
+  color: #ccc;
+}
+
+/* Confirmation */
+.ir-confirm {
+  color: var(--accent-soft);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 12px;
 }
