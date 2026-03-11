@@ -22,6 +22,7 @@ import { VideoChat } from './video-chat.js';
 import { VideoUI } from './video-ui.js';
 import { VideoBoard } from './video-board.js';
 import { Diagnostics } from './diagnostics.js';
+import { IssueReporter } from './issue-reporter.js';
 
 const PIECE_ORDER = { q: 0, r: 1, b: 2, n: 3, p: 4 };
 const PIECE_VALUES = { q: 9, r: 5, b: 3, n: 3, p: 1 };
@@ -158,6 +159,7 @@ const db = new GameDatabase();
 db.setAuth(auth);
 const replayViewer = new ReplayViewer();
 const postGameSummary = new PostGameSummary();
+const issueReporter = new IssueReporter();
 const gameBrowser = new GameBrowser(db, replayViewer, enterReplayMode);
 const profile = new Profile(auth, { onGameClick: (id) => loadGameById(id) });
 const friends = new Friends(auth);
@@ -307,12 +309,14 @@ window.addEventListener('error', (event) => {
     event.colno,
     event.error?.stack
   );
+  issueReporter.recordError();
 });
 window.addEventListener('unhandledrejection', (event) => {
   diagnostics.record('error', 'unhandled_rejection', {
     message: String(event.reason),
     stack: event.reason?.stack?.substring(0, 1000) || null,
   });
+  issueReporter.recordError();
 });
 
 // Video Chat
@@ -587,6 +591,8 @@ function triggerPostGameSummary() {
     onClose: () => {},
   });
 
+  postGameSummary.addActionButton(issueReporter.createPostGameFlagButton());
+
   postGameSummary.showWithAnalysis(
     record,
     postGameAnalysisEngine,
@@ -652,6 +658,8 @@ async function startNewGame() {
   if (postGameSummary.isOpen()) {
     postGameSummary.close();
   }
+  // Reset issue reporter for new game
+  issueReporter.reset();
   // Stop post-game analysis engine if running
   if (postGameAnalysisEngine) {
     postGameAnalysisEngine.stop();
@@ -3171,6 +3179,8 @@ mp.onGameStart = async (payload) => {
     videoEnabled: payload.videoEnabled,
     timeControl: payload.timeControl,
   });
+  issueReporter.setGameContext(payload.dbGameId, mp.sessionId, !!payload.videoEnabled);
+  issueReporter.showButton();
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 
   // If video is enabled, request camera (skip if already started in lobby)
@@ -3400,6 +3410,7 @@ mp.onGameEnd = (payload) => {
     if (!postGameAnalysisEngine) {
       postGameAnalysisEngine = new AnalysisEngine();
     }
+    postGameSummary.addActionButton(issueReporter.createPostGameFlagButton());
     postGameSummary.showWithAnalysis(
       record,
       postGameAnalysisEngine,
@@ -3441,6 +3452,8 @@ mp.onRematchDeclined = () => {
 mp.onRematchStart = (payload) => {
   diagnostics.setContext(payload.dbGameId, payload.roomId);
   diagnostics.record('lifecycle', 'rematch_start', { color: payload.color });
+  issueReporter.setGameContext(payload.dbGameId, mp.sessionId, videoActive);
+  issueReporter.showButton();
   mpUI.hideGameControls();
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 };
@@ -3562,11 +3575,13 @@ mp.onReconnecting = (attempt, maxAttempts) => {
 mp.onConnectionLost = () => {
   mpUI.setConnectionStatus('connection-lost');
   multiplayerActive = false;
+  issueReporter.recordError();
   updateStatus('Connection lost — game may have ended');
 };
 
 mp.onError = (msg) => {
   console.warn('Multiplayer error:', msg);
+  issueReporter.recordError();
   // "Not in a room" during active game is handled by multiplayer.js (triggers reconnect)
   // Don't show alerts or reset state during shared post-game review
   if (!mp.isActive() && !sharedReviewActive) {
@@ -3633,8 +3648,8 @@ videoChat.onRemoteStream = (stream) => {
     videoBoard.updateRemoteStream(stream, mp.color);
   }
 };
-videoChat.onDisconnected = () => videoUI.showError('Video disconnected');
-videoChat.onError = (msg) => videoUI.showError(msg);
+videoChat.onDisconnected = () => { videoUI.showError('Video disconnected'); issueReporter.recordError(); };
+videoChat.onError = (msg) => { videoUI.showError(msg); issueReporter.recordError(); };
 
 // VideoUI events
 videoUI.onPreviewConfirm = () => {
