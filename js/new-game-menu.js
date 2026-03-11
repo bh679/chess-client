@@ -22,6 +22,7 @@ export class NewGameMenu {
     this._onFriend = null;   // (action, tc, name, code?, videoEnabled?, chess960?) => void  — create or join
     this._onCustomTime = null; // () => void
     this._pendingCustomTime = false;
+    this._pendingFriendCustomTime = false;
 
     this._initElements();
     this._populateEngines();
@@ -63,6 +64,54 @@ export class NewGameMenu {
   /** Check and clear the pending custom time flag */
   hasPendingCustomTime() {
     return this._pendingCustomTime;
+  }
+
+  /** Check whether a friend game triggered the custom time modal */
+  hasPendingFriendCustomTime() {
+    return this._pendingFriendCustomTime;
+  }
+
+  /**
+   * Called after the custom time modal OK when a friend game triggered it.
+   * Builds the TC string, inserts a labelled option into the friend select,
+   * then reopens the wizard at the friend step.
+   */
+  resumeFriendWithCustomTc(wMin, bMin, increment) {
+    this._pendingFriendCustomTime = false;
+
+    const tcString = wMin === bMin
+      ? `${wMin}+${increment}`
+      : `${wMin}/${bMin}+${increment}`;
+
+    const label = wMin === bMin
+      ? `Custom ${wMin}+${increment}`
+      : `Custom W${wMin}/B${bMin}+${increment}`;
+
+    const existingCustom = this.friendTcSelect.querySelector('[data-custom]');
+    if (existingCustom) existingCustom.remove();
+
+    const opt = document.createElement('option');
+    opt.value = tcString;
+    opt.textContent = label;
+    opt.dataset.custom = 'true';
+    opt.selected = true;
+    this.friendTcSelect.insertBefore(opt, this.friendTcSelect.querySelector('[value="custom"]'));
+
+    this._showStep('friend');
+    this.modal.classList.remove('hidden');
+    this.backdrop.classList.remove('hidden');
+  }
+
+  /** Called when custom time modal is cancelled from the friend flow */
+  resetFriendCustomTime() {
+    this._pendingFriendCustomTime = false;
+    // Reset select to default if it was left on 'custom'
+    if (this.friendTcSelect.value === 'custom') {
+      this.friendTcSelect.value = '5+0';
+    }
+    this._showStep('friend');
+    this.modal.classList.remove('hidden');
+    this.backdrop.classList.remove('hidden');
   }
 
   // --- Private ---
@@ -196,6 +245,15 @@ export class NewGameMenu {
       const chess960 = this.online960Btn?.classList.contains('active') || false;
       this.close();
       if (this._onOnline) this._onOnline(tc, name, camMode, chess960);
+    });
+
+    // --- Friend step: TC custom selection ---
+    this.friendTcSelect.addEventListener('change', () => {
+      if (this.friendTcSelect.value === 'custom') {
+        this._pendingFriendCustomTime = true;
+        this.close();
+        if (this._onCustomTime) this._onCustomTime();
+      }
     });
 
     // --- Friend step: Create Room / Join Room ---

@@ -2879,6 +2879,10 @@ button.replay-summary-btn {
   padding: 12px 0;
 }
 
+.pgs-progress-text.hidden {
+  display: none;
+}
+
 .pgs-error {
   text-align: center;
   color: #999;
