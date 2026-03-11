@@ -100,6 +100,33 @@ export class VideoBoard {
   }
 
   /**
+   * Reset the video board for a new game (e.g. rematch with swapped colors).
+   * Reuses the existing DOM layer — stops and restarts face tracking with the
+   * new player color and streams without a full disable/enable cycle.
+   *
+   * @param {MediaStream|null} localStream
+   * @param {MediaStream|null} remoteStream
+   * @param {'w'|'b'} playerColor
+   */
+  reset(localStream, remoteStream, playerColor) {
+    if (!this._active || !this._layer) return;
+
+    this._stopFaceTracking();
+    if (this._croppedStream) {
+      this._croppedStream.stop();
+      this._croppedStream = null;
+    }
+
+    this._playerColor = playerColor;
+    this._localStream = localStream;
+
+    const remoteVideo = playerColor === 'w' ? this._darkVideo : this._lightVideo;
+    this._setStream(remoteVideo, remoteStream);
+
+    this._startFaceTracking();
+  }
+
+  /**
    * Disable video board mode and clean up.
    */
   disable() {
