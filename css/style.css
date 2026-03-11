@@ -4495,25 +4495,10 @@ button.replay-summary-btn {
    King Cam Mode
    ======================== */
 
-/* Cycling cam mode button in new game menu */
-.ng-cam-cycle-btn {
-  display: block;
-  width: 100%;
-  padding: 6px 8px;
-  margin-top: 8px;
-  font-size: 12px;
-  font-family: inherit;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.08);
-  color: inherit;
-  cursor: pointer;
-  text-align: center;
-  transition: background 0.15s;
-}
-
-.ng-cam-cycle-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+/* King cam video: suppress native browser play button */
+.king-cam-video::-webkit-media-controls,
+.king-cam-video::-webkit-media-controls-overlay-play-button {
+  display: none !important;
 }
 
 /* King cam piece container */

@@ -75,6 +75,7 @@ export class NewGameMenu {
       const next = MODES[(MODES.indexOf(btn.dataset.mode) + 1) % MODES.length];
       btn.dataset.mode = next;
       btn.textContent = LABELS[next];
+      btn.classList.toggle('active', next !== 'none');
     });
   }
 

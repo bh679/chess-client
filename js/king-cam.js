@@ -78,6 +78,8 @@ export class KingCam {
     video.autoplay = true;
     video.playsInline = true;
     video.muted = true;
+    video.controls = false;
+    video.disablePictureInPicture = true;
     video.srcObject = stream;
 
     const frame = document.createElement('img');
