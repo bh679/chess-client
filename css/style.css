@@ -4677,3 +4677,219 @@ button.replay-summary-btn {
   pointer-events: none;
   z-index: 2;
 }
+
+
+/* ============================================
+   Issue Reporter — Flag Button & Feedback Modal
+   ============================================ */
+
+/* In-game flag button (next to connection status) */
+.ir-flag-btn {
+  background: none;
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  color: rgba(255, 107, 107, 0.6);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.ir-flag-btn:hover {
+  color: var(--danger);
+  border-color: rgba(255, 107, 107, 0.5);
+  background: rgba(255, 107, 107, 0.08);
+}
+.ir-flag-btn.ir-expanded {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+  color: #fff;
+  font-weight: 600;
+  animation: ir-pulse 2s ease-in-out infinite;
+}
+.ir-flag-btn.ir-expanded:hover {
+  background: var(--danger);
+}
+.ir-flag-btn.ir-flagged {
+  color: var(--accent-soft);
+  border-color: rgba(126, 200, 148, 0.4);
+  cursor: default;
+  pointer-events: none;
+}
+.ir-flag-btn.hidden { display: none; }
+
+@keyframes ir-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Post-game summary flag button */
+.pgs-btn-flag {
+  flex: 0 0 44px;
+  background: rgba(255, 107, 107, 0.15);
+  color: rgba(255, 107, 107, 0.7);
+  font-size: 1rem;
+}
+.pgs-btn-flag:hover {
+  background: var(--danger-bg);
+  color: #fff;
+}
+.pgs-btn-flag.ir-expanded {
+  background: var(--danger-bg);
+  color: #fff;
+  animation: ir-pulse 2s ease-in-out infinite;
+}
+.pgs-btn-flag.ir-flagged {
+  background: rgba(126, 200, 148, 0.15);
+  color: var(--accent-soft);
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Feedback modal overlay */
+.ir-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2200;
+}
+.ir-modal.hidden { display: none; }
+
+.ir-content {
+  background: #272522;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 380px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  color: #e0e0e0;
+}
+
+.ir-header {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ir-header-icon {
+  color: var(--danger);
+  font-size: 1.2rem;
+}
+
+.ir-subtext {
+  font-size: 0.82rem;
+  color: #999;
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+
+/* Step containers */
+.ir-step { }
+.ir-step.hidden { display: none; }
+
+/* Checkboxes */
+.ir-checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.ir-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid transparent;
+  transition: all 0.15s;
+}
+.ir-checkbox-label:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--border);
+}
+.ir-checkbox-label input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Textarea */
+.ir-textarea {
+  width: 100%;
+  min-height: 100px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: #e0e0e0;
+  padding: 10px 12px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  resize: vertical;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+}
+.ir-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.ir-textarea::placeholder {
+  color: #777;
+}
+
+/* Buttons */
+.ir-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.ir-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.ir-btn-primary {
+  background: var(--accent);
+  color: #fff;
+  flex: 1;
+}
+.ir-btn-primary:hover {
+  background: var(--accent-hover);
+}
+.ir-btn-skip {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 0.82rem;
+  padding: 8px 12px;
+}
+.ir-btn-skip:hover {
+  color: #ccc;
+}
+
+/* Confirmation */
+.ir-confirm {
+  color: var(--accent-soft);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 12px;
+}
