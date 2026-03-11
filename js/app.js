@@ -75,6 +75,8 @@ const sameTimeFields = document.getElementById('same-time-fields');
 const oddsTimeFields = document.getElementById('odds-time-fields');
 const customTimeOk = document.getElementById('custom-time-ok');
 const customTimeCancel = document.getElementById('custom-time-cancel');
+const customWhiteLabel = document.getElementById('custom-white-label');
+const customBlackLabel = document.getElementById('custom-black-label');
 const chess960Toggle = document.getElementById('chess960-toggle');
 const animationsToggle = document.getElementById('animations-toggle');
 const evalBarToggle = document.getElementById('eval-bar-toggle');
@@ -1246,6 +1248,8 @@ customTimeOk.addEventListener('click', () => {
   opt.selected = true;
   timeControlSelect.insertBefore(opt, timeControlSelect.querySelector('[value="custom"]'));
   customTimeModal.classList.add('hidden');
+  customWhiteLabel.textContent = 'White minutes:';
+  customBlackLabel.textContent = 'Black minutes:';
 
   // If a friend game triggered this, update the friend TC select and reopen wizard
   if (newGameMenu.hasPendingFriendCustomTime()) {
@@ -1263,6 +1267,8 @@ customTimeOk.addEventListener('click', () => {
 
 customTimeCancel.addEventListener('click', () => {
   customTimeModal.classList.add('hidden');
+  customWhiteLabel.textContent = 'White minutes:';
+  customBlackLabel.textContent = 'Black minutes:';
   // If a friend game triggered this, restore the wizard at the friend step
   if (newGameMenu.hasPendingFriendCustomTime()) {
     newGameMenu.resetFriendCustomTime();
@@ -3747,6 +3753,10 @@ newGameMenu.onFriend(async (action, tc, name, code, videoEnabled, chess960) => {
 });
 
 newGameMenu.onCustomTime(() => {
+  if (newGameMenu.hasPendingFriendCustomTime()) {
+    customWhiteLabel.textContent = 'Your time (min):';
+    customBlackLabel.textContent = "Opponent's time (min):";
+  }
   customTimeModal.classList.remove('hidden');
 });
 
