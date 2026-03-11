@@ -3105,8 +3105,8 @@ mp.onGameStart = async (payload) => {
   });
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 
-  // If video is enabled, request camera and signal readiness
-  if (payload.videoEnabled) {
+  // If video is enabled, request camera (skip if already started in lobby)
+  if (payload.videoEnabled && !videoChat.hasLocalStream()) {
     try {
       const stream = await videoChat.requestCamera();
       videoUI.showCameraPreview(stream);
@@ -3122,9 +3122,19 @@ mp.onRoomCreated = (payload) => {
 };
 
 // Lobby joined — show pre-game settings lobby
-mp.onLobbyJoined = (payload) => {
+mp.onLobbyJoined = async (payload) => {
   multiplayerActive = true;
   mpUI.showLobby(payload);
+
+  // Start video at lobby entry so both players can see each other while choosing settings
+  if (payload.settings?.videoEnabled) {
+    try {
+      const stream = await videoChat.requestCamera();
+      videoUI.showCameraPreview(stream);
+    } catch (e) {
+      videoUI.showError(e.message || 'Camera access failed.');
+    }
+  }
 };
 
 // Setting changed (applied immediately, no approval needed)
