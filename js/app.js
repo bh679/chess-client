@@ -339,6 +339,8 @@ let customBlackName = null;
 // Replay-on-board state
 let isReplayMode = false;
 let multiplayerActive = false;
+let multiplayerGameStartTime = null;
+let multiplayerMoveTimes = [];
 let replayGame = null;
 let replayPly = -1;
 let replayPlaying = false;
@@ -621,6 +623,7 @@ function buildMultiplayerGameRecord(result, reason) {
       fen: replay.fen(),
       ply: i,
       side,
+      timestamp: multiplayerMoveTimes[i] || null,
     });
   }
 
@@ -633,6 +636,7 @@ function buildMultiplayerGameRecord(result, reason) {
     black: { name: mp.color === 'b' ? 'You' : 'Opponent', isAI: false },
     timeControl: 'Online',
     gameType: 'online',
+    startTime: multiplayerGameStartTime,
   };
 }
 
@@ -794,6 +798,8 @@ async function startNewGame() {
 /** Start a multiplayer game (called by multiplayer event handlers) */
 function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
   multiplayerActive = true;
+  multiplayerGameStartTime = Date.now();
+  multiplayerMoveTimes = [];
 
   // Close any open panels/overlays
   if (postGameSummary.isOpen()) postGameSummary.close();
@@ -909,6 +915,7 @@ board.onMove((result) => {
 
   // Multiplayer: send move to server, disable board until opponent moves
   if (mp.isActive()) {
+    multiplayerMoveTimes.push(Date.now());
     mp.sendMove(result.san);
     diagnostics.flush();
     board.setInteractive(false);
@@ -3129,6 +3136,7 @@ mp.onQueueJoined = (payload) => {
 // Opponent made a move
 mp.onOpponentMove = (payload) => {
   const { san, fen, clocks } = payload;
+  multiplayerMoveTimes.push(Date.now());
 
   // If in live review, buffer the move instead of applying immediately
   if (isLiveReview) {
