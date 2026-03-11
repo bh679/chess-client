@@ -120,6 +120,16 @@ class PostGameSummary {
     this._onClose = callbacks.onClose || null;
   }
 
+  /**
+   * Insert an action button element at the start of the actions area.
+   * Used by IssueReporter to add a flag button to the summary.
+   */
+  addActionButton(el) {
+    if (el && this._actionsEl) {
+      this._actionsEl.insertBefore(el, this._actionsEl.firstChild);
+    }
+  }
+
   close() {
     this._overlay.classList.add('hidden');
   }
