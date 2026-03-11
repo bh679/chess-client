@@ -345,6 +345,8 @@ let customBlackName = null;
 // Replay-on-board state
 let isReplayMode = false;
 let multiplayerActive = false;
+let multiplayerGameStartTime = null;
+let multiplayerMoveTimes = [];
 let replayGame = null;
 let replayPly = -1;
 let replayPlaying = false;
@@ -629,6 +631,7 @@ function buildMultiplayerGameRecord(result, reason) {
       fen: replay.fen(),
       ply: i,
       side,
+      timestamp: multiplayerMoveTimes[i] || null,
     });
   }
 
@@ -641,6 +644,7 @@ function buildMultiplayerGameRecord(result, reason) {
     black: { name: mp.color === 'b' ? 'You' : 'Opponent', isAI: false },
     timeControl: 'Online',
     gameType: 'online',
+    startTime: multiplayerGameStartTime,
   };
 }
 
@@ -804,6 +808,8 @@ async function startNewGame() {
 /** Start a multiplayer game (called by multiplayer event handlers) */
 function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
   multiplayerActive = true;
+  multiplayerGameStartTime = Date.now();
+  multiplayerMoveTimes = [];
 
   // Close any open panels/overlays
   if (postGameSummary.isOpen()) postGameSummary.close();
@@ -940,6 +946,7 @@ board.onMove((result) => {
 
   // Multiplayer: send move to server, disable board until opponent moves
   if (mp.isActive()) {
+    multiplayerMoveTimes.push(Date.now());
     mp.sendMove(result.san);
     diagnostics.flush();
     board.setInteractive(false);
@@ -1289,6 +1296,12 @@ customTimeOk.addEventListener('click', () => {
   customWhiteLabel.textContent = 'White minutes:';
   customBlackLabel.textContent = 'Black minutes:';
 
+  // If a lobby custom TC is pending, apply it to the lobby
+  if (mpUI && mpUI.hasPendingLobbyCustomTc()) {
+    mpUI.applyCustomTc(wMin, bMin, increment);
+    return;
+  }
+
   // If a friend game triggered this, update the friend TC select and reopen wizard
   if (newGameMenu.hasPendingFriendCustomTime()) {
     newGameMenu.resumeFriendWithCustomTc(wMin, bMin, increment);
@@ -1307,6 +1320,11 @@ customTimeCancel.addEventListener('click', () => {
   customTimeModal.classList.add('hidden');
   customWhiteLabel.textContent = 'White minutes:';
   customBlackLabel.textContent = 'Black minutes:';
+  // If a lobby custom TC is pending, cancel it
+  if (mpUI && mpUI.hasPendingLobbyCustomTc()) {
+    mpUI.resetLobbyCustomTc();
+    return;
+  }
   // If a friend game triggered this, restore the wizard at the friend step
   if (newGameMenu.hasPendingFriendCustomTime()) {
     newGameMenu.resetFriendCustomTime();
@@ -3165,8 +3183,8 @@ mp.onGameStart = async (payload) => {
   issueReporter.showButton();
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 
-  // If video is enabled, request camera and signal readiness
-  if (payload.videoEnabled) {
+  // If video is enabled, request camera (skip if already started in lobby)
+  if (payload.videoEnabled && !videoChat.hasLocalStream()) {
     try {
       const stream = await videoChat.requestCamera();
       videoUI.showCameraPreview(stream);
@@ -3181,6 +3199,32 @@ mp.onRoomCreated = (payload) => {
   mpUI.showWaiting(payload.roomId);
 };
 
+// Lobby joined — show pre-game settings lobby
+mp.onLobbyJoined = async (payload) => {
+  multiplayerActive = true;
+  mpUI.showLobby(payload);
+
+  // Start video at lobby entry so both players can see each other while choosing settings
+  if (payload.settings?.videoEnabled) {
+    try {
+      const stream = await videoChat.requestCamera();
+      videoUI.showCameraPreview(stream);
+    } catch (e) {
+      videoUI.showError(e.message || 'Camera access failed.');
+    }
+  }
+};
+
+// Setting changed (applied immediately, no approval needed)
+mp.onSettingChanged = (payload) => {
+  mpUI.showSettingChanged(payload);
+};
+
+// Ready state update
+mp.onReadyState = (payload) => {
+  mpUI.updateReadyState(payload);
+};
+
 // Queue joined
 mp.onQueueJoined = (payload) => {
   mpUI.showSearching();
@@ -3189,6 +3233,7 @@ mp.onQueueJoined = (payload) => {
 // Opponent made a move
 mp.onOpponentMove = (payload) => {
   const { san, fen, clocks } = payload;
+  multiplayerMoveTimes.push(Date.now());
 
   // If in live review, buffer the move instead of applying immediately
   if (isLiveReview) {

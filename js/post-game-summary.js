@@ -333,6 +333,30 @@ class PostGameSummary {
 
     this._bodyEl.appendChild(playersRow);
 
+    // Average move time section (computed from timestamps, available immediately)
+    const avgTimes = this._computeAvgMoveTime(gameRecord);
+    if (avgTimes.white != null || avgTimes.black != null) {
+      const timingRow = document.createElement('div');
+      timingRow.className = 'pgs-timing';
+
+      const wTimeEl = document.createElement('span');
+      wTimeEl.className = 'pgs-timing-value pgs-timing-value-white';
+      wTimeEl.textContent = this._formatMoveTime(avgTimes.white);
+
+      const labelEl = document.createElement('span');
+      labelEl.className = 'pgs-timing-label';
+      labelEl.textContent = 'Avg Move Time';
+
+      const bTimeEl = document.createElement('span');
+      bTimeEl.className = 'pgs-timing-value pgs-timing-value-black';
+      bTimeEl.textContent = this._formatMoveTime(avgTimes.black);
+
+      timingRow.appendChild(wTimeEl);
+      timingRow.appendChild(labelEl);
+      timingRow.appendChild(bTimeEl);
+      this._bodyEl.appendChild(timingRow);
+    }
+
     // Classification breakdown grid — all 10 rows shown during analysis
     const grid = document.createElement('div');
     grid.className = 'pgs-classifications';
