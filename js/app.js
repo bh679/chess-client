@@ -3386,11 +3386,18 @@ mp.onConnected = (payload) => {
   if (payload && payload.inRoom) {
     mpUI.setConnectionStatus('connected');
   } else if (mp.isActive()) {
-    // Authenticated but room is gone — game is over
-    mpUI.setConnectionStatus('connection-lost');
-    multiplayerActive = false;
-    mp.active = false;
-    updateStatus('Game ended — connection to room was lost');
+    if (mp.roomId) {
+      // Server didn't auto-reconnect us — try manually re-joining
+      mpUI.setConnectionStatus('reconnecting', 'Re-joining game...');
+      mp.joinRoom(mp.roomId, null);
+      // If joinRoom succeeds, onReconnect fires. If it fails, onError fires.
+    } else {
+      // No room to rejoin — game is over
+      mpUI.setConnectionStatus('connection-lost');
+      multiplayerActive = false;
+      mp.active = false;
+      updateStatus('Game ended — connection to room was lost');
+    }
   } else {
     mpUI.setConnectionStatus('connected');
   }
