@@ -116,6 +116,22 @@ export class NewGameMenu {
 
   // --- Private ---
 
+  _bindCamCycle(btn) {
+    if (!btn) return;
+    const MODES = ['board-face', 'king-cam', 'none'];
+    const LABELS = { 'board-face': 'Board Face', 'king-cam': 'King Cam', 'none': 'No Cam' };
+    btn.addEventListener('click', () => {
+      const next = MODES[(MODES.indexOf(btn.dataset.mode) + 1) % MODES.length];
+      btn.dataset.mode = next;
+      btn.textContent = LABELS[next];
+      btn.classList.toggle('active', next !== 'none');
+    });
+  }
+
+  _getCamMode(btn) {
+    return btn?.dataset.mode ?? 'board-face';
+  }
+
   _initElements() {
     this.modal = document.getElementById('ng-modal');
     this.backdrop = document.getElementById('ng-backdrop');
@@ -135,14 +151,14 @@ export class NewGameMenu {
     // Online step elements
     this.onlineNameInput = document.getElementById('ng-online-name');
     this.onlineTcSelect = document.getElementById('ng-online-tc');
-    this.onlineVideoBtn = document.getElementById('ng-online-video-btn');
+    this.onlineCamBtn = document.getElementById('ng-online-cam-btn');
     this.online960Btn = document.getElementById('ng-online-960-btn');
     this.findOpponentBtn = document.getElementById('ng-find-opponent');
 
     // Friend step elements
     this.friendNameInput = document.getElementById('ng-friend-name');
     this.friendTcSelect = document.getElementById('ng-friend-tc');
-    this.friendVideoBtn = document.getElementById('ng-friend-video-btn');
+    this.friendCamBtn = document.getElementById('ng-friend-cam-btn');
     this.friend960Btn = document.getElementById('ng-friend-960-btn');
     this.createRoomBtn = document.getElementById('ng-create-room');
     this.joinCodeInput = document.getElementById('ng-join-code');
@@ -203,7 +219,7 @@ export class NewGameMenu {
       });
     });
 
-    // --- Toggle buttons (Chess960 + Board-Face) ---
+    // --- Toggle buttons (Chess960) ---
     if (this.online960Btn) {
       this.online960Btn.addEventListener('click', () => {
         this.online960Btn.classList.toggle('active');
@@ -216,25 +232,19 @@ export class NewGameMenu {
         this.chess960Checkbox.checked = this.friend960Btn.classList.contains('active');
       });
     }
-    if (this.onlineVideoBtn) {
-      this.onlineVideoBtn.addEventListener('click', () => {
-        this.onlineVideoBtn.classList.toggle('active');
-      });
-    }
-    if (this.friendVideoBtn) {
-      this.friendVideoBtn.addEventListener('click', () => {
-        this.friendVideoBtn.classList.toggle('active');
-      });
-    }
+
+    // --- Cam mode cycling buttons ---
+    this._bindCamCycle(this.onlineCamBtn);
+    this._bindCamCycle(this.friendCamBtn);
 
     // --- Online step: Find Opponent ---
     this.findOpponentBtn.addEventListener('click', () => {
       const tc = this.onlineTcSelect.value;
       const name = this.onlineNameInput.value.trim() || null;
-      const videoEnabled = this.onlineVideoBtn?.classList.contains('active') || false;
+      const camMode = this._getCamMode(this.onlineCamBtn);
       const chess960 = this.online960Btn?.classList.contains('active') || false;
       this.close();
-      if (this._onOnline) this._onOnline(tc, name, videoEnabled, chess960);
+      if (this._onOnline) this._onOnline(tc, name, camMode, chess960);
     });
 
     // --- Friend step: TC custom selection ---
@@ -250,10 +260,10 @@ export class NewGameMenu {
     this.createRoomBtn.addEventListener('click', () => {
       const tc = this.friendTcSelect.value;
       const name = this.friendNameInput.value.trim() || null;
-      const videoEnabled = this.friendVideoBtn?.classList.contains('active') || false;
+      const camMode = this._getCamMode(this.friendCamBtn);
       const chess960 = this.friend960Btn?.classList.contains('active') || false;
       this.close();
-      if (this._onFriend) this._onFriend('create', tc, name, null, videoEnabled, chess960);
+      if (this._onFriend) this._onFriend('create', tc, name, null, camMode, chess960);
     });
 
     this.joinRoomBtn.addEventListener('click', () => {
