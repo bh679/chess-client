@@ -3454,13 +3454,30 @@ mp.onRematchDeclined = () => {
 };
 
 // Rematch starting
-mp.onRematchStart = (payload) => {
+mp.onRematchStart = async (payload) => {
   diagnostics.setContext(payload.dbGameId, payload.roomId);
   diagnostics.record('lifecycle', 'rematch_start', { color: payload.color });
   issueReporter.setGameContext(payload.dbGameId, mp.sessionId, videoActive);
   issueReporter.showButton();
   mpUI.hideGameControls();
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
+
+  // Handle video board for the new game.
+  // Colors swap on rematch so _playerColor must be updated, and streams must
+  // be reassigned to the correct light/dark squares for the new color.
+  if (videoBoard.isActive()) {
+    // WebRTC connection still live — reset board with new player color.
+    videoBoard.reset(videoChat._localStream, videoChat._remoteStream, payload.color);
+  } else if (payload.videoEnabled && !videoActive) {
+    // Video was configured for this room but the connection dropped — re-request
+    // camera and signal readiness so the server can re-initiate WebRTC.
+    try {
+      const stream = await videoChat.requestCamera();
+      videoUI.showCameraPreview(stream);
+    } catch (e) {
+      videoUI.showError(e.message || 'Camera access failed on rematch.');
+    }
+  }
 };
 
 // Reconnection
