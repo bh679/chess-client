@@ -602,18 +602,24 @@ function triggerPostGameSummary() {
  * Used for post-game summary since multiplayer games aren't in the local DB.
  */
 function buildMultiplayerGameRecord(result, reason) {
-  const sanList = game.chess.history();
-  if (!sanList || sanList.length === 0) return null;
+  const verboseHistory = game.chess.history({ verbose: true });
+  if (!verboseHistory || verboseHistory.length === 0) return null;
 
   const startingFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
   const replay = new Chess();
   const moves = [];
 
-  for (let i = 0; i < sanList.length; i++) {
+  for (let i = 0; i < verboseHistory.length; i++) {
+    const moveObj = verboseHistory[i];
     const side = i % 2 === 0 ? 'w' : 'b';
-    replay.move(sanList[i]);
+    try {
+      replay.move({ from: moveObj.from, to: moveObj.to, promotion: moveObj.promotion });
+    } catch (e) {
+      console.warn(`buildMultiplayerGameRecord: failed to replay move ${moveObj.san} at ply ${i}:`, e.message);
+      break;
+    }
     moves.push({
-      san: sanList[i],
+      san: moveObj.san,
       fen: replay.fen(),
       ply: i,
       side,
@@ -3286,7 +3292,12 @@ mp.onGameEnd = (payload) => {
   mpUI.showRematchControls();
 
   // Trigger post-game summary with analysis
-  const record = buildMultiplayerGameRecord(result, reason);
+  let record = null;
+  try {
+    record = buildMultiplayerGameRecord(result, reason);
+  } catch (e) {
+    console.error('buildMultiplayerGameRecord failed:', e);
+  }
   lastMultiplayerGameRecord = record;
   if (record) {
     if (!postGameAnalysisEngine) {
