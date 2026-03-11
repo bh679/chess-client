@@ -315,6 +315,10 @@ export class NewGameMenu {
     const evalBarPref = localStorage.getItem('chess-eval-bar');
     this.evalBarCheckbox.checked = evalBarPref === 'true';
 
+    // Board-Face enabled by default in multiplayer
+    if (this.onlineVideoBtn) this.onlineVideoBtn.classList.add('active');
+    if (this.friendVideoBtn) this.friendVideoBtn.classList.add('active');
+
     this._updateEloRange();
 
     // Default time category: bullet
