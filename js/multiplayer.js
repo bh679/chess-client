@@ -64,9 +64,7 @@ export class MultiplayerClient {
 
     // Lobby callbacks
     this.onLobbyJoined = null;
-    this.onSettingProposed = null;
-    this.onSettingPending = null;
-    this.onSettingResolved = null;
+    this.onSettingChanged = null;
     this.onReadyState = null;
   }
 
@@ -214,9 +212,6 @@ export class MultiplayerClient {
 
   /** Propose a setting change */
   proposeSetting(field, value) { this._send('setting_change', { field, value }); }
-
-  /** Respond to a setting proposal */
-  respondToSetting(changeId, accept) { this._send('setting_respond', { changeId, accept }); }
 
   /** Set ready state */
   setReady(ready) { this._send('player_ready', { ready }); }
@@ -426,16 +421,8 @@ export class MultiplayerClient {
         if (this.onLobbyJoined) this.onLobbyJoined(payload);
         break;
 
-      case 'setting_proposed':
-        if (this.onSettingProposed) this.onSettingProposed(payload);
-        break;
-
-      case 'setting_pending':
-        if (this.onSettingPending) this.onSettingPending(payload);
-        break;
-
-      case 'setting_resolved':
-        if (this.onSettingResolved) this.onSettingResolved(payload);
+      case 'setting_changed':
+        if (this.onSettingChanged) this.onSettingChanged(payload);
         break;
 
       case 'ready_state':

@@ -8,7 +8,6 @@ export class MultiplayerUI {
     this._onStartGame = null; // callback from app.js
     this._currentView = 'menu'; // 'menu' | 'waiting' | 'searching' | 'lobby' | 'ingame'
     this._lobbyState = null;
-    this._pendingChangeId = null;
     this._myReady = false;
 
     this._initElements();
@@ -106,8 +105,6 @@ export class MultiplayerUI {
   /** Show lobby screen with initial payload from server */
   showLobby(payload) {
     this._lobbyState = { ...payload };
-    this._myReady = payload.white?.ready || payload.black?.ready ? (payload.color === 'w' ? payload.white.ready : payload.black.ready) : false;
-    this._pendingChangeId = null;
     this._myReady = false;
     this._renderLobby();
     this._showView('lobby');
@@ -145,45 +142,19 @@ export class MultiplayerUI {
     this.lobbyTcSelect.classList.add('hidden');
   }
 
-  /** Called when opponent proposes a setting change */
-  showPendingChange(payload) {
-    this._pendingChangeId = payload.changeId;
-    const label = this._changeLabel(payload.field, payload.value);
-    this.lobbyPendingText.textContent = `Opponent proposes: ${label}`;
-    this.lobbyPendingActions.classList.remove('hidden');
-    this.lobbyPending.classList.remove('hidden');
-    this._setEditBtnsDisabled(true);
-  }
-
-  /** Called when we proposed a change and are waiting for response */
-  showMyPendingChange(payload) {
-    this._pendingChangeId = payload.changeId;
-    const label = this._changeLabel(payload.field, payload.value);
-    this.lobbyPendingText.textContent = `Proposed: ${label} — waiting...`;
-    this.lobbyPendingActions.classList.add('hidden');
-    this.lobbyPending.classList.remove('hidden');
-    this._setEditBtnsDisabled(true);
-    // Revert TC select to display mode
-    this.lobbyTcDisplay.classList.remove('hidden');
-    this.lobbyTcSelect.classList.add('hidden');
-  }
-
-  /** Called when a setting proposal is resolved (accepted or declined) */
-  resolveSetting(payload) {
-    this._pendingChangeId = null;
-    this.lobbyPending.classList.add('hidden');
-    this._setEditBtnsDisabled(false);
-    if (payload.accepted && payload.settings) {
+  /** Called when a setting change is applied (immediate, no approval needed) */
+  showSettingChanged(payload) {
+    if (!this._lobbyState) return;
+    if (payload.settings) {
       this._lobbyState.settings = { ...payload.settings };
-      // After colorSwap, flip our color
-      if (payload.field === 'colorSwap') {
-        this._lobbyState.color = this._lobbyState.color === 'w' ? 'b' : 'w';
-      }
-      // Reset ready states
-      this._myReady = false;
-      if (this._lobbyState.white) this._lobbyState.white.ready = false;
-      if (this._lobbyState.black) this._lobbyState.black.ready = false;
     }
+    if (payload.field === 'colorSwap') {
+      this._lobbyState.color = this._lobbyState.color === 'w' ? 'b' : 'w';
+    }
+    // Reset our ready state
+    this._myReady = false;
+    if (this._lobbyState.white) this._lobbyState.white.ready = false;
+    if (this._lobbyState.black) this._lobbyState.black.ready = false;
     this._renderLobby();
   }
 
@@ -193,19 +164,6 @@ export class MultiplayerUI {
     if (this._lobbyState.white) this._lobbyState.white.ready = payload.w;
     if (this._lobbyState.black) this._lobbyState.black.ready = payload.b;
     this._renderLobby();
-  }
-
-  _changeLabel(field, value) {
-    if (field === 'timeControl') return `Time: ${value === 'none' ? 'No Timer' : value}`;
-    if (field === 'chess960') return value ? 'Enable Chess960' : 'Disable Chess960';
-    if (field === 'colorSwap') return 'Swap Colors';
-    return field;
-  }
-
-  _setEditBtnsDisabled(disabled) {
-    this.lobbyTcEdit.disabled = disabled;
-    this.lobby960Btn.disabled = disabled;
-    this.lobbySwapBtn.disabled = disabled;
   }
 
   // --- Private ---
@@ -239,6 +197,7 @@ export class MultiplayerUI {
     this.lobbyView = document.getElementById('mp-lobby');
     this.lobbyRoomCode = document.getElementById('mp-lobby-room-code');
     this.lobbyOpponent = document.getElementById('mp-lobby-opponent');
+    this.lobbyCloseBtn = document.getElementById('mp-lobby-close');
     this.lobbyTcDisplay = document.getElementById('mp-lobby-tc');
     this.lobbyTcSelect = document.getElementById('mp-lobby-tc-select');
     this.lobbyTcEdit = document.getElementById('mp-lobby-tc-edit');
@@ -246,15 +205,9 @@ export class MultiplayerUI {
     this.lobby960Btn = document.getElementById('mp-lobby-960-btn');
     this.lobbyColorDisplay = document.getElementById('mp-lobby-color');
     this.lobbySwapBtn = document.getElementById('mp-lobby-swap-btn');
-    this.lobbyPending = document.getElementById('mp-lobby-pending');
-    this.lobbyPendingText = document.getElementById('mp-lobby-pending-text');
-    this.lobbyPendingActions = document.getElementById('mp-lobby-pending-actions');
-    this.lobbyAcceptBtn = document.getElementById('mp-lobby-accept');
-    this.lobbyDeclineBtn = document.getElementById('mp-lobby-decline');
     this.lobbyReadyYou = document.getElementById('mp-lobby-ready-you');
     this.lobbyReadyOpp = document.getElementById('mp-lobby-ready-opp');
     this.lobbyReadyBtn = document.getElementById('mp-lobby-ready-btn');
-    this.lobbyLeaveBtn = document.getElementById('mp-lobby-leave');
 
     // In-game controls
     this.gameControls = document.getElementById('mp-game-controls');
@@ -368,10 +321,14 @@ export class MultiplayerUI {
       }
     });
 
+    // Lobby — close (X button)
+    this.lobbyCloseBtn.addEventListener('click', () => {
+      this.mp.disconnect();
+      this.close();
+    });
+
     // Lobby — TC edit
     this.lobbyTcEdit.addEventListener('click', () => {
-      if (this.lobbyTcEdit.disabled) return;
-      // Set select to current value before showing
       const currentTc = this._lobbyState?.settings?.timeControl || 'none';
       this.lobbyTcSelect.value = currentTc;
       this.lobbyTcDisplay.classList.add('hidden');
@@ -387,34 +344,19 @@ export class MultiplayerUI {
     });
 
     this.lobbyTcSelect.addEventListener('blur', () => {
-      // If they blur without selecting, revert
       this.lobbyTcDisplay.classList.remove('hidden');
       this.lobbyTcSelect.classList.add('hidden');
     });
 
     // Lobby — 960 toggle
     this.lobby960Btn.addEventListener('click', () => {
-      if (this.lobby960Btn.disabled) return;
       const current = this._lobbyState?.settings?.chess960 || false;
       this.mp.proposeSetting('chess960', !current);
     });
 
     // Lobby — color swap
     this.lobbySwapBtn.addEventListener('click', () => {
-      if (this.lobbySwapBtn.disabled) return;
       this.mp.proposeSetting('colorSwap', true);
-    });
-
-    // Lobby — accept/decline proposal
-    this.lobbyAcceptBtn.addEventListener('click', () => {
-      if (this._pendingChangeId) {
-        this.mp.respondToSetting(this._pendingChangeId, true);
-      }
-    });
-    this.lobbyDeclineBtn.addEventListener('click', () => {
-      if (this._pendingChangeId) {
-        this.mp.respondToSetting(this._pendingChangeId, false);
-      }
     });
 
     // Lobby — ready
@@ -422,12 +364,6 @@ export class MultiplayerUI {
       this._myReady = !this._myReady;
       this.mp.setReady(this._myReady);
       this.lobbyReadyBtn.textContent = this._myReady ? 'Not Ready' : 'Ready';
-    });
-
-    // Lobby — leave
-    this.lobbyLeaveBtn.addEventListener('click', () => {
-      this.mp.disconnect();
-      this.close();
     });
   }
 

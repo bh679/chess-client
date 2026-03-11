@@ -3127,19 +3127,9 @@ mp.onLobbyJoined = (payload) => {
   mpUI.showLobby(payload);
 };
 
-// Opponent proposed a setting change
-mp.onSettingProposed = (payload) => {
-  mpUI.showPendingChange(payload);
-};
-
-// We proposed a setting change, waiting for opponent
-mp.onSettingPending = (payload) => {
-  mpUI.showMyPendingChange(payload);
-};
-
-// Setting change resolved
-mp.onSettingResolved = (payload) => {
-  mpUI.resolveSetting(payload);
+// Setting changed (applied immediately, no approval needed)
+mp.onSettingChanged = (payload) => {
+  mpUI.showSettingChanged(payload);
 };
 
 // Ready state update

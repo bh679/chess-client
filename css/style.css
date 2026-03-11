@@ -3665,22 +3665,22 @@ button.replay-summary-btn {
   opacity: 0.4;
   cursor: not-allowed;
 }
-.mp-lobby-pending {
+.mp-lobby-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  background: rgba(200, 140, 0, 0.15);
-  border: 1px solid rgba(200, 140, 0, 0.4);
-  border-radius: var(--radius-sm, 6px);
-  padding: 8px 12px;
-  margin-bottom: 12px;
-  font-size: 0.85rem;
-  color: #e0b030;
+  margin-left: auto;
+  flex-shrink: 0;
 }
-.mp-lobby-pending.hidden { display: none; }
-#mp-lobby-pending-actions { display: flex; gap: 8px; }
-#mp-lobby-pending-actions.hidden { display: none; }
+.mp-lobby-close-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
 .mp-lobby-ready-status {
   display: flex;
   gap: 16px;
