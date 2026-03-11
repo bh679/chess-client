@@ -139,8 +139,6 @@ export class IssueReporter {
   // --- Private: Flag action ---
 
   async _flagGame(triggerBtn) {
-    if (this._reportId) return; // already flagged
-
     try {
       const sessionId = this._sessionId || localStorage.getItem('chess-mp-session-id') || 'anonymous';
       const res = await fetch(ISSUE_API, {
