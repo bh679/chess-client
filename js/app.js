@@ -1288,6 +1288,12 @@ customTimeOk.addEventListener('click', () => {
   customWhiteLabel.textContent = 'White minutes:';
   customBlackLabel.textContent = 'Black minutes:';
 
+  // If a lobby custom TC is pending, apply it to the lobby
+  if (mpUI && mpUI.hasPendingLobbyCustomTc()) {
+    mpUI.applyCustomTc(wMin, bMin, increment);
+    return;
+  }
+
   // If a friend game triggered this, update the friend TC select and reopen wizard
   if (newGameMenu.hasPendingFriendCustomTime()) {
     newGameMenu.resumeFriendWithCustomTc(wMin, bMin, increment);
@@ -1306,6 +1312,11 @@ customTimeCancel.addEventListener('click', () => {
   customTimeModal.classList.add('hidden');
   customWhiteLabel.textContent = 'White minutes:';
   customBlackLabel.textContent = 'Black minutes:';
+  // If a lobby custom TC is pending, cancel it
+  if (mpUI && mpUI.hasPendingLobbyCustomTc()) {
+    mpUI.resetLobbyCustomTc();
+    return;
+  }
   // If a friend game triggered this, restore the wizard at the friend step
   if (newGameMenu.hasPendingFriendCustomTime()) {
     newGameMenu.resetFriendCustomTime();
@@ -3162,8 +3173,8 @@ mp.onGameStart = async (payload) => {
   });
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 
-  // If video is enabled, request camera and signal readiness
-  if (payload.videoEnabled) {
+  // If video is enabled, request camera (skip if already started in lobby)
+  if (payload.videoEnabled && !videoChat.hasLocalStream()) {
     try {
       const stream = await videoChat.requestCamera();
       videoUI.showCameraPreview(stream);
@@ -3176,6 +3187,32 @@ mp.onGameStart = async (payload) => {
 // Room created — show waiting screen
 mp.onRoomCreated = (payload) => {
   mpUI.showWaiting(payload.roomId);
+};
+
+// Lobby joined — show pre-game settings lobby
+mp.onLobbyJoined = async (payload) => {
+  multiplayerActive = true;
+  mpUI.showLobby(payload);
+
+  // Start video at lobby entry so both players can see each other while choosing settings
+  if (payload.settings?.videoEnabled) {
+    try {
+      const stream = await videoChat.requestCamera();
+      videoUI.showCameraPreview(stream);
+    } catch (e) {
+      videoUI.showError(e.message || 'Camera access failed.');
+    }
+  }
+};
+
+// Setting changed (applied immediately, no approval needed)
+mp.onSettingChanged = (payload) => {
+  mpUI.showSettingChanged(payload);
+};
+
+// Ready state update
+mp.onReadyState = (payload) => {
+  mpUI.updateReadyState(payload);
 };
 
 // Queue joined

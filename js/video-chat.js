@@ -63,6 +63,11 @@ export class VideoChat {
     }
   }
 
+  /** Whether local camera stream is already active */
+  hasLocalStream() {
+    return !!(this._localStream);
+  }
+
   /**
    * Request camera and microphone access.
    * @returns {Promise<MediaStream>}
