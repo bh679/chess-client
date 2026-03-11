@@ -837,6 +837,7 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
   appEl.classList.toggle('board-flipped', color === 'b');
   board.render();
   moveCount = 0;
+  resetLiveMoveBar();
 
   // Disable AI
   ai.configure({ whiteEnabled: false, blackEnabled: false });
@@ -3491,6 +3492,7 @@ mp.onReconnect = async (payload) => {
     }
     activateLiveMoveBar();
     updateLiveMoveBarButtons();
+    appEl.classList.remove('pre-game');
   }
   board.render();
   renderCaptured();
