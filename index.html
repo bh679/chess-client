@@ -132,7 +132,12 @@
   <div id="mp-backdrop" class="mp-backdrop hidden"></div>
   <div id="mp-modal" class="mp-modal hidden">
     <div class="mp-modal-content">
-      <h3>Play Online</h3>
+      <div class="mp-modal-header">
+        <h3>Play Online</h3>
+        <button id="mp-lobby-close" class="mp-lobby-close-btn hidden" aria-label="Leave lobby">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 4.9a1 1 0 0 0-1.4 1.4L8.6 10l-3.7 3.7a1 1 0 1 0 1.4 1.4L10 11.4l3.7 3.7a1 1 0 0 0 1.4-1.4L11.4 10l3.7-3.7a1 1 0 0 0-1.4-1.4L10 8.6 6.3 4.9z"/></svg>
+        </button>
+      </div>
 
       <!-- Menu view -->
       <div id="mp-menu" class="mp-view">
@@ -198,9 +203,6 @@
             <span class="mp-lobby-label">vs</span>
             <span id="mp-lobby-opponent" class="mp-lobby-opponent-name">Opponent</span>
           </div>
-          <button id="mp-lobby-close" class="mp-lobby-close-btn" aria-label="Leave lobby">
-            <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 4.9a1 1 0 0 0-1.4 1.4L8.6 10l-3.7 3.7a1 1 0 1 0 1.4 1.4L10 11.4l3.7 3.7a1 1 0 0 0 1.4-1.4L11.4 10l3.7-3.7a1 1 0 0 0-1.4-1.4L10 8.6 6.3 4.9z"/></svg>
-          </button>
         </div>
 
         <div class="mp-lobby-settings">

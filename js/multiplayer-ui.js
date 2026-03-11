@@ -373,5 +373,7 @@ export class MultiplayerUI {
     this.waitingView.classList.toggle('hidden', view !== 'waiting');
     this.searchingView.classList.toggle('hidden', view !== 'searching');
     this.lobbyView.classList.toggle('hidden', view !== 'lobby');
+    // Show X close button only in lobby view
+    this.lobbyCloseBtn.classList.toggle('hidden', view !== 'lobby');
   }
 }
