@@ -3121,6 +3121,32 @@ mp.onRoomCreated = (payload) => {
   mpUI.showWaiting(payload.roomId);
 };
 
+// Lobby joined — show pre-game settings lobby
+mp.onLobbyJoined = (payload) => {
+  multiplayerActive = true;
+  mpUI.showLobby(payload);
+};
+
+// Opponent proposed a setting change
+mp.onSettingProposed = (payload) => {
+  mpUI.showPendingChange(payload);
+};
+
+// We proposed a setting change, waiting for opponent
+mp.onSettingPending = (payload) => {
+  mpUI.showMyPendingChange(payload);
+};
+
+// Setting change resolved
+mp.onSettingResolved = (payload) => {
+  mpUI.resolveSetting(payload);
+};
+
+// Ready state update
+mp.onReadyState = (payload) => {
+  mpUI.updateReadyState(payload);
+};
+
 // Queue joined
 mp.onQueueJoined = (payload) => {
   mpUI.showSearching();

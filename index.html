@@ -186,6 +186,71 @@
         </div>
         <button id="mp-cancel-search" class="mp-btn mp-btn-danger mp-btn-block">Cancel</button>
       </div>
+
+      <!-- Lobby view (friends room, pre-game settings) -->
+      <div id="mp-lobby" class="mp-view hidden">
+        <div class="mp-lobby-header">
+          <div class="mp-lobby-room-code-wrap">
+            <span class="mp-lobby-label">Room</span>
+            <span id="mp-lobby-room-code" class="mp-code-big">------</span>
+          </div>
+          <div class="mp-lobby-opponent-wrap">
+            <span class="mp-lobby-label">vs</span>
+            <span id="mp-lobby-opponent" class="mp-lobby-opponent-name">Opponent</span>
+          </div>
+        </div>
+
+        <div class="mp-lobby-settings">
+          <div class="mp-lobby-setting">
+            <span class="mp-lobby-setting-label">Time Control</span>
+            <span id="mp-lobby-tc" class="mp-lobby-setting-value">5+0</span>
+            <select id="mp-lobby-tc-select" class="mp-lobby-tc-select hidden">
+              <option value="1+0">Bullet 1+0</option>
+              <option value="3+2">Blitz 3+2</option>
+              <option value="5+0">Rapid 5+0</option>
+              <option value="10+0">Rapid 10+0</option>
+              <option value="15+10">Classical 15+10</option>
+              <option value="30+0">Classical 30+0</option>
+              <option value="none">No Timer</option>
+            </select>
+            <button id="mp-lobby-tc-edit" class="mp-lobby-edit-btn">Edit</button>
+          </div>
+          <div class="mp-lobby-setting">
+            <span class="mp-lobby-setting-label">Variant</span>
+            <span id="mp-lobby-960" class="mp-lobby-setting-value">Standard</span>
+            <button id="mp-lobby-960-btn" class="mp-lobby-edit-btn">Toggle</button>
+          </div>
+          <div class="mp-lobby-setting">
+            <span class="mp-lobby-setting-label">Colors</span>
+            <span id="mp-lobby-color" class="mp-lobby-setting-value">Random</span>
+            <button id="mp-lobby-swap-btn" class="mp-lobby-edit-btn">Swap</button>
+          </div>
+        </div>
+
+        <div id="mp-lobby-pending" class="mp-lobby-pending hidden">
+          <span id="mp-lobby-pending-text">Waiting for response...</span>
+          <div id="mp-lobby-pending-actions" class="hidden">
+            <button id="mp-lobby-accept" class="mp-btn mp-btn-sm mp-btn-primary">Accept</button>
+            <button id="mp-lobby-decline" class="mp-btn mp-btn-sm mp-btn-danger">Decline</button>
+          </div>
+        </div>
+
+        <div class="mp-lobby-ready-status">
+          <div class="mp-lobby-ready-indicator" id="mp-lobby-ready-you">
+            <span class="mp-lobby-ready-dot"></span>
+            <span class="mp-lobby-ready-name">You</span>
+          </div>
+          <div class="mp-lobby-ready-indicator" id="mp-lobby-ready-opp">
+            <span class="mp-lobby-ready-dot"></span>
+            <span class="mp-lobby-ready-name">Opponent</span>
+          </div>
+        </div>
+
+        <div class="mp-lobby-actions">
+          <button id="mp-lobby-ready-btn" class="mp-btn mp-btn-primary mp-btn-block">Ready</button>
+          <button id="mp-lobby-leave" class="mp-btn mp-btn-danger mp-btn-block">Leave</button>
+        </div>
+      </div>
     </div>
   </div>
 

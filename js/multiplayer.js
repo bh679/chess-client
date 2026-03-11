@@ -61,6 +61,13 @@ export class MultiplayerClient {
     this.onReviewAnalysisStarted = null;
     this.onReviewAnalysis = null;
     this.onReviewExited = null;
+
+    // Lobby callbacks
+    this.onLobbyJoined = null;
+    this.onSettingProposed = null;
+    this.onSettingPending = null;
+    this.onSettingResolved = null;
+    this.onReadyState = null;
   }
 
   /** Connect to the WebSocket server */
@@ -202,6 +209,17 @@ export class MultiplayerClient {
 
   /** Exit shared review */
   sendReviewExit() { this._send('review_exit', {}); }
+
+  // --- Lobby methods ---
+
+  /** Propose a setting change */
+  proposeSetting(field, value) { this._send('setting_change', { field, value }); }
+
+  /** Respond to a setting proposal */
+  respondToSetting(changeId, accept) { this._send('setting_respond', { changeId, accept }); }
+
+  /** Set ready state */
+  setReady(ready) { this._send('player_ready', { ready }); }
 
   /** Disconnect from the server */
   disconnect() {
@@ -399,6 +417,29 @@ export class MultiplayerClient {
 
       case 'review_exited':
         if (this.onReviewExited) this.onReviewExited(payload);
+        break;
+
+      // Lobby messages
+      case 'lobby_joined':
+        this.roomId = payload.roomId;
+        this.color = payload.color;
+        if (this.onLobbyJoined) this.onLobbyJoined(payload);
+        break;
+
+      case 'setting_proposed':
+        if (this.onSettingProposed) this.onSettingProposed(payload);
+        break;
+
+      case 'setting_pending':
+        if (this.onSettingPending) this.onSettingPending(payload);
+        break;
+
+      case 'setting_resolved':
+        if (this.onSettingResolved) this.onSettingResolved(payload);
+        break;
+
+      case 'ready_state':
+        if (this.onReadyState) this.onReadyState(payload);
         break;
 
       case 'error':
