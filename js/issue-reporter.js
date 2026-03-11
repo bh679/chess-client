@@ -142,12 +142,13 @@ export class IssueReporter {
     if (this._reportId) return; // already flagged
 
     try {
+      const sessionId = this._sessionId || localStorage.getItem('chess-mp-session-id') || 'anonymous';
       const res = await fetch(ISSUE_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           gameId: this._gameId,
-          sessionId: this._sessionId,
+          sessionId,
           autoDetected: this._errorDetected,
           deviceInfo: this._detectDeviceInfo(),
         }),
