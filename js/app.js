@@ -1281,6 +1281,12 @@ customTimeOk.addEventListener('click', () => {
   customWhiteLabel.textContent = 'White minutes:';
   customBlackLabel.textContent = 'Black minutes:';
 
+  // If a lobby custom TC is pending, apply it to the lobby
+  if (mpUI && mpUI.hasPendingLobbyCustomTc()) {
+    mpUI.applyCustomTc(wMin, bMin, increment);
+    return;
+  }
+
   // If a friend game triggered this, update the friend TC select and reopen wizard
   if (newGameMenu.hasPendingFriendCustomTime()) {
     newGameMenu.resumeFriendWithCustomTc(wMin, bMin, increment);
@@ -1299,6 +1305,11 @@ customTimeCancel.addEventListener('click', () => {
   customTimeModal.classList.add('hidden');
   customWhiteLabel.textContent = 'White minutes:';
   customBlackLabel.textContent = 'Black minutes:';
+  // If a lobby custom TC is pending, cancel it
+  if (mpUI && mpUI.hasPendingLobbyCustomTc()) {
+    mpUI.resetLobbyCustomTc();
+    return;
+  }
   // If a friend game triggered this, restore the wizard at the friend step
   if (newGameMenu.hasPendingFriendCustomTime()) {
     newGameMenu.resetFriendCustomTime();

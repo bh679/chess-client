@@ -9,6 +9,7 @@ export class MultiplayerUI {
     this._currentView = 'menu'; // 'menu' | 'waiting' | 'searching' | 'lobby' | 'ingame'
     this._lobbyState = null;
     this._myReady = false;
+    this._pendingLobbyCustomTc = false;
 
     this._initElements();
     this._bindEvents();
@@ -164,6 +165,37 @@ export class MultiplayerUI {
     if (this._lobbyState.white) this._lobbyState.white.ready = payload.w;
     if (this._lobbyState.black) this._lobbyState.black.ready = payload.b;
     this._renderLobby();
+  }
+
+  /** Returns true if a custom TC entry from the lobby is pending */
+  hasPendingLobbyCustomTc() {
+    return this._pendingLobbyCustomTc;
+  }
+
+  /** Apply a custom TC from the custom-time-modal to the lobby */
+  applyCustomTc(wMin, bMin, increment) {
+    const tcString = wMin === bMin
+      ? `${wMin}+${increment}`
+      : `${wMin}/${bMin}+${increment}`;
+    // Insert or update the custom option so the display reflects it
+    let opt = this.lobbyTcSelect.querySelector('option[value="__custom__"]');
+    if (!opt) {
+      opt = document.createElement('option');
+      opt.value = '__custom__';
+      this.lobbyTcSelect.insertBefore(opt, this.lobbyTcSelect.querySelector('option[value="custom"]'));
+    }
+    opt.value = tcString;
+    opt.textContent = `Custom ${tcString}`;
+    this._pendingLobbyCustomTc = false;
+    this.mp.proposeSetting('timeControl', tcString);
+  }
+
+  /** Cancel a pending custom TC entry — revert the select display */
+  resetLobbyCustomTc() {
+    this._pendingLobbyCustomTc = false;
+    // Revert select value to current lobby TC
+    const currentTc = this._lobbyState?.settings?.timeControl || 'none';
+    this.lobbyTcSelect.value = currentTc;
   }
 
   // --- Private ---
@@ -340,6 +372,11 @@ export class MultiplayerUI {
       const value = this.lobbyTcSelect.value;
       this.lobbyTcDisplay.classList.remove('hidden');
       this.lobbyTcSelect.classList.add('hidden');
+      if (value === 'custom') {
+        this._pendingLobbyCustomTc = true;
+        document.getElementById('custom-time-modal').classList.remove('hidden');
+        return;
+      }
       this.mp.proposeSetting('timeControl', value);
     });
 
