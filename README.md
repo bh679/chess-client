@@ -37,6 +37,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Preset time controls**](https://github.com/bh679/Chess/wiki/Feature:-Time-Controls) — Bullet 1+0, Blitz 3+2, Rapid 5+0, Rapid 10+0, Classical 30+0
 - [**Custom time control**](https://github.com/bh679/Chess/wiki/Feature:-Time-Controls) — set minutes per side and increment, with optional different time per player (time odds)
 - [**Timeout detection**](https://github.com/bh679/Chess/wiki/Feature:-Time-Controls) — automatic win on time with visual indicator
+- [**Custom time controls for friend games**](https://github.com/bh679/chess-client/wiki/Feature:-Custom-Time-Controls-for-Friend-Games) — set any minutes+increment when creating a friend game; supports time odds (different time per player) with "Your time / Opponent's time" labels that follow you after random color assignment
 
 ### [Art Styles](https://github.com/bh679/Chess/wiki/Feature:-Art-Styles)
 - [**Classic**](https://github.com/bh679/Chess/wiki/Feature:-Art-Styles) — traditional SVG chess pieces
@@ -65,7 +66,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**URL routing**](https://github.com/bh679/Chess/wiki/Feature:-URL-Routing) — shareable hash-based URLs for game views (`/#/replay?gameid=42`, `/#/games`, `/#/history`, `/#/live`); URL updates live as you navigate with no page refresh; path-based URLs redirect to hash equivalents
 
 ### [Analysis](https://github.com/bh679/Chess/wiki/Feature:-Board-Analysis)
-- [**Post-game summary**](https://github.com/bh679/Chess/wiki/Feature:-Post-Game-Summary) — chess.com-style summary screen with win-probability-based per-player accuracy, per-player average move time, and 10 move classification types (Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder); auto-triggers after every game, also available via "Game Summary" button in replay mode
+- [**Post-game summary**](https://github.com/bh679/Chess/wiki/Feature:-Post-Game-Summary) — chess.com-style summary screen with win-probability-based per-player accuracy, per-player average move time, and 10 move classification types (Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder); auto-triggers after every game, also available via "Game Summary" button in replay mode; multiplayer game summary uses coordinate-based move replay for reliable reconstruction across all game modes
 - [**Board analysis**](https://github.com/bh679/Chess/wiki/Feature:-Board-Analysis) — Stockfish-powered position evaluation with move classification arrows and accuracy percentages
 
 ### [Automation](https://github.com/bh679/Chess/wiki/Blogging-Agent)
