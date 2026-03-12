@@ -3,9 +3,9 @@ export class Sound {
     this._enabled = localStorage.getItem('soundEnabled') !== 'false';
     this._sounds = {
       move:    new Audio('sounds/move.ogg'),
-      capture: new Audio('sounds/capture.ogg'),
+      capture: new Audio('sounds/capture.mp3'),
       check:   new Audio('sounds/check.ogg'),
-      start:   new Audio('sounds/start.ogg'),
+      start:   new Audio('sounds/start.mp3'),
       victory: new Audio('sounds/victory.ogg'),
     };
   }
