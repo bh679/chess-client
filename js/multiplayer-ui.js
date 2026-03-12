@@ -588,9 +588,10 @@ export class MultiplayerUI {
     this.inlineReadyBtn.addEventListener('click', () => {
       const goingReady = !this._myReady;
       if (goingReady && this._myColorPreference === 'random') {
-        // Fresh coin flip at the moment of commitment
-        if (Math.random() < 0.5) {
-          // Flip says swap — send colorSwap then set ready
+        // Always pick a fresh random color and lock it in to prevent re-flip
+        const desiredColor = Math.random() < 0.5 ? 'w' : 'b';
+        this._myColorPreference = desiredColor;
+        if (desiredColor !== this._lobbyState?.color) {
           this.mp.proposeSetting('colorSwap', true);
           setTimeout(() => {
             this._myReady = true;
