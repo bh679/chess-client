@@ -447,9 +447,10 @@ export class MultiplayerUI {
 
     // Waiting section — copy link
     this.waitingCopyBtn.addEventListener('click', () => {
+      const label = this.waitingCopyBtn.querySelector('.lobby-waiting-copy-label');
       navigator.clipboard.writeText(this._shareUrl || '').then(() => {
-        this.waitingCopyBtn.textContent = 'Copied!';
-        setTimeout(() => { this.waitingCopyBtn.textContent = 'Copy Link'; }, 2000);
+        if (label) label.textContent = 'Copied!';
+        setTimeout(() => { if (label) label.textContent = 'Copy Link'; }, 2000);
       });
     });
 
