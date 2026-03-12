@@ -3227,17 +3227,14 @@ mp.onLobbyJoined = async (payload) => {
   board.getArrowOverlay().clear();
   board.render();
 
-  // Start camera immediately for video-enabled rooms — show directly on board,
-  // no preview modal. Board tints disabled during pre-game lobby.
+  // Start camera for video-enabled rooms — request access and signal ready.
+  // Board tints are suppressed by CSS (.board.lobby-active) until game starts.
+  // onVideoStart handles videoBoard.enable() once both players are ready.
   if (payload.settings?.videoEnabled) {
     activeCamMode = payload.settings?.camMode ?? 'board-face';
     try {
-      const stream = await videoChat.requestCamera();
-      // Show local camera on board immediately as preview
-      videoBoard.enable(stream, null, payload.color);
-      videoBoard.setTintEnabled(false);
-      // Trigger WebRTC signaling — onVideoStart handles the full connection
-      videoChat.fetchIceServers(); // pre-fetch to reduce delay
+      await videoChat.requestCamera(); // sets _localStream, fires onLocalStream
+      videoChat.fetchIceServers();     // pre-fetch to reduce WebRTC delay
       mp.sendVideoReady();
     } catch (e) {
       videoUI.showError(e.message || 'Camera access failed.');
