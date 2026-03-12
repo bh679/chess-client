@@ -3222,7 +3222,7 @@ mp.onGameStart = async (payload) => {
   }
 };
 
-// Room created — show waiting screen
+// Room created — show waiting screen (lobby panel in waiting mode)
 mp.onRoomCreated = (payload) => {
   mpUI.showWaiting(payload.roomId);
 };
@@ -3982,11 +3982,9 @@ newGameMenu.onFriend(async (action, code) => {
     }
   }
   if (action === 'create') {
-    // Defaults — lobby handles TC, variant, colors, cam
+    // Defaults — waiting panel and lobby handle TC, variant, colors, cam
     mp.createRoom('5+0', null, 'board-face', false);
-    // mpUI will show waiting view via the room-created event
-    mpUI.modal.classList.remove('hidden');
-    mpUI.backdrop.classList.remove('hidden');
+    // mpUI.showWaiting() will open the lobby panel when room_created fires
   } else if (action === 'join') {
     multiplayerActive = true;  // Prevent startNewGame() from overwriting
     mp.joinRoom(code, null);
