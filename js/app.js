@@ -3227,6 +3227,10 @@ mp.onLobbyJoined = async (payload) => {
   board.getArrowOverlay().clear();
   board.render();
 
+  // Orient board to player's color for lobby preview
+  board.setFlipped(payload.color === 'b');
+  appEl.classList.toggle('board-flipped', payload.color === 'b');
+
   // Start camera for video-enabled rooms — request access and signal ready.
   // Board tints are suppressed by CSS (.board.lobby-active) until game starts.
   // onVideoStart handles videoBoard.enable() once both players are ready.
@@ -3245,6 +3249,20 @@ mp.onLobbyJoined = async (payload) => {
 // Setting changed (applied immediately, no approval needed)
 mp.onSettingChanged = (payload) => {
   mpUI.showSettingChanged(payload);
+
+  // Keep mp.color in sync (server sends current color in every setting_changed)
+  mp.color = payload.color;
+
+  // Flip board to match new color assignment
+  board.setFlipped(payload.color === 'b');
+  appEl.classList.toggle('board-flipped', payload.color === 'b');
+
+  // Reset board position when variant changes
+  if (payload.field === 'chess960') {
+    game.newGame(!!payload.settings?.chess960);
+    board.getArrowOverlay().clear();
+    board.render();
+  }
 };
 
 // Ready state update
