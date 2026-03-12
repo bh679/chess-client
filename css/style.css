@@ -580,7 +580,8 @@ body {
 .top-bar       { order: 2; }
 .board-row     { order: 3; }
 .bottom-bar    { order: 4; }
-#live-move-bar { order: 5; }
+#lobby-panel   { order: 5; }
+#live-move-bar { order: 6; }
 
 /* When board is flipped (playing as black): swap player bars so
    local player (black) is always at the bottom */
@@ -3408,6 +3409,192 @@ button.replay-summary-btn {
   z-index: 2500;
 }
 .mp-backdrop.hidden { display: none; }
+
+/* ===== Inline Lobby Panel (pre-game settings below board) ===== */
+
+.lobby-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  max-width: min(90vw, 75vh, 800px);
+  width: 100%;
+}
+.lobby-panel.hidden { display: none; }
+
+/* Settings row */
+.lobby-settings-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.lobby-setting-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* TC takes full row on mobile */
+.lobby-setting-tc {
+  flex: 1 1 100%;
+}
+@media (min-width: 481px) {
+  .lobby-setting-tc {
+    flex: 1;
+  }
+}
+
+.lobby-setting-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.lobby-setting-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 3px 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.lobby-setting-value:hover {
+  border-color: var(--accent);
+}
+.lobby-setting-value.hidden { display: none; }
+
+.lobby-tc-select {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-sunken);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+.lobby-tc-select.hidden { display: none; }
+
+.lobby-setting-btn {
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 4px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.lobby-setting-btn:hover {
+  border-color: var(--accent);
+}
+
+/* Ready row */
+.lobby-ready-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lobby-ready-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+.lobby-ready-opp {
+  justify-content: flex-end;
+}
+
+.lobby-ready-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.lobby-ready-indicator.ready .lobby-ready-dot {
+  background: #4caf50;
+}
+
+.lobby-ready-name {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.lobby-ready-indicator.ready .lobby-ready-name {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.lobby-ready-btn {
+  padding: 8px 28px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.lobby-ready-btn:hover {
+  background: color-mix(in srgb, var(--accent) 85%, white);
+}
+.lobby-ready-btn.not-ready {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+/* Header room code (shown during pre-game lobby) */
+.lobby-room-code-display {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.lobby-room-code-display.hidden { display: none; }
+.lobby-room-code-label {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.lobby-room-code-value {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--text-primary);
+}
+
+/* Suppress tints during pre-game lobby */
+.board.lobby-active .video-board-light-tint,
+.board.lobby-active .video-board-dark-tint {
+  opacity: 0 !important;
+  transition: opacity 0.4s ease;
+}
+
+/* Fade pieces and lock interaction during pre-game lobby */
+.board.lobby-active .piece {
+  opacity: 0.3;
+  transition: opacity 0.3s;
+}
+.board.lobby-active .square {
+  pointer-events: none;
+  cursor: default;
+}
 
 /* Modal */
 .mp-modal {

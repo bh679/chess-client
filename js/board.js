@@ -159,6 +159,9 @@ class Board {
   }
 
   _buildGrid() {
+    // Save elements that must survive the innerHTML clear
+    const videoLayer = this.container.querySelector('.video-board-layer');
+
     this.container.innerHTML = '';
     const files = this._flipped ? [...FILES].reverse() : FILES;
     const ranks = this._flipped ? [...RANKS].reverse() : RANKS;
@@ -188,6 +191,11 @@ class Board {
 
         this.container.appendChild(el);
       }
+    }
+
+    // Re-insert video board layer as first child (innerHTML = '' removes it)
+    if (videoLayer) {
+      this.container.insertBefore(videoLayer, this.container.firstChild);
     }
 
     // Re-append arrow overlay SVG (innerHTML = '' removes it)

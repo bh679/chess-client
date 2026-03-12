@@ -3187,6 +3187,14 @@ mp.onGameStart = async (payload) => {
   });
   issueReporter.setGameContext(payload.dbGameId, mp.sessionId, !!payload.videoEnabled);
   issueReporter.showButton();
+
+  // Hide lobby panel and restore header; re-enable board tints for gameplay
+  mpUI.hideLobbyPanel();
+  boardEl.classList.remove('lobby-active');
+  if (videoBoard.isActive()) {
+    videoBoard.setTintEnabled(true);
+  }
+
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 
   // If a camera mode is active, request camera (skip if already started in lobby)
@@ -3205,16 +3213,29 @@ mp.onRoomCreated = (payload) => {
   mpUI.showWaiting(payload.roomId);
 };
 
-// Lobby joined — show pre-game settings lobby
+// Lobby joined — show pre-game settings inline below board
 mp.onLobbyJoined = async (payload) => {
   multiplayerActive = true;
   mpUI.showLobby(payload);
 
-  // Start video at lobby entry so both players can see each other while choosing settings
+  // Always add lobby-active: fades pieces to 30% and locks interaction until game starts
+  boardEl.classList.add('lobby-active');
+
+  // Initialize board with starting position for lobby preview
+  // (startNewGame() won't run because multiplayerActive is true, so render directly)
+  game.newGame(!!payload.settings?.chess960);
+  board.getArrowOverlay().clear();
+  board.render();
+
+  // Start camera for video-enabled rooms — request access and signal ready.
+  // Board tints are suppressed by CSS (.board.lobby-active) until game starts.
+  // onVideoStart handles videoBoard.enable() once both players are ready.
   if (payload.settings?.videoEnabled) {
+    activeCamMode = payload.settings?.camMode ?? 'board-face';
     try {
-      const stream = await videoChat.requestCamera();
-      videoUI.showCameraPreview(stream);
+      await videoChat.requestCamera(); // sets _localStream, fires onLocalStream
+      videoChat.fetchIceServers();     // pre-fetch to reduce WebRTC delay
+      mp.sendVideoReady();
     } catch (e) {
       videoUI.showError(e.message || 'Camera access failed.');
     }

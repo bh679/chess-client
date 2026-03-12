@@ -1,6 +1,10 @@
 /**
  * MultiplayerUI — manages the multiplayer modal, in-game controls,
  * and connection status. Works with MultiplayerClient and app.js.
+ *
+ * The pre-game lobby settings (TC, variant, colors, ready) are rendered
+ * in an inline panel below the board (#lobby-panel), not in the modal.
+ * The modal is kept for: menu, waiting (room created), searching.
  */
 export class MultiplayerUI {
   constructor(mp) {
@@ -96,6 +100,8 @@ export class MultiplayerUI {
     // Build the share URL
     const shareUrl = `${location.origin}${location.pathname}?room=${roomId}`;
     this.shareUrlDisplay.textContent = shareUrl;
+    // Also show room code in the header while waiting
+    this._showHeaderRoomCode(roomId);
   }
 
   /** Show searching screen */
@@ -103,44 +109,61 @@ export class MultiplayerUI {
     this._showView('searching');
   }
 
-  /** Show lobby screen with initial payload from server */
+  /** Show lobby — inline panel below board, modal closes */
   showLobby(payload) {
     this._lobbyState = { ...payload };
     this._myReady = false;
-    this._renderLobby();
-    this._showView('lobby');
-    this.modal.classList.remove('hidden');
-    this.backdrop.classList.remove('hidden');
+    this._renderLobbyPanel();
+    // Show inline panel, hide modal
+    this.lobbyPanel.classList.remove('hidden');
+    this.close();
+    // Show room code in header
+    this._showHeaderRoomCode(payload.roomId);
+    this._currentView = 'lobby';
   }
 
-  /** Render all lobby elements from current state */
-  _renderLobby() {
+  /** Hide the inline lobby panel — called when game starts */
+  hideLobbyPanel() {
+    this.lobbyPanel.classList.add('hidden');
+    this._hideHeaderRoomCode();
+    this._lobbyState = null;
+    this._myReady = false;
+  }
+
+  /** Render inline lobby panel from current state */
+  _renderLobbyPanel() {
     if (!this._lobbyState) return;
     const s = this._lobbyState;
 
-    this.lobbyRoomCode.textContent = s.roomId || '------';
-    this.lobbyOpponent.textContent = s.opponentName || 'Opponent';
-
-    // Settings
+    // TC
     const tc = s.settings?.timeControl || 'none';
-    this.lobbyTcDisplay.textContent = tc === 'none' ? 'No Timer' : tc;
-    this.lobby960Display.textContent = s.settings?.chess960 ? 'Chess960' : 'Standard';
+    this.inlineTcDisplay.textContent = tc === 'none' ? 'No Timer' : tc;
+    this.inlineTcDisplay.classList.remove('hidden');
+    this.inlineTcSelect.classList.add('hidden');
 
-    // Color display — from perspective of our color
+    // Variant
+    this.inline960Btn.textContent = s.settings?.chess960 ? 'Chess960' : 'Standard';
+
+    // Color — from our perspective
     const myColor = s.color === 'w' ? 'White' : 'Black';
-    const oppColor = s.color === 'w' ? 'Black' : 'White';
-    this.lobbyColorDisplay.textContent = `You: ${myColor}`;
+    this.inlineSwapBtn.textContent = myColor;
 
     // Ready states
     const myReadyState = s.color === 'w' ? s.white?.ready : s.black?.ready;
     const oppReadyState = s.color === 'w' ? s.black?.ready : s.white?.ready;
-    this.lobbyReadyYou.classList.toggle('ready', !!myReadyState);
-    this.lobbyReadyOpp.classList.toggle('ready', !!oppReadyState);
-    this.lobbyReadyBtn.textContent = this._myReady ? 'Not Ready' : 'Ready';
+    this.inlineReadyYou.classList.toggle('ready', !!myReadyState);
+    this.inlineReadyOpp.classList.toggle('ready', !!oppReadyState);
+    this.inlineReadyYou.querySelector('.lobby-ready-name').textContent = myReadyState ? 'You are ready' : 'You';
+    this.inlineReadyOpp.querySelector('.lobby-ready-name').textContent = oppReadyState ? 'Opponent is ready' : 'Opponent';
 
-    // Reset TC select to hidden display mode
-    this.lobbyTcDisplay.classList.remove('hidden');
-    this.lobbyTcSelect.classList.add('hidden');
+    // Ready button state
+    if (this._myReady) {
+      this.inlineReadyBtn.textContent = 'Not Ready';
+      this.inlineReadyBtn.classList.add('not-ready');
+    } else {
+      this.inlineReadyBtn.textContent = 'Ready';
+      this.inlineReadyBtn.classList.remove('not-ready');
+    }
   }
 
   /** Called when a setting change is applied (immediate, no approval needed) */
@@ -156,7 +179,7 @@ export class MultiplayerUI {
     this._myReady = false;
     if (this._lobbyState.white) this._lobbyState.white.ready = false;
     if (this._lobbyState.black) this._lobbyState.black.ready = false;
-    this._renderLobby();
+    this._renderLobbyPanel();
   }
 
   /** Called when ready state changes */
@@ -164,7 +187,7 @@ export class MultiplayerUI {
     if (!this._lobbyState) return;
     if (this._lobbyState.white) this._lobbyState.white.ready = payload.w;
     if (this._lobbyState.black) this._lobbyState.black.ready = payload.b;
-    this._renderLobby();
+    this._renderLobbyPanel();
   }
 
   /** Returns true if a custom TC entry from the lobby is pending */
@@ -178,11 +201,11 @@ export class MultiplayerUI {
       ? `${wMin}+${increment}`
       : `${wMin}/${bMin}+${increment}`;
     // Insert or update the custom option so the display reflects it
-    let opt = this.lobbyTcSelect.querySelector('option[value="__custom__"]');
+    let opt = this.inlineTcSelect.querySelector('option[value="__custom__"]');
     if (!opt) {
       opt = document.createElement('option');
       opt.value = '__custom__';
-      this.lobbyTcSelect.insertBefore(opt, this.lobbyTcSelect.querySelector('option[value="custom"]'));
+      this.inlineTcSelect.insertBefore(opt, this.inlineTcSelect.querySelector('option[value="custom"]'));
     }
     opt.value = tcString;
     opt.textContent = `Custom ${tcString}`;
@@ -195,15 +218,41 @@ export class MultiplayerUI {
     this._pendingLobbyCustomTc = false;
     // Revert select value to current lobby TC
     const currentTc = this._lobbyState?.settings?.timeControl || 'none';
-    this.lobbyTcSelect.value = currentTc;
+    this.inlineTcSelect.value = currentTc;
   }
 
   // --- Private ---
+
+  _showHeaderRoomCode(roomId) {
+    this.statusEl.classList.add('hidden');
+    this.headerRoomCodeDisplay.classList.remove('hidden');
+    this.headerRoomCodeValue.textContent = roomId || '------';
+  }
+
+  _hideHeaderRoomCode() {
+    this.headerRoomCodeDisplay.classList.add('hidden');
+    this.statusEl.classList.remove('hidden');
+  }
 
   _initElements() {
     // Modal and backdrop
     this.modal = document.getElementById('mp-modal');
     this.backdrop = document.getElementById('mp-backdrop');
+
+    // Header room code display
+    this.statusEl = document.getElementById('status');
+    this.headerRoomCodeDisplay = document.getElementById('lobby-room-code-display');
+    this.headerRoomCodeValue = document.getElementById('lobby-room-code-header');
+
+    // Inline lobby panel
+    this.lobbyPanel = document.getElementById('lobby-panel');
+    this.inlineTcDisplay = document.getElementById('lobby-tc-display');
+    this.inlineTcSelect = document.getElementById('lobby-tc-select');
+    this.inline960Btn = document.getElementById('lobby-960-btn');
+    this.inlineSwapBtn = document.getElementById('lobby-swap-btn');
+    this.inlineReadyBtn = document.getElementById('lobby-ready-btn');
+    this.inlineReadyYou = document.getElementById('lobby-ready-you');
+    this.inlineReadyOpp = document.getElementById('lobby-ready-opp');
 
     // Menu view
     this.menuView = document.getElementById('mp-menu');
@@ -225,21 +274,9 @@ export class MultiplayerUI {
     this.searchingView = document.getElementById('mp-searching');
     this.cancelSearchBtn = document.getElementById('mp-cancel-search');
 
-    // Lobby view
+    // Legacy lobby view in modal (kept for reconnect edge cases, hidden by default)
     this.lobbyView = document.getElementById('mp-lobby');
-    this.lobbyRoomCode = document.getElementById('mp-lobby-room-code');
-    this.lobbyOpponent = document.getElementById('mp-lobby-opponent');
     this.lobbyCloseBtn = document.getElementById('mp-lobby-close');
-    this.lobbyTcDisplay = document.getElementById('mp-lobby-tc');
-    this.lobbyTcSelect = document.getElementById('mp-lobby-tc-select');
-    this.lobbyTcEdit = document.getElementById('mp-lobby-tc-edit');
-    this.lobby960Display = document.getElementById('mp-lobby-960');
-    this.lobby960Btn = document.getElementById('mp-lobby-960-btn');
-    this.lobbyColorDisplay = document.getElementById('mp-lobby-color');
-    this.lobbySwapBtn = document.getElementById('mp-lobby-swap-btn');
-    this.lobbyReadyYou = document.getElementById('mp-lobby-ready-you');
-    this.lobbyReadyOpp = document.getElementById('mp-lobby-ready-opp');
-    this.lobbyReadyBtn = document.getElementById('mp-lobby-ready-btn');
 
     // In-game controls
     this.gameControls = document.getElementById('mp-game-controls');
@@ -294,6 +331,7 @@ export class MultiplayerUI {
 
     // Cancel waiting
     this.cancelWaitBtn.addEventListener('click', () => {
+      this._hideHeaderRoomCode();
       this.mp.disconnect();
       this.close();
     });
@@ -353,25 +391,26 @@ export class MultiplayerUI {
       }
     });
 
-    // Lobby — close (X button)
+    // Legacy lobby close (X button in modal, kept for edge cases)
     this.lobbyCloseBtn.addEventListener('click', () => {
       this.mp.disconnect();
+      this.hideLobbyPanel();
       this.close();
     });
 
-    // Lobby — TC edit
-    this.lobbyTcEdit.addEventListener('click', () => {
+    // Inline lobby — TC: click value to show dropdown
+    this.inlineTcDisplay.addEventListener('click', () => {
       const currentTc = this._lobbyState?.settings?.timeControl || 'none';
-      this.lobbyTcSelect.value = currentTc;
-      this.lobbyTcDisplay.classList.add('hidden');
-      this.lobbyTcSelect.classList.remove('hidden');
-      this.lobbyTcSelect.focus();
+      this.inlineTcSelect.value = currentTc;
+      this.inlineTcDisplay.classList.add('hidden');
+      this.inlineTcSelect.classList.remove('hidden');
+      this.inlineTcSelect.focus();
     });
 
-    this.lobbyTcSelect.addEventListener('change', () => {
-      const value = this.lobbyTcSelect.value;
-      this.lobbyTcDisplay.classList.remove('hidden');
-      this.lobbyTcSelect.classList.add('hidden');
+    this.inlineTcSelect.addEventListener('change', () => {
+      const value = this.inlineTcSelect.value;
+      this.inlineTcDisplay.classList.remove('hidden');
+      this.inlineTcSelect.classList.add('hidden');
       if (value === 'custom') {
         this._pendingLobbyCustomTc = true;
         document.getElementById('custom-time-modal').classList.remove('hidden');
@@ -380,27 +419,27 @@ export class MultiplayerUI {
       this.mp.proposeSetting('timeControl', value);
     });
 
-    this.lobbyTcSelect.addEventListener('blur', () => {
-      this.lobbyTcDisplay.classList.remove('hidden');
-      this.lobbyTcSelect.classList.add('hidden');
+    this.inlineTcSelect.addEventListener('blur', () => {
+      this.inlineTcDisplay.classList.remove('hidden');
+      this.inlineTcSelect.classList.add('hidden');
     });
 
-    // Lobby — 960 toggle
-    this.lobby960Btn.addEventListener('click', () => {
+    // Inline lobby — 960 toggle
+    this.inline960Btn.addEventListener('click', () => {
       const current = this._lobbyState?.settings?.chess960 || false;
       this.mp.proposeSetting('chess960', !current);
     });
 
-    // Lobby — color swap
-    this.lobbySwapBtn.addEventListener('click', () => {
+    // Inline lobby — color swap
+    this.inlineSwapBtn.addEventListener('click', () => {
       this.mp.proposeSetting('colorSwap', true);
     });
 
-    // Lobby — ready
-    this.lobbyReadyBtn.addEventListener('click', () => {
+    // Inline lobby — ready
+    this.inlineReadyBtn.addEventListener('click', () => {
       this._myReady = !this._myReady;
       this.mp.setReady(this._myReady);
-      this.lobbyReadyBtn.textContent = this._myReady ? 'Not Ready' : 'Ready';
+      this._renderLobbyPanel();
     });
   }
 
@@ -409,8 +448,13 @@ export class MultiplayerUI {
     this.menuView.classList.toggle('hidden', view !== 'menu');
     this.waitingView.classList.toggle('hidden', view !== 'waiting');
     this.searchingView.classList.toggle('hidden', view !== 'searching');
-    this.lobbyView.classList.toggle('hidden', view !== 'lobby');
-    // Show X close button only in lobby view
-    this.lobbyCloseBtn.classList.toggle('hidden', view !== 'lobby');
+    // Legacy lobby view in modal — always hidden (lobby is now inline)
+    this.lobbyView.classList.add('hidden');
+    this.lobbyCloseBtn.classList.add('hidden');
+    // Show modal for menu/waiting/searching
+    if (view === 'menu' || view === 'waiting' || view === 'searching') {
+      this.modal.classList.remove('hidden');
+      this.backdrop.classList.remove('hidden');
+    }
   }
 }
