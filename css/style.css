@@ -391,6 +391,91 @@ body {
   opacity: 0.8;
 }
 
+/* Split Cam — left half (white player) / right half (black player) */
+.split-cam-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.split-cam-left-mask,
+.split-cam-right-mask {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.split-cam-left-mask  { left: 0; }
+.split-cam-right-mask { right: 0; }
+
+.split-cam-left-feed,
+.split-cam-right-feed {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.split-cam-left-tint {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 50%;
+  background-color: var(--board-light);
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.split-cam-right-tint {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 50%;
+  background-color: var(--board-dark);
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* When split cam is active, make square backgrounds transparent */
+.board.split-cam-active .square.light {
+  background-color: transparent;
+}
+
+.board.split-cam-active .square.dark {
+  background-color: transparent;
+}
+
+.board.split-cam-active .square {
+  z-index: 1;
+}
+
+.board.split-cam-active .square.selected {
+  background-color: rgba(247, 236, 90, 0.5) !important;
+}
+
+.board.split-cam-active .square.last-move {
+  background-color: rgba(255, 255, 0, 0.25) !important;
+}
+
+.board.split-cam-active .square.check {
+  background-color: rgba(255, 0, 0, 0.4) !important;
+}
+
+.board.split-cam-active .square.legal-move::after,
+.board.split-cam-active .square.legal-capture::after {
+  opacity: 0.8;
+}
+
 /* Arrow overlay */
 .arrow-overlay {
   position: absolute;
@@ -3590,7 +3675,9 @@ button.replay-summary-btn {
 
 /* Suppress tints during pre-game lobby */
 .board.lobby-active .video-board-light-tint,
-.board.lobby-active .video-board-dark-tint {
+.board.lobby-active .video-board-dark-tint,
+.board.lobby-active .split-cam-left-tint,
+.board.lobby-active .split-cam-right-tint {
   opacity: 0 !important;
   transition: opacity 0.4s ease;
 }
