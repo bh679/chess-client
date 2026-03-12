@@ -450,8 +450,8 @@ export class MultiplayerUI {
 
     // Inline lobby — cam mode cycle
     if (this.inlineCamBtn) {
-      const CAM_MODES = ['board-face', 'king-cam', 'none'];
-      const CAM_LABELS = { 'board-face': 'Board Face', 'king-cam': 'King Cam', 'none': 'No Cam' };
+      const CAM_MODES = ['board-face', 'split-cam', 'king-cam', 'none'];
+      const CAM_LABELS = { 'board-face': 'Board Face', 'split-cam': 'Split Cam', 'king-cam': 'King Cam', 'none': 'No Cam' };
       this.inlineCamBtn.addEventListener('click', () => {
         const next = CAM_MODES[(CAM_MODES.indexOf(this.inlineCamBtn.dataset.mode) + 1) % CAM_MODES.length];
         this.inlineCamBtn.dataset.mode = next;
