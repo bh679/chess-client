@@ -3507,15 +3507,15 @@ button.replay-summary-btn {
   align-items: center;
   gap: 2px;
   width: 100%;
-  background: var(--bg-secondary, rgba(255,255,255,0.07));
-  border: 1px solid var(--border);
+  background: #2e7d32;
+  border: 1px solid #43a047;
   border-radius: 8px;
-  color: var(--text-primary);
+  color: #fff;
   padding: 8px 16px;
   cursor: pointer;
 }
 .lobby-waiting-copy-btn:hover {
-  background: var(--bg-hover, rgba(255,255,255,0.13));
+  background: #388e3c;
 }
 .lobby-waiting-url {
   font-family: monospace;
@@ -3525,7 +3525,7 @@ button.replay-summary-btn {
 }
 .lobby-waiting-copy-label {
   font-size: 0.72rem;
-  color: var(--text-secondary);
+  color: #fff;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
