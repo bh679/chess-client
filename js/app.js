@@ -26,6 +26,9 @@ import { SplitCam } from './split-cam.js';
 import { SplitCamH } from './split-cam-h.js';
 import { Diagnostics } from './diagnostics.js?v=2';
 import { IssueReporter } from './issue-reporter.js';
+import { Sound } from './sound.js';
+
+const sound = new Sound();
 
 const PIECE_ORDER = { q: 0, r: 1, b: 2, n: 3, p: 4 };
 const PIECE_VALUES = { q: 9, r: 5, b: 3, n: 3, p: 1 };
@@ -85,6 +88,7 @@ const chess960Toggle = document.getElementById('chess960-toggle');
 const animationsToggle = document.getElementById('animations-toggle');
 const evalBarToggle = document.getElementById('eval-bar-toggle');
 const premovesToggle = document.getElementById('premoves-toggle');
+const soundToggle = document.getElementById('sound-toggle');
 const settingsToggle = document.getElementById('settings-toggle');
 const settingsPanel = document.getElementById('settings-panel');
 const settingsBackdrop = document.getElementById('settings-backdrop');
@@ -417,6 +421,12 @@ if (evalBarToggle) {
   evalBarToggle.checked = localStorage.getItem('chess-eval-bar') === 'true';
 }
 
+// Initialise sound toggle from localStorage (default: on)
+if (soundToggle) {
+  soundToggle.checked = sound.isEnabled();
+  soundToggle.addEventListener('change', () => sound.setEnabled(soundToggle.checked));
+}
+
 function renderCaptured() {
   const captured = game.getCaptured();
 
@@ -702,6 +712,7 @@ async function startNewGame() {
   board.getArrowOverlay().clear();
   board.render();
   moveCount = 0;
+  sound.start();
 
   const wIsAI = aiWhiteToggle.checked;
   const bIsAI = aiBlackToggle.checked;
@@ -856,6 +867,7 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
   // For chess960, the server already generates the randomized FEN — don't regenerate on client
   game.newGame(!!chess960, fen);
   board.getArrowOverlay().clear();
+  sound.start();
 
   // Flip board if playing black, and reposition player bars accordingly
   board.setFlipped(color === 'b');
@@ -1084,6 +1096,8 @@ board.onMove((result) => {
 
   // Trigger AI move if it's the computer's turn
   triggerAIMove();
+
+  sound.onMove(result);
 });
 
 timer.onTimeout((loser) => {
@@ -3440,10 +3454,11 @@ mp.onOpponentMove = (payload) => {
   }
 
   // Apply the opponent's move to local game state
-  game.makeMoveSan(san);
+  const oppMoveResult = game.makeMoveSan(san);
   moveCount++;
   board.render();
   renderCaptured();
+  sound.onMove(oppMoveResult);
 
   // Update the persistent live move bar
   const opponentSide = game.getTurn() === 'w' ? 'b' : 'w';
@@ -3535,6 +3550,7 @@ mp.onGameEnd = (payload) => {
   diagnostics.flush();
   if (isLiveReview) exitLiveReview();
   fadeLiveMoveBar();
+  sound.gameOver();
   multiplayerActive = false;
   playerNameWhite.classList.remove('multiplayer-opponent');
   playerNameBlack.classList.remove('multiplayer-opponent');
