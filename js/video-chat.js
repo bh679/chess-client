@@ -92,14 +92,12 @@ export class VideoChat {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error('Video calls are not supported in your browser.');
     }
+    let stream;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 640 }, height: { ideal: 480 } },
         audio: true,
       });
-      this._localStream = stream;
-      if (this.onLocalStream) this.onLocalStream(stream);
-      return stream;
     } catch (err) {
       let msg;
       if (err.name === 'NotAllowedError') {
@@ -114,6 +112,9 @@ export class VideoChat {
       if (this.onCameraError) this.onCameraError(msg);
       throw new Error(msg);
     }
+    this._localStream = stream;
+    if (this.onLocalStream) this.onLocalStream(stream);
+    return stream;
   }
 
   /**
