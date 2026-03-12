@@ -24,7 +24,7 @@ import { VideoBoard } from './video-board.js';
 import { KingCam } from './king-cam.js';
 import { SplitCam } from './split-cam.js';
 import { SplitCamH } from './split-cam-h.js';
-import { Diagnostics } from './diagnostics.js';
+import { Diagnostics } from './diagnostics.js?v=2';
 import { IssueReporter } from './issue-reporter.js';
 
 const PIECE_ORDER = { q: 0, r: 1, b: 2, n: 3, p: 4 };
