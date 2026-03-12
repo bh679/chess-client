@@ -101,6 +101,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - **Lobby flash on board touch** — tapping or clicking the board during the pre-game lobby flashes the lobby panel with a glowing border ring to draw attention to the Ready button
 - [**Waiting room settings**](https://github.com/bh679/chess-client/wiki/Feature:-Waiting-Lobby-Settings) — when a host creates a Friend game, the inline lobby panel opens immediately below the board; TC and Variant (Chess960) are configurable while waiting for the opponent; settings persist when the opponent joins
 - [**Submit issue flag in lobby**](https://github.com/bh679/chess-client/wiki/Feature:-Lobby-Issue-Flag) — the ⚑ issue report button now appears in the waiting room (while waiting for opponent) and in the lobby panel (once both players connect), not just during active games
+- [**Split Cam mode**](https://github.com/bh679/chess-client/wiki/Feature:-Split-Cam) — new camera mode where the left half of the board shows white player's camera and the right half shows black player's camera; board color tints indicate whose turn it is
 
 ## Roadmap
 
@@ -163,6 +164,7 @@ js/friends.js           Friends modal (add, accept, reject, remove)
 js/replay.js            Replay viewer with board, move strip, and clock reconstruction
 js/face-tracker.js      Face detection (MediaPipe) for video board centering
 js/video-board.js       Video board mode (camera feeds as board mosaic)
+js/split-cam.js         Split Cam mode (left half = white player, right half = black player)
 js/cropped-stream.js    Face-tracked canvas stream for WebRTC transmission
 js/chess.js             chess.js engine (full rule enforcement)
 js/lib/stockfish.js     Stockfish WASM engine (Web Worker)
