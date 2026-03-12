@@ -3806,6 +3806,12 @@ videoChat.onLocalStream = (stream) => {
   videoUI.setLocalStream(stream);
   if (mp.color) {
     videoBoard.updateLocalStream(stream, mp.color);
+    if (splitCam.isActive()) {
+      splitCam.updateLocalStream(stream, mp.color);
+    }
+    if (kingCam.isActive()) {
+      kingCam.updateLocalStream(stream, mp.color);
+    }
   }
 };
 videoChat.onRemoteStream = (stream) => {
@@ -4129,6 +4135,7 @@ function applyCamMode(mode) {
   } else if (mode === 'split-cam') {
     kingCam.disable();
     videoBoard.disable();
+    board.render();
     // Restore raw camera track — videoBoard may have replaced it
     const rawVideoTrack = videoChat._localStream?.getVideoTracks()[0];
     if (rawVideoTrack) videoChat.replaceVideoTrack(rawVideoTrack);
