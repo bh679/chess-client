@@ -3221,13 +3221,24 @@ mp.onLobbyJoined = async (payload) => {
   // Always add lobby-active: fades pieces to 30% and locks interaction until game starts
   boardEl.classList.add('lobby-active');
 
+  // Initialize board with starting position for lobby preview
+  // (startNewGame() won't run because multiplayerActive is true, so render directly)
+  game.newGame(!!payload.settings?.chess960);
+  board.getArrowOverlay().clear();
+  board.render();
+
   // Start camera immediately for video-enabled rooms — show directly on board,
   // no preview modal. Board tints disabled during pre-game lobby.
   if (payload.settings?.videoEnabled) {
+    activeCamMode = payload.settings?.camMode ?? 'board-face';
     try {
       const stream = await videoChat.requestCamera();
+      // Show local camera on board immediately as preview
       videoBoard.enable(stream, null, payload.color);
       videoBoard.setTintEnabled(false);
+      // Trigger WebRTC signaling — onVideoStart handles the full connection
+      videoChat.fetchIceServers(); // pre-fetch to reduce delay
+      mp.sendVideoReady();
     } catch (e) {
       videoUI.showError(e.message || 'Camera access failed.');
     }
