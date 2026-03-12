@@ -3282,6 +3282,12 @@ mp.onSettingChanged = (payload) => {
     board.getArrowOverlay().clear();
     board.render();
   }
+
+  // Sync cam mode when the other player changes it
+  if (payload.field === 'camMode' && payload.settings?.camMode !== undefined) {
+    activeCamMode = payload.settings.camMode;
+    mpUI.syncCamMode(payload.settings.camMode);
+  }
 };
 
 // Ready state update
@@ -3990,9 +3996,10 @@ newGameMenu.onCustomTime(() => {
   customTimeModal.classList.remove('hidden');
 });
 
-// Lobby cam mode change — update activeCamMode and switch live video if already running
+// Lobby cam mode change — update activeCamMode, notify opponent, and switch live video if already running
 mpUI.onCamChange((mode) => {
   activeCamMode = mode;
+  mp.proposeSetting('camMode', mode);
   if (!videoActive) return;
   if (mode === 'king-cam') {
     videoBoard.disable();
