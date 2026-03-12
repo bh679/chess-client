@@ -153,6 +153,21 @@ export class Diagnostics {
     this.record('webrtc', 'error', { operation, message });
   }
 
+  /** Record cam mode change (king-cam, board-face, split-cam, split-cam-h, none). */
+  camModeChanged(mode) {
+    this.record('video', 'cam_mode_changed', { mode });
+  }
+
+  /** Record local stream assigned to a video display. */
+  localStreamUpdated(display, color) {
+    this.record('video', 'local_stream_updated', { display, color });
+  }
+
+  /** Record remote stream assigned to a video display. */
+  remoteStreamUpdated(display, color) {
+    this.record('video', 'remote_stream_updated', { display, color });
+  }
+
   // --- Private ---
 
   /** Best-effort flush using sendBeacon (survives page close on mobile). */
