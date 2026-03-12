@@ -434,6 +434,7 @@ export class MultiplayerClient {
       case 'error':
         if (payload.message === 'Not in a room' && this.active) {
           // Room was lost — trigger reconnection instead of surfacing error
+          if (this.onRoomLost) this.onRoomLost();
           this._roomConnected = false;
           this.ws.close();
           return;
@@ -477,6 +478,7 @@ export class MultiplayerClient {
       this._send('ping', { ts: Date.now() });
       this._heartbeatTimeout = setTimeout(() => {
         // No pong received — connection is stale
+        if (this.onHeartbeatTimeout) this.onHeartbeatTimeout();
         if (this.ws) this.ws.close();
       }, 5000);
     }, 15000);

@@ -3754,14 +3754,27 @@ mp.onDisconnected = () => {
 };
 
 mp.onReconnecting = (attempt, maxAttempts) => {
+  diagnostics.record('network', 'ws_reconnecting', { attempt, maxAttempts });
   mpUI.setConnectionStatus('reconnecting', `Reconnecting... (${attempt}/${maxAttempts})`);
 };
 
 mp.onConnectionLost = () => {
+  diagnostics.record('network', 'ws_connection_lost', {});
+  diagnostics.flush();
   mpUI.setConnectionStatus('connection-lost');
   multiplayerActive = false;
   issueReporter.recordError();
   updateStatus('Connection lost — game may have ended');
+};
+
+mp.onHeartbeatTimeout = () => {
+  diagnostics.record('network', 'ws_heartbeat_timeout', {});
+  diagnostics.flush();
+};
+
+mp.onRoomLost = () => {
+  diagnostics.record('network', 'ws_room_lost', {});
+  diagnostics.flush();
 };
 
 mp.onError = (msg) => {
@@ -3784,11 +3797,13 @@ mp.onRtcIce = (payload) => videoChat.handleIceCandidate(payload.candidate);
 
 // Server says both players have cameras ready — start WebRTC handshake
 mp.onVideoStart = async (payload) => {
+  diagnostics.record('lifecycle', 'video_start_received', { initiator: payload.initiator, camMode: activeCamMode });
   try {
     if (!videoChat.hasIceServers()) {
       await videoChat.fetchIceServers();
     }
     await videoChat.startCall(payload.initiator);
+    diagnostics.record('lifecycle', 'video_call_started', { initiator: payload.initiator });
     videoActive = true;
     if (mp.color) {
       if (activeCamMode === 'king-cam') {
@@ -3824,6 +3839,8 @@ mp.onVideoStart = async (payload) => {
       videoUI.show();
     }
   } catch (e) {
+    diagnostics.record('lifecycle', 'video_call_failed', { error: e.message });
+    diagnostics.flush();
     videoUI.showError('Video connection failed: ' + e.message);
   }
 };
@@ -3840,7 +3857,12 @@ videoBoard.onCroppedStreamReady = (canvasStream) => {
 };
 
 // VideoChat events
+videoChat.onCameraError = (msg) => {
+  diagnostics.record('lifecycle', 'camera_denied', { error: msg });
+  diagnostics.flush();
+};
 videoChat.onLocalStream = (stream) => {
+  diagnostics.record('lifecycle', 'camera_acquired', {});
   videoUI.setLocalStream(stream);
   if (mp.color) {
     videoBoard.updateLocalStream(stream, mp.color);
@@ -3872,12 +3894,19 @@ videoChat.onRemoteStream = (stream) => {
     }
   }
 };
-videoChat.onDisconnected = () => { videoUI.showError('Video disconnected'); issueReporter.recordError(); };
+videoChat.onDisconnected = () => {
+  diagnostics.record('webrtc', 'video_disconnected', {});
+  diagnostics.flush();
+  videoUI.showError('Video disconnected');
+  issueReporter.recordError();
+};
 videoChat.onError = (msg) => { videoUI.showError(msg); issueReporter.recordError(); };
 videoChat.onReconnecting = (attempt, max) => {
+  diagnostics.record('webrtc', 'video_reconnecting', { attempt, max });
   videoUI.showError(`Reconnecting video... (${attempt}/${max})`);
 };
 videoChat.onReconnected = () => {
+  diagnostics.record('webrtc', 'video_reconnected', {});
   // Re-deliver remote stream to displays in case it was interrupted
   if (videoChat._remoteStream && mp.color) {
     const opponentColor = mp.color === 'w' ? 'b' : 'w';
