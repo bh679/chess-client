@@ -123,8 +123,8 @@ export class Diagnostics {
   }
 
   /** Record ICE servers configuration. */
-  iceServersConfig(count, hasTurn) {
-    this.record('webrtc', 'ice_servers_config', { count, hasTurn });
+  iceServersConfig(count, hasTurn, turnProvider) {
+    this.record('webrtc', 'ice_servers_config', { count, hasTurn, turnProvider });
   }
 
   /** Record SDP exchange event. */

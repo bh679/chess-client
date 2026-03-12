@@ -57,13 +57,17 @@ export class VideoChat {
     try {
       const res = await fetch('/api/chess/ice-servers');
       if (res.ok) {
-        this._iceServers = await res.json();
-        console.log('[VideoChat] Fetched', this._iceServers.length, 'ICE servers');
+        const body = await res.json();
+        // Support both new { iceServers, turnProvider } and legacy flat-array responses
+        const isWrapped = body && !Array.isArray(body) && Array.isArray(body.iceServers);
+        this._iceServers = isWrapped ? body.iceServers : body;
+        const turnProvider = isWrapped ? (body.turnProvider || 'unknown') : 'unknown';
+        console.log('[VideoChat] Fetched', this._iceServers.length, 'ICE servers, provider:', turnProvider);
         if (this._diag) {
           const hasTurn = this._iceServers.some(s =>
             Array.isArray(s.urls) ? s.urls.some(u => u.startsWith('turn')) : String(s.urls).startsWith('turn')
           );
-          this._diag.iceServersConfig(this._iceServers.length, hasTurn);
+          this._diag.iceServersConfig(this._iceServers.length, hasTurn, turnProvider);
         }
       } else {
         console.warn('[VideoChat] ICE servers endpoint returned', res.status, '— using fallback STUN');
