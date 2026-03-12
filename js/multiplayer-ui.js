@@ -588,18 +588,25 @@ export class MultiplayerUI {
     this.inlineReadyBtn.addEventListener('click', () => {
       const goingReady = !this._myReady;
       if (goingReady && this._myColorPreference === 'random') {
-        // Always pick a fresh random color and lock it in to prevent re-flip
-        const desiredColor = Math.random() < 0.5 ? 'w' : 'b';
-        this._myColorPreference = desiredColor;
-        if (desiredColor !== this._lobbyState?.color) {
-          this.mp.proposeSetting('colorSwap', true);
-          setTimeout(() => {
-            this._myReady = true;
-            this.mp.setReady(true);
-            this._renderLobbyPanel();
-          }, 50);
-          return;
+        const myColor = this._lobbyState?.color;
+        const opponentReady = myColor === 'w'
+          ? this._lobbyState?.black?.ready
+          : this._lobbyState?.white?.ready;
+        if (opponentReady) {
+          // Both committing — pick a fresh random color now
+          const desiredColor = Math.random() < 0.5 ? 'w' : 'b';
+          this._myColorPreference = desiredColor;
+          if (desiredColor !== myColor) {
+            this.mp.proposeSetting('colorSwap', true);
+            setTimeout(() => {
+              this._myReady = true;
+              this.mp.setReady(true);
+              this._renderLobbyPanel();
+            }, 50);
+            return;
+          }
         }
+        // Opponent not ready yet — just ready up; they'll pick if they have 'random'
       }
       this._myReady = goingReady;
       this.mp.setReady(this._myReady);
