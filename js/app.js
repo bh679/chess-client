@@ -23,6 +23,7 @@ import { VideoUI } from './video-ui.js';
 import { VideoBoard } from './video-board.js';
 import { KingCam } from './king-cam.js';
 import { SplitCam } from './split-cam.js';
+import { SplitCamH } from './split-cam-h.js';
 import { Diagnostics } from './diagnostics.js';
 import { IssueReporter } from './issue-reporter.js';
 
@@ -327,6 +328,7 @@ const videoUI = new VideoUI(videoChat);
 const videoBoard = new VideoBoard(boardEl);
 const kingCam = new KingCam();
 const splitCam = new SplitCam(boardEl);
+const splitCamH = new SplitCamH(boardEl);
 window.kingCam = kingCam;
 let videoActive = false;
 let activeCamMode = 'none'; // set by onGameStart, read by onVideoStart
@@ -938,6 +940,9 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
   if (splitCam.isActive()) {
     splitCam.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
   }
+  if (splitCamH.isActive()) {
+    splitCamH.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+  }
 
   // Show multiplayer in-game controls
   mpUI.showGameControls();
@@ -978,6 +983,9 @@ board.onMove((result) => {
     }
     if (splitCam.isActive()) {
       splitCam.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+    }
+    if (splitCamH.isActive()) {
+      splitCamH.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
     }
     updateStatus("Opponent's turn");
 
@@ -1463,6 +1471,9 @@ boardTintSlider.addEventListener('input', () => {
   }
   if (splitCam.isActive() && mp) {
     splitCam.updateTurnTint(game.getTurn(), mp.color, val / 100);
+  }
+  if (splitCamH.isActive() && mp) {
+    splitCamH.updateTurnTint(game.getTurn(), mp.color, val / 100);
   }
 });
 boardTintSlider.addEventListener('change', () => {
@@ -3225,25 +3236,33 @@ mp.onGameStart = async (payload) => {
   if (splitCam.isActive()) {
     splitCam.setTintEnabled(true);
   }
+  if (splitCamH.isActive()) {
+    splitCamH.setTintEnabled(true);
+  }
 
   // Reconcile cam mode: video_start fires in the lobby before game starts,
   // so the cam mode may have changed after video_start but before game_start.
   // If the active cam mode doesn't match, disable the wrong one and re-enable correctly.
   if (videoActive && mp.color) {
     const needsSplitCam = activeCamMode === 'split-cam' && !splitCam.isActive();
+    const needsSplitCamH = activeCamMode === 'split-cam-h' && !splitCamH.isActive();
     const needsKingCam = activeCamMode === 'king-cam' && !kingCam.isActive();
     const needsBoardFace = activeCamMode === 'board-face' && !videoBoard.isActive();
     const needsNone = activeCamMode === 'none' &&
-      (videoBoard.isActive() || splitCam.isActive() || kingCam.isActive());
+      (videoBoard.isActive() || splitCam.isActive() || splitCamH.isActive() || kingCam.isActive());
 
-    if (needsSplitCam || needsKingCam || needsBoardFace || needsNone) {
+    if (needsSplitCam || needsSplitCamH || needsKingCam || needsBoardFace || needsNone) {
       videoBoard.disable();
       splitCam.disable();
+      splitCamH.disable();
       kingCam.disable();
       const opponentColor = mp.color === 'w' ? 'b' : 'w';
       if (activeCamMode === 'split-cam') {
         splitCam.enable(videoChat._localStream, videoChat._remoteStream, mp.color);
         splitCam.setTintEnabled(true);
+      } else if (activeCamMode === 'split-cam-h') {
+        splitCamH.enable(videoChat._localStream, videoChat._remoteStream, mp.color);
+        splitCamH.setTintEnabled(true);
       } else if (activeCamMode === 'king-cam') {
         kingCam.enable(videoChat._localStream, mp.color, videoChat._remoteStream);
         board.render();
@@ -3464,6 +3483,9 @@ mp.onOpponentMove = (payload) => {
   if (splitCam.isActive()) {
     splitCam.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
   }
+  if (splitCamH.isActive()) {
+    splitCamH.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+  }
   updateStatus('Your turn');
 
   // Execute premove if queued
@@ -3591,6 +3613,10 @@ mp.onRematchStart = async (payload) => {
     // Split cam — disable and re-enable with new player color.
     splitCam.disable();
     splitCam.enable(videoChat._localStream, videoChat._remoteStream, payload.color);
+  } else if (splitCamH.isActive()) {
+    // Horizontal split cam — disable and re-enable with new player color.
+    splitCamH.disable();
+    splitCamH.enable(videoChat._localStream, videoChat._remoteStream, payload.color);
   } else if (payload.videoEnabled && !videoActive) {
     // Video was configured for this room but the connection dropped — re-request
     // camera and signal readiness so the server can re-initiate WebRTC.
@@ -3656,6 +3682,9 @@ mp.onReconnect = async (payload) => {
   if (splitCam.isActive()) {
     splitCam.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
   }
+  if (splitCamH.isActive()) {
+    splitCamH.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+  }
   updateStatus(isMyTurn ? 'Your turn (reconnected)' : "Opponent's turn (reconnected)");
   mpUI.setConnectionStatus('connected');
 
@@ -3687,6 +3716,9 @@ mp.onOpponentReconnected = () => {
   }
   if (splitCam.isActive()) {
     splitCam.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+  }
+  if (splitCamH.isActive()) {
+    splitCamH.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
   }
   updateStatus(isMyTurn ? 'Your turn' : "Opponent's turn");
 };
@@ -3773,6 +3805,12 @@ mp.onVideoStart = async (payload) => {
         if (videoChat._remoteStream) {
           splitCam.updateRemoteStream(videoChat._remoteStream, mp.color);
         }
+      } else if (activeCamMode === 'split-cam-h') {
+        // Horizontal split cam — top half = black, bottom half = white
+        splitCamH.enable(videoChat._localStream, null, mp.color);
+        if (videoChat._remoteStream) {
+          splitCamH.updateRemoteStream(videoChat._remoteStream, mp.color);
+        }
       } else {
         // Default: board-face mode — camera fills board squares
         videoBoard.enable(videoChat._localStream, null, mp.color);
@@ -3809,6 +3847,9 @@ videoChat.onLocalStream = (stream) => {
     if (splitCam.isActive()) {
       splitCam.updateLocalStream(stream, mp.color);
     }
+    if (splitCamH.isActive()) {
+      splitCamH.updateLocalStream(stream, mp.color);
+    }
     if (kingCam.isActive()) {
       kingCam.updateLocalStream(stream, mp.color);
     }
@@ -3825,6 +3866,9 @@ videoChat.onRemoteStream = (stream) => {
     }
     if (splitCam.isActive()) {
       splitCam.updateRemoteStream(stream, mp.color);
+    }
+    if (splitCamH.isActive()) {
+      splitCamH.updateRemoteStream(stream, mp.color);
     }
   }
 };
@@ -3845,6 +3889,9 @@ videoChat.onReconnected = () => {
     if (splitCam.isActive()) {
       splitCam.updateRemoteStream(videoChat._remoteStream, mp.color);
     }
+    if (splitCamH.isActive()) {
+      splitCamH.updateRemoteStream(videoChat._remoteStream, mp.color);
+    }
   }
 };
 videoChat.onRemoteVideoMuted = () => {
@@ -3861,6 +3908,9 @@ videoChat.onRemoteVideoUnmuted = () => {
     }
     if (splitCam.isActive()) {
       splitCam.updateRemoteStream(videoChat._remoteStream, mp.color);
+    }
+    if (splitCamH.isActive()) {
+      splitCamH.updateRemoteStream(videoChat._remoteStream, mp.color);
     }
   }
 };
@@ -3884,6 +3934,7 @@ videoUI.onEndCall = () => {
   videoBoard.disable();
   if (kingCam.isActive()) { kingCam.disable(); board.render(); }
   splitCam.disable();
+  splitCamH.disable();
   videoActive = false;
   activeCamMode = 'none';
 };
@@ -3894,6 +3945,7 @@ mp.onVideoEnded = () => {
   videoBoard.disable();
   if (kingCam.isActive()) { kingCam.disable(); board.render(); }
   splitCam.disable();
+  splitCamH.disable();
   videoActive = false;
   activeCamMode = 'none';
 };
@@ -4115,6 +4167,7 @@ function applyCamMode(mode) {
   if (mode === 'king-cam') {
     videoBoard.disable();
     splitCam.disable();
+    splitCamH.disable();
     // Restore raw camera track — videoBoard replaced it with a cropped canvas stream that is now stopped
     const rawVideoTrack = videoChat._localStream?.getVideoTracks()[0];
     if (rawVideoTrack) videoChat.replaceVideoTrack(rawVideoTrack);
@@ -4126,6 +4179,7 @@ function applyCamMode(mode) {
   } else if (mode === 'board-face') {
     kingCam.disable();
     splitCam.disable();
+    splitCamH.disable();
     board.render();
     videoBoard.enable(videoChat._localStream, null, mp.color);
     // videoBoard replaces the WebRTC track via onCroppedStreamReady when face tracking is ready
@@ -4135,16 +4189,28 @@ function applyCamMode(mode) {
   } else if (mode === 'split-cam') {
     kingCam.disable();
     videoBoard.disable();
+    splitCamH.disable();
     board.render();
     // Restore raw camera track — videoBoard may have replaced it
     const rawVideoTrack = videoChat._localStream?.getVideoTracks()[0];
     if (rawVideoTrack) videoChat.replaceVideoTrack(rawVideoTrack);
     splitCam.enable(videoChat._localStream, videoChat._remoteStream, mp.color);
     splitCam.setTintEnabled(true);
+  } else if (mode === 'split-cam-h') {
+    kingCam.disable();
+    videoBoard.disable();
+    splitCam.disable();
+    board.render();
+    // Restore raw camera track — videoBoard may have replaced it
+    const rawVideoTrack = videoChat._localStream?.getVideoTracks()[0];
+    if (rawVideoTrack) videoChat.replaceVideoTrack(rawVideoTrack);
+    splitCamH.enable(videoChat._localStream, videoChat._remoteStream, mp.color);
+    splitCamH.setTintEnabled(true);
   } else {
     kingCam.disable();
     videoBoard.disable();
     splitCam.disable();
+    splitCamH.disable();
     // Restore raw camera track when disabling all video modes
     const rawVideoTrack = videoChat._localStream?.getVideoTracks()[0];
     if (rawVideoTrack) videoChat.replaceVideoTrack(rawVideoTrack);
