@@ -159,6 +159,17 @@ export class VideoBoard {
   }
 
   /**
+   * Enable or disable board color tints.
+   * Call with false during pre-game lobby (no tints on camera feed).
+   * Call with true when gameplay begins (tints fade back in for turn indicator).
+   * @param {boolean} enabled
+   */
+  setTintEnabled(enabled) {
+    if (this._lightTint) this._lightTint.style.opacity = enabled ? '' : '0';
+    if (this._darkTint) this._darkTint.style.opacity = enabled ? '' : '0';
+  }
+
+  /**
    * Update tint opacity based on whose turn it is.
    * @param {'w'|'b'} turn — whose turn it is
    * @param {'w'|'b'} playerColor — local player's color

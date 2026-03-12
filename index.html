@@ -22,6 +22,10 @@
       </div>
       <div class="header-center">
         <div id="status" class="status">White to move</div>
+        <div id="lobby-room-code-display" class="lobby-room-code-display hidden">
+          <span class="lobby-room-code-label">Room</span>
+          <span id="lobby-room-code-header" class="lobby-room-code-value">------</span>
+        </div>
       </div>
       <div class="header-right">
         <div id="auth-container" class="auth-container"></div>
@@ -59,6 +63,45 @@
         <span id="player-elo-white" class="player-elo hidden"></span>
         <span id="player-icon-white" class="player-icon">👤</span>
         <div id="timer-white" class="timer">--:--</div>
+      </div>
+    </div>
+
+    <!-- Pre-game lobby panel (inline, below board) -->
+    <div id="lobby-panel" class="lobby-panel hidden">
+      <div class="lobby-settings-row">
+        <div class="lobby-setting-item lobby-setting-tc">
+          <span class="lobby-setting-label">TC</span>
+          <span id="lobby-tc-display" class="lobby-setting-value">5+0</span>
+          <select id="lobby-tc-select" class="lobby-tc-select hidden">
+            <option value="1+0">Bullet 1+0</option>
+            <option value="3+2">Blitz 3+2</option>
+            <option value="5+0">Rapid 5+0</option>
+            <option value="10+0">Rapid 10+0</option>
+            <option value="15+10">Classical 15+10</option>
+            <option value="30+0">Classical 30+0</option>
+            <option value="none">No Timer</option>
+            <option value="custom">Custom...</option>
+          </select>
+        </div>
+        <div class="lobby-setting-item">
+          <span class="lobby-setting-label">Variant</span>
+          <button id="lobby-960-btn" class="lobby-setting-btn">Standard</button>
+        </div>
+        <div class="lobby-setting-item">
+          <span class="lobby-setting-label">Colors</span>
+          <button id="lobby-swap-btn" class="lobby-setting-btn">White</button>
+        </div>
+      </div>
+      <div class="lobby-ready-row">
+        <div class="lobby-ready-indicator" id="lobby-ready-you">
+          <span class="lobby-ready-dot"></span>
+          <span class="lobby-ready-name">You</span>
+        </div>
+        <button id="lobby-ready-btn" class="lobby-ready-btn">Ready</button>
+        <div class="lobby-ready-indicator lobby-ready-opp" id="lobby-ready-opp">
+          <span class="lobby-ready-dot"></span>
+          <span class="lobby-ready-name">Opponent</span>
+        </div>
       </div>
     </div>
 

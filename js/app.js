@@ -3187,6 +3187,14 @@ mp.onGameStart = async (payload) => {
   });
   issueReporter.setGameContext(payload.dbGameId, mp.sessionId, !!payload.videoEnabled);
   issueReporter.showButton();
+
+  // Hide lobby panel and restore header; re-enable board tints for gameplay
+  mpUI.hideLobbyPanel();
+  boardEl.classList.remove('lobby-active');
+  if (videoBoard.isActive()) {
+    videoBoard.setTintEnabled(true);
+  }
+
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 
   // If a camera mode is active, request camera (skip if already started in lobby)
@@ -3205,16 +3213,19 @@ mp.onRoomCreated = (payload) => {
   mpUI.showWaiting(payload.roomId);
 };
 
-// Lobby joined — show pre-game settings lobby
+// Lobby joined — show pre-game settings inline below board
 mp.onLobbyJoined = async (payload) => {
   multiplayerActive = true;
   mpUI.showLobby(payload);
 
-  // Start video at lobby entry so both players can see each other while choosing settings
+  // Start camera immediately for video-enabled rooms — show directly on board,
+  // no preview modal. Board tints disabled during pre-game lobby.
   if (payload.settings?.videoEnabled) {
+    boardEl.classList.add('lobby-active');
     try {
       const stream = await videoChat.requestCamera();
-      videoUI.showCameraPreview(stream);
+      videoBoard.enable(stream, null, payload.color);
+      videoBoard.setTintEnabled(false);
     } catch (e) {
       videoUI.showError(e.message || 'Camera access failed.');
     }
