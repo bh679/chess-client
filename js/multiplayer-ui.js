@@ -218,10 +218,9 @@ export class MultiplayerUI {
     // Variant
     this.inline960Btn.textContent = s.settings?.chess960 ? 'Chess960' : 'Chess';
 
-    // Color picker — highlight the button matching our preference
-    this.lobbyColorBtns.forEach(btn => {
-      btn.classList.toggle('selected', btn.dataset.color === this._myColorPreference);
-    });
+    // Color button — show current preference
+    const COLOR_LABELS = { w: 'White', random: '?', b: 'Black' };
+    this.inlineColorBtn.textContent = COLOR_LABELS[this._myColorPreference];
 
     // Ready states
     const myReadyState = s.color === 'w' ? s.white?.ready : s.black?.ready;
@@ -347,7 +346,7 @@ export class MultiplayerUI {
     this.inlineTcDisplay = document.getElementById('lobby-tc-display');
     this.inlineTcSelect = document.getElementById('lobby-tc-select');
     this.inline960Btn = document.getElementById('lobby-960-btn');
-    this.lobbyColorBtns = document.querySelectorAll('.lobby-color-btn');
+    this.inlineColorBtn = document.getElementById('lobby-color-btn');
     this.inlineCamBtn = document.getElementById('lobby-cam-btn');
     this.inlineReadyBtn = document.getElementById('lobby-ready-btn');
     this.inlineReadyYou = document.getElementById('lobby-ready-you');
@@ -557,26 +556,20 @@ export class MultiplayerUI {
       this.mp.proposeSetting('chess960', !current);
     });
 
-    // Inline lobby — color picker (only in full lobby mode)
-    this.lobbyColorBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (this._currentView !== 'lobby') return;
-        const pref = btn.dataset.color;
-        const currentColor = this._lobbyState?.color;
-        if (pref === 'random') {
-          this._myColorPreference = 'random';
-        } else if (pref === 'w' && currentColor === 'b') {
-          this.mp.proposeSetting('colorSwap', true);
-          this._myColorPreference = 'w';
-        } else if (pref === 'b' && currentColor === 'w') {
-          this.mp.proposeSetting('colorSwap', true);
-          this._myColorPreference = 'b';
-        } else {
-          // Already the desired color — just update preference display
-          this._myColorPreference = pref;
-        }
-        this._renderLobbyPanel();
-      });
+    // Inline lobby — color cycle button (random → White → Black → random…)
+    const COLOR_CYCLE = ['random', 'w', 'b'];
+    const COLOR_LABELS = { w: 'White', random: '?', b: 'Black' };
+    this.inlineColorBtn.addEventListener('click', () => {
+      if (this._currentView !== 'lobby') return;
+      const next = COLOR_CYCLE[(COLOR_CYCLE.indexOf(this._myColorPreference) + 1) % COLOR_CYCLE.length];
+      const currentColor = this._lobbyState?.color;
+      if (next === 'w' && currentColor === 'b') {
+        this.mp.proposeSetting('colorSwap', true);
+      } else if (next === 'b' && currentColor === 'w') {
+        this.mp.proposeSetting('colorSwap', true);
+      }
+      this._myColorPreference = next;
+      this.inlineColorBtn.textContent = COLOR_LABELS[next];
     });
 
     // Inline lobby — cam mode cycle
