@@ -97,16 +97,18 @@ export class VideoChat {
       if (this.onLocalStream) this.onLocalStream(stream);
       return stream;
     } catch (err) {
+      let msg;
       if (err.name === 'NotAllowedError') {
-        throw new Error('Camera permission denied. Please enable camera access in browser settings.');
+        msg = 'Camera permission denied. Please enable camera access in browser settings.';
+      } else if (err.name === 'NotFoundError') {
+        msg = 'No camera or microphone found.';
+      } else if (err.name === 'NotReadableError') {
+        msg = 'Camera is in use by another application.';
+      } else {
+        msg = 'Could not access camera: ' + err.message;
       }
-      if (err.name === 'NotFoundError') {
-        throw new Error('No camera or microphone found.');
-      }
-      if (err.name === 'NotReadableError') {
-        throw new Error('Camera is in use by another application.');
-      }
-      throw new Error('Could not access camera: ' + err.message);
+      if (this.onCameraError) this.onCameraError(msg);
+      throw new Error(msg);
     }
   }
 
