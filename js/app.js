@@ -1317,12 +1317,6 @@ customTimeOk.addEventListener('click', () => {
     return;
   }
 
-  // If a friend game triggered this, update the friend TC select and reopen wizard
-  if (newGameMenu.hasPendingFriendCustomTime()) {
-    newGameMenu.resumeFriendWithCustomTc(wMin, bMin, increment);
-    return;
-  }
-
   // If the new game wizard triggered this, resume at settings step
   if (newGameMenu.hasPendingCustomTime()) {
     newGameMenu.resumeAtSettings(tcValue);
@@ -1338,11 +1332,6 @@ customTimeCancel.addEventListener('click', () => {
   // If a lobby custom TC is pending, cancel it
   if (mpUI && mpUI.hasPendingLobbyCustomTc()) {
     mpUI.resetLobbyCustomTc();
-    return;
-  }
-  // If a friend game triggered this, restore the wizard at the friend step
-  if (newGameMenu.hasPendingFriendCustomTime()) {
-    newGameMenu.resetFriendCustomTime();
     return;
   }
   timeControlSelect.value = '600|0'; // fallback to Rapid 10+0
@@ -3938,7 +3927,7 @@ newGameMenu.onOnline(async (tc, name, camMode, chess960) => {
   mpUI.backdrop.classList.remove('hidden');
 });
 
-newGameMenu.onFriend(async (action, tc, name, code, camMode, chess960) => {
+newGameMenu.onFriend(async (action, code) => {
   if (!mp.ws || mp.ws.readyState !== WebSocket.OPEN) {
     try {
       await mp.connect();
@@ -3948,23 +3937,23 @@ newGameMenu.onFriend(async (action, tc, name, code, camMode, chess960) => {
     }
   }
   if (action === 'create') {
-    mp.createRoom(tc, name, camMode, chess960);
+    // Defaults — lobby handles TC, variant, colors, cam
+    mp.createRoom('5+0', null, 'board-face', false);
     // mpUI will show waiting view via the room-created event
     mpUI.modal.classList.remove('hidden');
     mpUI.backdrop.classList.remove('hidden');
   } else if (action === 'join') {
     multiplayerActive = true;  // Prevent startNewGame() from overwriting
-    mp.joinRoom(code, name);
+    mp.joinRoom(code, null);
   }
 });
 
 newGameMenu.onCustomTime(() => {
-  if (newGameMenu.hasPendingFriendCustomTime()) {
-    customWhiteLabel.textContent = 'Your time (min):';
-    customBlackLabel.textContent = "Opponent's time (min):";
-  }
   customTimeModal.classList.remove('hidden');
 });
+
+// Lobby cam mode change — update activeCamMode for use at game start
+mpUI.onCamChange((mode) => { activeCamMode = mode; });
 
 // --- Route handlers ---
 
