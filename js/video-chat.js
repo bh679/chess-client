@@ -10,6 +10,10 @@ const FALLBACK_ICE_SERVERS = [
   { urls: 'stun:stun1.l.google.com:19302' },
 ];
 
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_BASE_DELAY_MS = 2000;
+const ICE_DISCONNECT_GRACE_MS = 4000; // wait before restarting on 'disconnected'
+
 export class VideoChat {
   /**
    * @param {import('./multiplayer.js').MultiplayerClient} multiplayerClient
@@ -28,11 +32,19 @@ export class VideoChat {
     this._pendingIceCandidates = [];
     this._remoteDescriptionReady = false;
 
+    // ICE reconnection state
+    this._reconnectAttempts = 0;
+    this._reconnectTimer = null;
+
     // Event callbacks — set by app.js
-    this.onLocalStream = null;   // (stream: MediaStream) => void
-    this.onRemoteStream = null;  // (stream: MediaStream) => void
-    this.onDisconnected = null;  // () => void
-    this.onError = null;         // (msg: string) => void
+    this.onLocalStream = null;         // (stream: MediaStream) => void
+    this.onRemoteStream = null;        // (stream: MediaStream) => void
+    this.onDisconnected = null;        // () => void
+    this.onError = null;               // (msg: string) => void
+    this.onReconnecting = null;        // (attempt: number, max: number) => void
+    this.onReconnected = null;         // () => void
+    this.onRemoteVideoMuted = null;    // () => void
+    this.onRemoteVideoUnmuted = null;  // () => void
   }
 
   // --- Public API ---
@@ -104,6 +116,7 @@ export class VideoChat {
    */
   async startCall(isInitiator) {
     this._isInitiator = isInitiator;
+    this._reconnectAttempts = 0;
     if (this._diag) this._diag.record('webrtc', 'call_start', { isInitiator });
 
     // Guard: if handleOffer() already created a PC and processed an offer
@@ -259,6 +272,9 @@ export class VideoChat {
    * Stop all media and close the peer connection.
    */
   stop() {
+    clearTimeout(this._reconnectTimer);
+    this._reconnectTimer = null;
+    this._reconnectAttempts = 0;
     if (this._localStream) {
       for (const track of this._localStream.getTracks()) {
         track.stop();
@@ -299,6 +315,46 @@ export class VideoChat {
   // --- Private ---
 
   /**
+   * Attempt an ICE restart to recover a disconnected/failed peer connection.
+   * Only the initiator (white) sends a new offer — the non-initiator waits.
+   * Uses exponential backoff up to MAX_RECONNECT_ATTEMPTS.
+   */
+  async _attemptIceRestart() {
+    clearTimeout(this._reconnectTimer);
+    this._reconnectTimer = null;
+
+    if (!this._peerConnection) return;
+
+    if (this._reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      console.warn('[VideoChat] ICE restart exhausted after', MAX_RECONNECT_ATTEMPTS, 'attempts');
+      if (this._diag) this._diag.record('webrtc', 'ice_restart_exhausted', { attempts: this._reconnectAttempts });
+      if (this.onDisconnected) this.onDisconnected();
+      return;
+    }
+
+    this._reconnectAttempts++;
+    const delay = Math.min(RECONNECT_BASE_DELAY_MS * Math.pow(2, this._reconnectAttempts - 1), 30000);
+    console.log(`[VideoChat] ICE restart attempt ${this._reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
+    if (this._diag) this._diag.record('webrtc', 'ice_restart_attempt', { attempt: this._reconnectAttempts });
+    if (this.onReconnecting) this.onReconnecting(this._reconnectAttempts, MAX_RECONNECT_ATTEMPTS);
+
+    if (this._isInitiator) {
+      try {
+        const offer = await this._peerConnection.createOffer({ iceRestart: true });
+        await this._peerConnection.setLocalDescription(offer);
+        this._mp.sendRtcOffer(this._peerConnection.localDescription);
+        if (this._diag) this._diag.sdpExchange('sent', 'offer_restart');
+      } catch (err) {
+        console.warn('[VideoChat] ICE restart offer failed:', err.message);
+        if (this._diag) this._diag.webrtcError('iceRestart', err.message);
+      }
+    }
+    // Both initiator and non-initiator schedule a follow-up check.
+    // If the connection recovers, oniceconnectionstatechange 'connected' will clear this timer.
+    this._reconnectTimer = setTimeout(() => this._attemptIceRestart(), delay);
+  }
+
+  /**
    * Flush queued ICE candidates now that remote description is set.
    */
   async _flushIceCandidates() {
@@ -334,20 +390,57 @@ export class VideoChat {
       if (this._diag) this._diag.remoteTrackReceived(event.track.kind);
       this._remoteStream = event.streams[0];
       if (this.onRemoteStream) this.onRemoteStream(event.streams[0]);
+
+      // Monitor remote video track for mute/unmute (e.g. iOS backgrounding)
+      if (event.track.kind === 'video') {
+        event.track.onmute = () => {
+          console.log('[VideoChat] Remote video track muted');
+          if (this._diag) this._diag.record('webrtc', 'remote_track_muted', { kind: 'video' });
+          if (this.onRemoteVideoMuted) this.onRemoteVideoMuted();
+        };
+        event.track.onunmute = () => {
+          console.log('[VideoChat] Remote video track unmuted');
+          if (this._diag) this._diag.record('webrtc', 'remote_track_unmuted', { kind: 'video' });
+          if (this.onRemoteVideoUnmuted) this.onRemoteVideoUnmuted();
+        };
+        event.track.onended = () => {
+          console.log('[VideoChat] Remote video track ended');
+          if (this._diag) this._diag.record('webrtc', 'remote_track_ended', { kind: 'video' });
+          this._attemptIceRestart();
+        };
+      }
     };
 
     pc.oniceconnectionstatechange = () => {
-      console.log('[VideoChat] ICE state:', pc.iceConnectionState);
-      if (this._diag) this._diag.iceStateChange(pc.iceConnectionState);
+      const state = pc.iceConnectionState;
+      console.log('[VideoChat] ICE state:', state);
+      if (this._diag) this._diag.iceStateChange(state);
+
+      if (state === 'connected' || state === 'completed') {
+        // Connection recovered — clear any pending restart and reset counter
+        clearTimeout(this._reconnectTimer);
+        this._reconnectTimer = null;
+        if (this._reconnectAttempts > 0) {
+          console.log('[VideoChat] ICE reconnected after', this._reconnectAttempts, 'attempt(s)');
+          if (this._diag) this._diag.record('webrtc', 'ice_reconnected', { attempts: this._reconnectAttempts });
+          this._reconnectAttempts = 0;
+          if (this.onReconnected) this.onReconnected();
+        }
+      } else if (state === 'disconnected') {
+        // Transient — wait before restarting in case it self-recovers
+        clearTimeout(this._reconnectTimer);
+        this._reconnectTimer = setTimeout(() => this._attemptIceRestart(), ICE_DISCONNECT_GRACE_MS);
+      } else if (state === 'failed') {
+        // Hard failure — restart immediately
+        this._attemptIceRestart();
+      }
     };
 
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
       console.log('[VideoChat] Connection state:', state);
       if (this._diag) this._diag.connectionStateChange(state);
-      if (state === 'disconnected' || state === 'failed') {
-        if (this.onDisconnected) this.onDisconnected();
-      }
+      // ICE restart handles recovery; only call onDisconnected if ICE gives up
     };
 
     pc.onicegatheringstatechange = () => {

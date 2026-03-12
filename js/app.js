@@ -3823,6 +3823,40 @@ videoChat.onRemoteStream = (stream) => {
 };
 videoChat.onDisconnected = () => { videoUI.showError('Video disconnected'); issueReporter.recordError(); };
 videoChat.onError = (msg) => { videoUI.showError(msg); issueReporter.recordError(); };
+videoChat.onReconnecting = (attempt, max) => {
+  videoUI.showError(`Reconnecting video... (${attempt}/${max})`);
+};
+videoChat.onReconnected = () => {
+  // Re-deliver remote stream to displays in case it was interrupted
+  if (videoChat._remoteStream && mp.color) {
+    const opponentColor = mp.color === 'w' ? 'b' : 'w';
+    videoBoard.updateRemoteStream(videoChat._remoteStream, mp.color);
+    if (kingCam.isActive()) {
+      kingCam.updateRemoteStream(videoChat._remoteStream, opponentColor);
+      board.render();
+    }
+    if (splitCam.isActive()) {
+      splitCam.updateRemoteStream(videoChat._remoteStream, mp.color);
+    }
+  }
+};
+videoChat.onRemoteVideoMuted = () => {
+  diagnostics.record('webrtc', 'remote_video_muted', {});
+};
+videoChat.onRemoteVideoUnmuted = () => {
+  // Re-deliver the stream in case display stalled while muted
+  if (videoChat._remoteStream && mp.color) {
+    const opponentColor = mp.color === 'w' ? 'b' : 'w';
+    videoBoard.updateRemoteStream(videoChat._remoteStream, mp.color);
+    if (kingCam.isActive()) {
+      kingCam.updateRemoteStream(videoChat._remoteStream, opponentColor);
+      board.render();
+    }
+    if (splitCam.isActive()) {
+      splitCam.updateRemoteStream(videoChat._remoteStream, mp.color);
+    }
+  }
+};
 
 // VideoUI events
 videoUI.onPreviewConfirm = () => {
