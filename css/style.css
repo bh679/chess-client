@@ -458,6 +458,73 @@ body {
   opacity: 0.8;
 }
 
+/* Split Cam H — top half (black player) / bottom half (white player) */
+.split-cam-h-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.split-cam-h-top-mask,
+.split-cam-h-bottom-mask {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.split-cam-h-top-mask    { top: 0; }
+.split-cam-h-bottom-mask { bottom: 0; }
+
+.split-cam-h-top-feed,
+.split-cam-h-bottom-feed {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Tint divs are hidden — board checker pattern provides the color overlay */
+.split-cam-h-top-tint,
+.split-cam-h-bottom-tint {
+  display: none;
+}
+
+/* When horizontal split cam is active, show semi-transparent board checker pattern over camera */
+.board.split-cam-h-active .square.light {
+  background-color: rgba(240, 217, 181, 0.55);
+}
+
+.board.split-cam-h-active .square.dark {
+  background-color: rgba(181, 136, 99, 0.55);
+}
+
+.board.split-cam-h-active .square {
+  z-index: 1;
+}
+
+.board.split-cam-h-active .square.selected {
+  background-color: rgba(247, 236, 90, 0.5) !important;
+}
+
+.board.split-cam-h-active .square.last-move {
+  background-color: rgba(255, 255, 0, 0.25) !important;
+}
+
+.board.split-cam-h-active .square.check {
+  background-color: rgba(255, 0, 0, 0.4) !important;
+}
+
+.board.split-cam-h-active .square.legal-move::after,
+.board.split-cam-h-active .square.legal-capture::after {
+  opacity: 0.8;
+}
+
 /* Arrow overlay */
 .arrow-overlay {
   position: absolute;
@@ -3718,7 +3785,9 @@ button.replay-summary-btn {
 .board.lobby-active .video-board-light-tint,
 .board.lobby-active .video-board-dark-tint,
 .board.lobby-active .split-cam-left-tint,
-.board.lobby-active .split-cam-right-tint {
+.board.lobby-active .split-cam-right-tint,
+.board.lobby-active .split-cam-h-top-tint,
+.board.lobby-active .split-cam-h-bottom-tint {
   opacity: 0 !important;
   transition: opacity 0.4s ease;
 }
