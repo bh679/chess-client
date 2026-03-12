@@ -3623,6 +3623,10 @@ mp.onRematchStart = async (payload) => {
     // Horizontal split cam — disable and re-enable with new player color.
     splitCamH.disable();
     splitCamH.enable(videoChat._localStream, videoChat._remoteStream, payload.color);
+  } else if (kingCam.isActive()) {
+    // King cam — disable and re-enable with new player color (colors swap on rematch).
+    kingCam.disable();
+    kingCam.enable(videoChat._localStream, payload.color, videoChat._remoteStream || null);
   } else if (payload.videoEnabled && !videoActive) {
     // Video was configured for this room but the connection dropped — re-request
     // camera and signal readiness so the server can re-initiate WebRTC.
@@ -3715,6 +3719,7 @@ mp.onOpponentDisconnected = (payload) => {
 
 // Opponent reconnected
 mp.onOpponentReconnected = () => {
+  diagnostics.record('lifecycle', 'opponent_reconnected', {});
   mpUI.setConnectionStatus('connected');
   const isMyTurn = mp.isMyTurn(game.getTurn());
   if (videoBoard.isActive()) {
@@ -3869,17 +3874,24 @@ videoChat.onCameraError = (msg) => {
 };
 videoChat.onLocalStream = (stream) => {
   diagnostics.record('lifecycle', 'camera_acquired', {});
+  stream.getVideoTracks().forEach(track => {
+    track.onended = () => diagnostics.record('webrtc', 'local_track_ended', { kind: 'video' });
+  });
   videoUI.setLocalStream(stream);
   if (mp.color) {
     videoBoard.updateLocalStream(stream, mp.color);
+    diagnostics.localStreamUpdated('board-face', mp.color);
     if (splitCam.isActive()) {
       splitCam.updateLocalStream(stream, mp.color);
+      diagnostics.localStreamUpdated('split-cam', mp.color);
     }
     if (splitCamH.isActive()) {
       splitCamH.updateLocalStream(stream, mp.color);
+      diagnostics.localStreamUpdated('split-cam-h', mp.color);
     }
     if (kingCam.isActive()) {
       kingCam.updateLocalStream(stream, mp.color);
+      diagnostics.localStreamUpdated('king-cam', mp.color);
     }
   }
 };
@@ -3888,15 +3900,19 @@ videoChat.onRemoteStream = (stream) => {
   if (mp.color) {
     const opponentColor = mp.color === 'w' ? 'b' : 'w';
     videoBoard.updateRemoteStream(stream, mp.color);
+    diagnostics.remoteStreamUpdated('board-face', mp.color);
     if (kingCam.isActive()) {
       kingCam.updateRemoteStream(stream, opponentColor);
+      diagnostics.remoteStreamUpdated('king-cam', opponentColor);
       board.render();
     }
     if (splitCam.isActive()) {
       splitCam.updateRemoteStream(stream, mp.color);
+      diagnostics.remoteStreamUpdated('split-cam', mp.color);
     }
     if (splitCamH.isActive()) {
       splitCamH.updateRemoteStream(stream, mp.color);
+      diagnostics.remoteStreamUpdated('split-cam-h', mp.color);
     }
   }
 };
@@ -3906,7 +3922,11 @@ videoChat.onDisconnected = () => {
   videoUI.showError('Video disconnected');
   issueReporter.recordError();
 };
-videoChat.onError = (msg) => { videoUI.showError(msg); issueReporter.recordError(); };
+videoChat.onError = (msg) => {
+  diagnostics.record('webrtc', 'video_error', { message: msg });
+  videoUI.showError(msg);
+  issueReporter.recordError();
+};
 videoChat.onReconnecting = (attempt, max) => {
   diagnostics.record('webrtc', 'video_reconnecting', { attempt, max });
   videoUI.showError(`Reconnecting video... (${attempt}/${max})`);
@@ -3917,15 +3937,19 @@ videoChat.onReconnected = () => {
   if (videoChat._remoteStream && mp.color) {
     const opponentColor = mp.color === 'w' ? 'b' : 'w';
     videoBoard.updateRemoteStream(videoChat._remoteStream, mp.color);
+    diagnostics.remoteStreamUpdated('board-face', mp.color);
     if (kingCam.isActive()) {
       kingCam.updateRemoteStream(videoChat._remoteStream, opponentColor);
+      diagnostics.remoteStreamUpdated('king-cam', opponentColor);
       board.render();
     }
     if (splitCam.isActive()) {
       splitCam.updateRemoteStream(videoChat._remoteStream, mp.color);
+      diagnostics.remoteStreamUpdated('split-cam', mp.color);
     }
     if (splitCamH.isActive()) {
       splitCamH.updateRemoteStream(videoChat._remoteStream, mp.color);
+      diagnostics.remoteStreamUpdated('split-cam-h', mp.color);
     }
   }
 };
@@ -3937,15 +3961,19 @@ videoChat.onRemoteVideoUnmuted = () => {
   if (videoChat._remoteStream && mp.color) {
     const opponentColor = mp.color === 'w' ? 'b' : 'w';
     videoBoard.updateRemoteStream(videoChat._remoteStream, mp.color);
+    diagnostics.remoteStreamUpdated('board-face', mp.color);
     if (kingCam.isActive()) {
       kingCam.updateRemoteStream(videoChat._remoteStream, opponentColor);
+      diagnostics.remoteStreamUpdated('king-cam', opponentColor);
       board.render();
     }
     if (splitCam.isActive()) {
       splitCam.updateRemoteStream(videoChat._remoteStream, mp.color);
+      diagnostics.remoteStreamUpdated('split-cam', mp.color);
     }
     if (splitCamH.isActive()) {
       splitCamH.updateRemoteStream(videoChat._remoteStream, mp.color);
+      diagnostics.remoteStreamUpdated('split-cam-h', mp.color);
     }
   }
 };
@@ -4199,6 +4227,7 @@ newGameMenu.onCustomTime(() => {
 // Switch live video display to match a cam mode (used by both local button clicks and remote setting changes)
 function applyCamMode(mode) {
   if (!videoActive) return;
+  diagnostics.camModeChanged(mode);
   if (mode === 'king-cam') {
     videoBoard.disable();
     splitCam.disable();

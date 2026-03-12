@@ -51,6 +51,15 @@ export class KingCam {
   }
 
   /**
+   * Update the local player's stream (e.g. after camera reconnect).
+   * @param {MediaStream} stream
+   * @param {'w'|'b'} color — the local player's color
+   */
+  updateLocalStream(stream, color) {
+    this._streams[color] = stream;
+  }
+
+  /**
    * Create the DOM element for a king piece.
    * If no stream is available for this color, returns a normal SVG img element.
    * @param {'w'|'b'} color
