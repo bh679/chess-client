@@ -123,7 +123,7 @@ export class MultiplayerUI {
     // Reset cam button to default on each new lobby
     if (this.inlineCamBtn) {
       this.inlineCamBtn.dataset.mode = 'board-face';
-      this.inlineCamBtn.textContent = 'Board Face';
+      this.inlineCamBtn.textContent = 'Board - Face';
     }
     this._renderLobbyPanel();
     // Show inline panel, hide modal
@@ -154,10 +154,10 @@ export class MultiplayerUI {
     this.inlineTcSelect.classList.add('hidden');
 
     // Variant
-    this.inline960Btn.textContent = s.settings?.chess960 ? 'Chess960' : 'Standard';
+    this.inline960Btn.textContent = s.settings?.chess960 ? 'Chess960' : 'Chess';
 
     // Color — from our perspective
-    const myColor = s.color === 'w' ? 'White' : 'Black';
+    const myColor = s.color === 'w' ? 'I am White' : 'I am Black';
     this.inlineSwapBtn.textContent = myColor;
 
     // Ready states
@@ -450,8 +450,8 @@ export class MultiplayerUI {
 
     // Inline lobby — cam mode cycle
     if (this.inlineCamBtn) {
-      const CAM_MODES = ['board-face', 'king-cam', 'none'];
-      const CAM_LABELS = { 'board-face': 'Board Face', 'king-cam': 'King Cam', 'none': 'No Cam' };
+      const CAM_MODES = ['board-face', 'king-cam', 'split-cam', 'none'];
+      const CAM_LABELS = { 'board-face': 'Board - Face', 'king-cam': 'King - Cam', 'split-cam': 'Split Cam', 'none': 'No-Cam' };
       this.inlineCamBtn.addEventListener('click', () => {
         const next = CAM_MODES[(CAM_MODES.indexOf(this.inlineCamBtn.dataset.mode) + 1) % CAM_MODES.length];
         this.inlineCamBtn.dataset.mode = next;
