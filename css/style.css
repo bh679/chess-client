@@ -3632,6 +3632,33 @@ button.replay-summary-btn {
   border-color: var(--accent);
 }
 
+/* Lobby color picker (White | ? | Black) */
+.lobby-color-picker {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+}
+.lobby-color-btn {
+  flex: 1;
+  height: 36px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+  white-space: nowrap;
+}
+.lobby-color-btn:hover {
+  border-color: var(--accent);
+}
+.lobby-color-btn.selected {
+  border-color: var(--accent);
+  background: var(--bg-sunken);
+}
+
 /* Ready row */
 .lobby-ready-row {
   display: flex;

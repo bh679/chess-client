@@ -19,6 +19,7 @@ export class MultiplayerUI {
     this._currentView = 'menu'; // 'menu' | 'waiting' | 'searching' | 'lobby' | 'ingame'
     this._lobbyState = null;
     this._myReady = false;
+    this._myColorPreference = 'random'; // 'w' | 'b' | 'random'
     this._pendingLobbyCustomTc = false;
     // Settings tracked while in waiting state (host-only, before opponent joins)
     this._waitingSettings = { timeControl: '5+0', chess960: false };
@@ -156,6 +157,7 @@ export class MultiplayerUI {
   showLobby(payload) {
     this._lobbyState = { ...payload };
     this._myReady = false;
+    this._myColorPreference = 'random';
     // Initialize cam button from lobby settings (creator's chosen mode)
     if (this.inlineCamBtn) {
       const CAM_LABELS = { 'board-face': 'Board - Face', 'king-cam': 'King - Cam', 'split-cam': 'Split Cam', 'none': 'No-Cam' };
@@ -185,6 +187,7 @@ export class MultiplayerUI {
     this._hideHeaderRoomCode();
     this._lobbyState = null;
     this._myReady = false;
+    this._myColorPreference = 'random';
   }
 
   /** Render lobby panel in waiting mode from _waitingSettings */
@@ -194,8 +197,6 @@ export class MultiplayerUI {
     this.inlineTcDisplay.classList.remove('hidden');
     this.inlineTcSelect.classList.add('hidden');
     this.inline960Btn.textContent = this._waitingSettings.chess960 ? 'Chess960' : 'Standard';
-    // Color swap not applicable while waiting
-    this.inlineSwapBtn.textContent = 'Random';
   }
 
   /** Render inline lobby panel from current lobby state */
@@ -217,9 +218,10 @@ export class MultiplayerUI {
     // Variant
     this.inline960Btn.textContent = s.settings?.chess960 ? 'Chess960' : 'Chess';
 
-    // Color — from our perspective
-    const myColor = s.color === 'w' ? 'I am White' : 'I am Black';
-    this.inlineSwapBtn.textContent = myColor;
+    // Color picker — highlight the button matching our preference
+    this.lobbyColorBtns.forEach(btn => {
+      btn.classList.toggle('selected', btn.dataset.color === this._myColorPreference);
+    });
 
     // Ready states
     const myReadyState = s.color === 'w' ? s.white?.ready : s.black?.ready;
@@ -257,7 +259,11 @@ export class MultiplayerUI {
       this._lobbyState.settings = { ...payload.settings };
     }
     if (payload.field === 'colorSwap') {
+      const opponentChanged = payload.changedBy !== this._lobbyState.color;
       this._lobbyState.color = this._lobbyState.color === 'w' ? 'b' : 'w';
+      if (opponentChanged) {
+        this._myColorPreference = 'random';
+      }
     }
     if (payload.field === 'camMode' && this.inlineCamBtn) {
       const CAM_LABELS = { 'board-face': 'Board Face', 'split-cam': 'Split Cam', 'king-cam': 'King Cam', 'none': 'No Cam' };
@@ -341,7 +347,7 @@ export class MultiplayerUI {
     this.inlineTcDisplay = document.getElementById('lobby-tc-display');
     this.inlineTcSelect = document.getElementById('lobby-tc-select');
     this.inline960Btn = document.getElementById('lobby-960-btn');
-    this.inlineSwapBtn = document.getElementById('lobby-swap-btn');
+    this.lobbyColorBtns = document.querySelectorAll('.lobby-color-btn');
     this.inlineCamBtn = document.getElementById('lobby-cam-btn');
     this.inlineReadyBtn = document.getElementById('lobby-ready-btn');
     this.inlineReadyYou = document.getElementById('lobby-ready-you');
@@ -551,10 +557,26 @@ export class MultiplayerUI {
       this.mp.proposeSetting('chess960', !current);
     });
 
-    // Inline lobby — color swap (only in full lobby mode)
-    this.inlineSwapBtn.addEventListener('click', () => {
-      if (this._currentView !== 'lobby') return;
-      this.mp.proposeSetting('colorSwap', true);
+    // Inline lobby — color picker (only in full lobby mode)
+    this.lobbyColorBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (this._currentView !== 'lobby') return;
+        const pref = btn.dataset.color;
+        const currentColor = this._lobbyState?.color;
+        if (pref === 'random') {
+          this._myColorPreference = 'random';
+        } else if (pref === 'w' && currentColor === 'b') {
+          this.mp.proposeSetting('colorSwap', true);
+          this._myColorPreference = 'w';
+        } else if (pref === 'b' && currentColor === 'w') {
+          this.mp.proposeSetting('colorSwap', true);
+          this._myColorPreference = 'b';
+        } else {
+          // Already the desired color — just update preference display
+          this._myColorPreference = pref;
+        }
+        this._renderLobbyPanel();
+      });
     });
 
     // Inline lobby — cam mode cycle
@@ -571,7 +593,21 @@ export class MultiplayerUI {
 
     // Inline lobby — ready
     this.inlineReadyBtn.addEventListener('click', () => {
-      this._myReady = !this._myReady;
+      const goingReady = !this._myReady;
+      if (goingReady && this._myColorPreference === 'random') {
+        // Fresh coin flip at the moment of commitment
+        if (Math.random() < 0.5) {
+          // Flip says swap — send colorSwap then set ready
+          this.mp.proposeSetting('colorSwap', true);
+          setTimeout(() => {
+            this._myReady = true;
+            this.mp.setReady(true);
+            this._renderLobbyPanel();
+          }, 50);
+          return;
+        }
+      }
+      this._myReady = goingReady;
       this.mp.setReady(this._myReady);
       this._renderLobbyPanel();
     });
