@@ -258,6 +258,12 @@ export class MultiplayerUI {
     if (payload.field === 'colorSwap') {
       this._lobbyState.color = this._lobbyState.color === 'w' ? 'b' : 'w';
     }
+    if (payload.field === 'camMode' && this.inlineCamBtn) {
+      const CAM_LABELS = { 'board-face': 'Board Face', 'split-cam': 'Split Cam', 'king-cam': 'King Cam', 'none': 'No Cam' };
+      const newMode = payload.settings?.camMode ?? 'board-face';
+      this.inlineCamBtn.dataset.mode = newMode;
+      this.inlineCamBtn.textContent = CAM_LABELS[newMode] ?? 'Board Face';
+    }
     // Reset our ready state
     this._myReady = false;
     if (this._lobbyState.white) this._lobbyState.white.ready = false;
@@ -565,7 +571,7 @@ export class MultiplayerUI {
         const next = CAM_MODES[(CAM_MODES.indexOf(this.inlineCamBtn.dataset.mode) + 1) % CAM_MODES.length];
         this.inlineCamBtn.dataset.mode = next;
         this.inlineCamBtn.textContent = CAM_LABELS[next];
-        if (this._onCamChange) this._onCamChange(next);
+        this.mp.proposeSetting('camMode', next);
       });
     }
 
