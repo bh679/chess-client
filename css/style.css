@@ -3501,7 +3501,6 @@ button.replay-summary-btn {
 .lobby-setting-item {
   display: flex;
   align-items: center;
-  gap: 6px;
   flex: 1;
   min-width: 0;
 }
@@ -3525,14 +3524,21 @@ button.replay-summary-btn {
 }
 
 .lobby-setting-value {
+  height: 36px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-primary);
   cursor: pointer;
-  padding: 3px 8px;
+  padding: 0 8px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 4px;
+  white-space: nowrap;
 }
 .lobby-setting-value:hover {
   border-color: var(--accent);
@@ -3540,26 +3546,32 @@ button.replay-summary-btn {
 .lobby-setting-value.hidden { display: none; }
 
 .lobby-tc-select {
+  height: 36px;
+  width: 100%;
+  box-sizing: border-box;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-primary);
   background: var(--bg-sunken);
   border: 1px solid var(--accent);
   border-radius: 4px;
-  padding: 3px 6px;
+  padding: 0 6px;
 }
 .lobby-tc-select.hidden { display: none; }
 
 .lobby-setting-btn {
+  height: 36px;
+  width: 100%;
   font-size: 0.85rem;
   font-weight: 600;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   color: var(--text-primary);
   border-radius: 4px;
-  padding: 3px 10px;
+  padding: 0 10px;
   cursor: pointer;
   transition: border-color 0.15s;
+  white-space: nowrap;
 }
 .lobby-setting-btn:hover {
   border-color: var(--accent);

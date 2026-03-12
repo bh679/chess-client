@@ -3,7 +3,7 @@
  *
  * Step 1: Choose opponent (bot, shared device, online, friend)
  * Step Online: Name + time control + Find Opponent (auto matchmaking)
- * Step Friend: Name + time control + Create Room / Join Room
+ * Step Friend: Create Room / Join Room (settings handled in lobby)
  * Step 2: Pick time control (collapsible categories)
  * Step 3: Game settings (variant, eval bar, bot config)
  *
@@ -19,10 +19,9 @@ export class NewGameMenu {
     this._selectedCat = 'bullet'; // currently selected time category
     this._onStart = null;    // (config) => void
     this._onOnline = null;   // (tc, name, videoEnabled, chess960) => void  — auto matchmaking
-    this._onFriend = null;   // (action, tc, name, code?, videoEnabled?, chess960?) => void  — create or join
+    this._onFriend = null;   // (action, code?) => void  — create or join
     this._onCustomTime = null; // () => void
     this._pendingCustomTime = false;
-    this._pendingFriendCustomTime = false;
 
     this._initElements();
     this._populateEngines();
@@ -66,60 +65,12 @@ export class NewGameMenu {
     return this._pendingCustomTime;
   }
 
-  /** Check whether a friend game triggered the custom time modal */
-  hasPendingFriendCustomTime() {
-    return this._pendingFriendCustomTime;
-  }
-
-  /**
-   * Called after the custom time modal OK when a friend game triggered it.
-   * Builds the TC string, inserts a labelled option into the friend select,
-   * then reopens the wizard at the friend step.
-   */
-  resumeFriendWithCustomTc(wMin, bMin, increment) {
-    this._pendingFriendCustomTime = false;
-
-    const tcString = wMin === bMin
-      ? `${wMin}+${increment}`
-      : `${wMin}/${bMin}+${increment}`;
-
-    const label = wMin === bMin
-      ? `Custom ${wMin}+${increment}`
-      : `Custom W${wMin}/B${bMin}+${increment}`;
-
-    const existingCustom = this.friendTcSelect.querySelector('[data-custom]');
-    if (existingCustom) existingCustom.remove();
-
-    const opt = document.createElement('option');
-    opt.value = tcString;
-    opt.textContent = label;
-    opt.dataset.custom = 'true';
-    opt.selected = true;
-    this.friendTcSelect.insertBefore(opt, this.friendTcSelect.querySelector('[value="custom"]'));
-
-    this._showStep('friend');
-    this.modal.classList.remove('hidden');
-    this.backdrop.classList.remove('hidden');
-  }
-
-  /** Called when custom time modal is cancelled from the friend flow */
-  resetFriendCustomTime() {
-    this._pendingFriendCustomTime = false;
-    // Reset select to default if it was left on 'custom'
-    if (this.friendTcSelect.value === 'custom') {
-      this.friendTcSelect.value = '5+0';
-    }
-    this._showStep('friend');
-    this.modal.classList.remove('hidden');
-    this.backdrop.classList.remove('hidden');
-  }
-
   // --- Private ---
 
   _bindCamCycle(btn) {
     if (!btn) return;
-    const MODES = ['board-face', 'king-cam', 'none'];
-    const LABELS = { 'board-face': 'Board Face', 'king-cam': 'King Cam', 'none': 'No Cam' };
+    const MODES = ['board-face', 'king-cam', 'split-cam', 'none'];
+    const LABELS = { 'board-face': 'Board - Face', 'king-cam': 'King - Cam', 'split-cam': 'Split Cam', 'none': 'No-Cam' };
     btn.addEventListener('click', () => {
       const next = MODES[(MODES.indexOf(btn.dataset.mode) + 1) % MODES.length];
       btn.dataset.mode = next;
@@ -155,11 +106,7 @@ export class NewGameMenu {
     this.online960Btn = document.getElementById('ng-online-960-btn');
     this.findOpponentBtn = document.getElementById('ng-find-opponent');
 
-    // Friend step elements
-    this.friendNameInput = document.getElementById('ng-friend-name');
-    this.friendTcSelect = document.getElementById('ng-friend-tc');
-    this.friendCamBtn = document.getElementById('ng-friend-cam-btn');
-    this.friend960Btn = document.getElementById('ng-friend-960-btn');
+    // Friend step elements (simplified — no name/TC/cam/960)
     this.createRoomBtn = document.getElementById('ng-create-room');
     this.joinCodeInput = document.getElementById('ng-join-code');
     this.joinRoomBtn = document.getElementById('ng-join-room');
@@ -226,16 +173,9 @@ export class NewGameMenu {
         this.chess960Checkbox.checked = this.online960Btn.classList.contains('active');
       });
     }
-    if (this.friend960Btn) {
-      this.friend960Btn.addEventListener('click', () => {
-        this.friend960Btn.classList.toggle('active');
-        this.chess960Checkbox.checked = this.friend960Btn.classList.contains('active');
-      });
-    }
 
     // --- Cam mode cycling buttons ---
     this._bindCamCycle(this.onlineCamBtn);
-    this._bindCamCycle(this.friendCamBtn);
 
     // --- Online step: Find Opponent ---
     this.findOpponentBtn.addEventListener('click', () => {
@@ -247,31 +187,17 @@ export class NewGameMenu {
       if (this._onOnline) this._onOnline(tc, name, camMode, chess960);
     });
 
-    // --- Friend step: TC custom selection ---
-    this.friendTcSelect.addEventListener('change', () => {
-      if (this.friendTcSelect.value === 'custom') {
-        this._pendingFriendCustomTime = true;
-        this.close();
-        if (this._onCustomTime) this._onCustomTime();
-      }
-    });
-
     // --- Friend step: Create Room / Join Room ---
     this.createRoomBtn.addEventListener('click', () => {
-      const tc = this.friendTcSelect.value;
-      const name = this.friendNameInput.value.trim() || null;
-      const camMode = this._getCamMode(this.friendCamBtn);
-      const chess960 = this.friend960Btn?.classList.contains('active') || false;
       this.close();
-      if (this._onFriend) this._onFriend('create', tc, name, null, camMode, chess960);
+      if (this._onFriend) this._onFriend('create');
     });
 
     this.joinRoomBtn.addEventListener('click', () => {
       const code = this.joinCodeInput.value.trim().toUpperCase();
       if (!code || code.length < 4) return;
-      const name = this.friendNameInput.value.trim() || null;
       this.close();
-      if (this._onFriend) this._onFriend('join', null, name, code);
+      if (this._onFriend) this._onFriend('join', code);
     });
 
     this.joinCodeInput.addEventListener('keydown', (e) => {
@@ -383,10 +309,6 @@ export class NewGameMenu {
     const evalBarPref = localStorage.getItem('chess-eval-bar');
     this.evalBarCheckbox.checked = evalBarPref === 'true';
 
-    // Board-Face enabled by default in multiplayer
-    if (this.onlineVideoBtn) this.onlineVideoBtn.classList.add('active');
-    if (this.friendVideoBtn) this.friendVideoBtn.classList.add('active');
-
     this._updateEloRange();
 
     // Default time category: bullet
@@ -444,9 +366,6 @@ export class NewGameMenu {
     // Sync Chess960 button state from settings checkbox
     if (step === 'online' && this.online960Btn) {
       this.online960Btn.classList.toggle('active', this.chess960Checkbox.checked);
-    }
-    if (step === 'friend' && this.friend960Btn) {
-      this.friend960Btn.classList.toggle('active', this.chess960Checkbox.checked);
     }
   }
 
