@@ -3221,6 +3221,34 @@ mp.onGameStart = async (payload) => {
     splitCam.setTintEnabled(true);
   }
 
+  // Reconcile cam mode: video_start fires in the lobby before game starts,
+  // so the cam mode may have changed after video_start but before game_start.
+  // If the active cam mode doesn't match, disable the wrong one and re-enable correctly.
+  if (videoActive && mp.color) {
+    const needsSplitCam = activeCamMode === 'split-cam' && !splitCam.isActive();
+    const needsKingCam = activeCamMode === 'king-cam' && !kingCam.isActive();
+    const needsBoardFace = activeCamMode === 'board-face' && !videoBoard.isActive();
+    const needsNone = activeCamMode === 'none' &&
+      (videoBoard.isActive() || splitCam.isActive() || kingCam.isActive());
+
+    if (needsSplitCam || needsKingCam || needsBoardFace || needsNone) {
+      videoBoard.disable();
+      splitCam.disable();
+      kingCam.disable();
+      const opponentColor = mp.color === 'w' ? 'b' : 'w';
+      if (activeCamMode === 'split-cam') {
+        splitCam.enable(videoChat._localStream, videoChat._remoteStream, mp.color);
+        splitCam.setTintEnabled(true);
+      } else if (activeCamMode === 'king-cam') {
+        kingCam.enable(videoChat._localStream, mp.color, videoChat._remoteStream);
+        board.render();
+      } else if (activeCamMode === 'board-face') {
+        videoBoard.enable(videoChat._localStream, videoChat._remoteStream, mp.color);
+        videoBoard.setTintEnabled(true);
+      }
+    }
+  }
+
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 
   // If a camera mode is active, request camera (skip if already started in lobby)
