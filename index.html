@@ -91,6 +91,10 @@
           <span class="lobby-setting-label">Colors</span>
           <button id="lobby-swap-btn" class="lobby-setting-btn">White</button>
         </div>
+        <div class="lobby-setting-item">
+          <span class="lobby-setting-label">Cam</span>
+          <button id="lobby-cam-btn" class="lobby-setting-btn" data-mode="board-face">Board Face</button>
+        </div>
       </div>
       <div class="lobby-ready-row">
         <div class="lobby-ready-indicator" id="lobby-ready-you">
@@ -372,32 +376,10 @@
 
       <!-- Step: Friend (room join/create) -->
       <div id="ng-step-friend" class="ng-view hidden">
-        <div class="ng-field">
-          <label>Your Name</label>
-          <input type="text" id="ng-friend-name" class="ng-input" placeholder="Anonymous" maxlength="20">
-        </div>
-        <div class="ng-field">
-          <label>Time Control</label>
-          <select id="ng-friend-tc" class="ng-select">
-            <option value="any">Any</option>
-            <option value="1+0">Bullet 1+0</option>
-            <option value="3+2">Blitz 3+2</option>
-            <option value="5+0" selected>Rapid 5+0</option>
-            <option value="10+0">Rapid 10+0</option>
-            <option value="15+10">Classical 15+10</option>
-            <option value="30+0">Classical 30+0</option>
-            <option value="none">No Timer</option>
-            <option value="custom">Custom...</option>
-          </select>
-        </div>
-        <div class="ng-toggle-row">
-          <button type="button" id="ng-friend-960-btn" class="ng-btn ng-toggle-btn">Chess960</button>
-          <button type="button" id="ng-friend-cam-btn" class="ng-btn ng-toggle-btn active" data-mode="board-face">Board Face</button>
-        </div>
         <button id="ng-create-room" class="ng-btn ng-btn-primary ng-btn-block">Create Room</button>
         <div class="ng-divider"><span>or</span></div>
         <div class="ng-join-row">
-          <input type="text" id="ng-join-code" class="ng-input ng-code-input" placeholder="Room code" maxlength="6">
+          <input type="text" id="ng-join-code" class="ng-input ng-code-input" placeholder="ROOM CODE" maxlength="6">
           <button id="ng-join-room" class="ng-btn">Join</button>
         </div>
       </div>
