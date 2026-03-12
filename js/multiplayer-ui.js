@@ -148,8 +148,13 @@ export class MultiplayerUI {
     const s = this._lobbyState;
 
     // TC
+    const TC_LABELS = {
+      '1+0': 'Bullet 1+0', '3+2': 'Blitz 3+2', '5+0': 'Rapid 5+0',
+      '10+0': 'Rapid 10+0', '15+10': 'Classical 15+10', '30+0': 'Classical 30+0',
+      'none': 'No Timer'
+    };
     const tc = s.settings?.timeControl || 'none';
-    this.inlineTcDisplay.textContent = tc === 'none' ? 'No Timer' : tc;
+    this.inlineTcDisplay.textContent = TC_LABELS[tc] ?? tc;
     this.inlineTcDisplay.classList.remove('hidden');
     this.inlineTcSelect.classList.add('hidden');
 
