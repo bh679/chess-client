@@ -3424,6 +3424,15 @@ button.replay-summary-btn {
 }
 .lobby-panel.hidden { display: none; }
 
+@keyframes lobby-panel-flash {
+  0%   { box-shadow: none; }
+  30%  { box-shadow: 0 0 0 3px var(--accent, #f0a500); }
+  100% { box-shadow: none; }
+}
+.lobby-panel.flash {
+  animation: lobby-panel-flash 0.6s ease-out forwards;
+}
+
 /* Settings row */
 .lobby-settings-row {
   display: flex;
