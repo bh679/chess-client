@@ -4002,6 +4002,9 @@ function applyCamMode(mode) {
   if (!videoActive) return;
   if (mode === 'king-cam') {
     videoBoard.disable();
+    // Restore raw camera track — videoBoard replaced it with a cropped canvas stream that is now stopped
+    const rawVideoTrack = videoChat._localStream?.getVideoTracks()[0];
+    if (rawVideoTrack) videoChat.replaceVideoTrack(rawVideoTrack);
     kingCam.enable(videoChat._localStream, mp.color, null);
     if (videoChat._remoteStream) {
       kingCam.updateRemoteStream(videoChat._remoteStream, mp.color === 'w' ? 'b' : 'w');
@@ -4011,12 +4014,16 @@ function applyCamMode(mode) {
     kingCam.disable();
     board.render();
     videoBoard.enable(videoChat._localStream, null, mp.color);
+    // videoBoard replaces the WebRTC track via onCroppedStreamReady when face tracking is ready
     if (videoChat._remoteStream) {
       videoBoard.updateRemoteStream(videoChat._remoteStream, mp.color);
     }
   } else {
     kingCam.disable();
     videoBoard.disable();
+    // Restore raw camera track when disabling all video modes
+    const rawVideoTrack = videoChat._localStream?.getVideoTracks()[0];
+    if (rawVideoTrack) videoChat.replaceVideoTrack(rawVideoTrack);
     board.render();
   }
 }
