@@ -3287,6 +3287,7 @@ mp.onSettingChanged = (payload) => {
   if (payload.field === 'camMode' && payload.settings?.camMode !== undefined) {
     activeCamMode = payload.settings.camMode;
     mpUI.syncCamMode(payload.settings.camMode);
+    applyCamMode(payload.settings.camMode);
   }
 };
 
@@ -3996,10 +3997,8 @@ newGameMenu.onCustomTime(() => {
   customTimeModal.classList.remove('hidden');
 });
 
-// Lobby cam mode change — update activeCamMode, notify opponent, and switch live video if already running
-mpUI.onCamChange((mode) => {
-  activeCamMode = mode;
-  mp.proposeSetting('camMode', mode);
+// Switch live video display to match a cam mode (used by both local button clicks and remote setting changes)
+function applyCamMode(mode) {
   if (!videoActive) return;
   if (mode === 'king-cam') {
     videoBoard.disable();
@@ -4020,6 +4019,13 @@ mpUI.onCamChange((mode) => {
     videoBoard.disable();
     board.render();
   }
+}
+
+// Lobby cam mode change — update activeCamMode, notify opponent, and switch live video
+mpUI.onCamChange((mode) => {
+  activeCamMode = mode;
+  mp.proposeSetting('camMode', mode);
+  applyCamMode(mode);
 });
 
 // --- Route handlers ---
