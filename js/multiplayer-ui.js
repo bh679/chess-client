@@ -524,6 +524,17 @@ export class MultiplayerUI {
       this.inlineTcSelect.classList.add('hidden');
       if (value === 'custom') {
         this._pendingLobbyCustomTc = true;
+        // Update labels to "You" / "Opponent" based on player's color
+        const playerColor = this._lobbyState?.color ?? this.mp.color;
+        const whiteLabel = document.getElementById('custom-white-label');
+        const blackLabel = document.getElementById('custom-black-label');
+        if (playerColor === 'w') {
+          whiteLabel.textContent = 'Your time (min):';
+          blackLabel.textContent = "Opponent's time (min):";
+        } else if (playerColor === 'b') {
+          whiteLabel.textContent = "Opponent's time (min):";
+          blackLabel.textContent = 'Your time (min):';
+        }
         document.getElementById('custom-time-modal').classList.remove('hidden');
         return;
       }
