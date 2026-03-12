@@ -3289,6 +3289,13 @@ mp.onSettingChanged = (payload) => {
     board.getArrowOverlay().clear();
     board.render();
   }
+
+  // Sync cam mode when the other player changes it
+  if (payload.field === 'camMode' && payload.settings?.camMode !== undefined) {
+    activeCamMode = payload.settings.camMode;
+    mpUI.syncCamMode(payload.settings.camMode);
+    applyCamMode(payload.settings.camMode);
+  }
 };
 
 // Ready state update
@@ -3995,12 +4002,14 @@ newGameMenu.onCustomTime(() => {
   customTimeModal.classList.remove('hidden');
 });
 
-// Lobby cam mode change — update activeCamMode and switch live video if already running
-mpUI.onCamChange((mode) => {
-  activeCamMode = mode;
+// Switch live video display to match a cam mode (used by both local button clicks and remote setting changes)
+function applyCamMode(mode) {
   if (!videoActive) return;
   if (mode === 'king-cam') {
     videoBoard.disable();
+    // Restore raw camera track — videoBoard replaced it with a cropped canvas stream that is now stopped
+    const rawVideoTrack = videoChat._localStream?.getVideoTracks()[0];
+    if (rawVideoTrack) videoChat.replaceVideoTrack(rawVideoTrack);
     kingCam.enable(videoChat._localStream, mp.color, null);
     if (videoChat._remoteStream) {
       kingCam.updateRemoteStream(videoChat._remoteStream, mp.color === 'w' ? 'b' : 'w');
@@ -4010,14 +4019,25 @@ mpUI.onCamChange((mode) => {
     kingCam.disable();
     board.render();
     videoBoard.enable(videoChat._localStream, null, mp.color);
+    // videoBoard replaces the WebRTC track via onCroppedStreamReady when face tracking is ready
     if (videoChat._remoteStream) {
       videoBoard.updateRemoteStream(videoChat._remoteStream, mp.color);
     }
   } else {
     kingCam.disable();
     videoBoard.disable();
+    // Restore raw camera track when disabling all video modes
+    const rawVideoTrack = videoChat._localStream?.getVideoTracks()[0];
+    if (rawVideoTrack) videoChat.replaceVideoTrack(rawVideoTrack);
     board.render();
   }
+}
+
+// Lobby cam mode change — update activeCamMode, notify opponent, and switch live video
+mpUI.onCamChange((mode) => {
+  activeCamMode = mode;
+  mp.proposeSetting('camMode', mode);
+  applyCamMode(mode);
 });
 
 // --- Route handlers ---

@@ -38,6 +38,14 @@ export class MultiplayerUI {
   /** Get current cam mode from lobby button */
   getCamMode() { return this.inlineCamBtn?.dataset.mode ?? 'board-face'; }
 
+  /** Sync the cam button to a mode received from the other player */
+  syncCamMode(mode) {
+    if (!this.inlineCamBtn) return;
+    const CAM_LABELS = { 'board-face': 'Board - Face', 'king-cam': 'King - Cam', 'split-cam': 'Split Cam', 'none': 'No-Cam' };
+    this.inlineCamBtn.dataset.mode = mode;
+    this.inlineCamBtn.textContent = CAM_LABELS[mode] ?? mode;
+  }
+
   /** Open the multiplayer modal (main menu) */
   open() {
     this._showView('menu');
@@ -147,10 +155,12 @@ export class MultiplayerUI {
   showLobby(payload) {
     this._lobbyState = { ...payload };
     this._myReady = false;
-    // Reset cam button to default on each new lobby
+    // Initialize cam button from lobby settings (creator's chosen mode)
     if (this.inlineCamBtn) {
-      this.inlineCamBtn.dataset.mode = 'board-face';
-      this.inlineCamBtn.textContent = 'Board - Face';
+      const CAM_LABELS = { 'board-face': 'Board - Face', 'king-cam': 'King - Cam', 'split-cam': 'Split Cam', 'none': 'No-Cam' };
+      const mode = payload.settings?.camMode ?? 'board-face';
+      this.inlineCamBtn.dataset.mode = mode;
+      this.inlineCamBtn.textContent = CAM_LABELS[mode] ?? mode;
     }
     this._renderLobbyPanel();
     // Hide waiting section, show full lobby controls
