@@ -3199,6 +3199,8 @@ mp.onGameStart = async (payload) => {
     camMode: activeCamMode,
     timeControl: payload.timeControl,
   });
+  issueReporter.hideLobbyButton();
+  issueReporter.hideWaitingButton();
   issueReporter.setGameContext(payload.dbGameId, mp.sessionId, !!payload.videoEnabled);
   issueReporter.showButton();
 
@@ -3225,12 +3227,17 @@ mp.onGameStart = async (payload) => {
 // Room created — show waiting screen (lobby panel in waiting mode)
 mp.onRoomCreated = (payload) => {
   mpUI.showWaiting(payload.roomId);
+  issueReporter.setGameContext(null, mp.sessionId, false);
+  issueReporter.showWaitingButton();
 };
 
 // Lobby joined — show pre-game settings inline below board
 mp.onLobbyJoined = async (payload) => {
   multiplayerActive = true;
+  issueReporter.hideWaitingButton();
   mpUI.showLobby(payload);
+  issueReporter.setGameContext(null, mp.sessionId, false);
+  issueReporter.showLobbyButton();
 
   // Always add lobby-active: fades pieces to 30% and locks interaction until game starts
   boardEl.classList.add('lobby-active');
