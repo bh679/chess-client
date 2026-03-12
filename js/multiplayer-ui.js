@@ -5,6 +5,9 @@
  * The pre-game lobby settings (TC, variant, colors, ready) are rendered
  * in an inline panel below the board (#lobby-panel), not in the modal.
  * The modal is kept for: menu, waiting (room created), searching.
+ *
+ * While waiting for opponent, the waiting view shows editable game settings
+ * (TC, variant) so the host can configure the game before anyone joins.
  */
 export class MultiplayerUI {
   constructor(mp) {
@@ -14,6 +17,9 @@ export class MultiplayerUI {
     this._lobbyState = null;
     this._myReady = false;
     this._pendingLobbyCustomTc = false;
+    // Settings tracked while in waiting state
+    this._waitingTc = '5+0';
+    this._waitingChess960 = false;
 
     this._initElements();
     this._bindEvents();
@@ -93,8 +99,10 @@ export class MultiplayerUI {
     this.connectionStatus.textContent = labels[status] || status;
   }
 
-  /** Show waiting screen with room code */
-  showWaiting(roomId) {
+  /** Show waiting screen with room code. initialTc seeds the settings display. */
+  showWaiting(roomId, initialTc) {
+    this._waitingTc = initialTc || this.mpTimeControl?.value || '5+0';
+    this._waitingChess960 = false;
     this._showView('waiting');
     this.roomCodeDisplay.textContent = roomId;
     // Build the share URL
@@ -102,6 +110,7 @@ export class MultiplayerUI {
     this.shareUrlDisplay.textContent = shareUrl;
     // Also show room code in the header while waiting
     this._showHeaderRoomCode(roomId);
+    this._renderWaitingSettings();
   }
 
   /** Show searching screen */
@@ -166,8 +175,28 @@ export class MultiplayerUI {
     }
   }
 
+  /** Render the waiting-state settings controls */
+  _renderWaitingSettings() {
+    const tc = this._waitingTc || 'none';
+    this.waitingTcDisplay.textContent = tc === 'none' ? 'No Timer' : tc;
+    this.waitingTcDisplay.classList.remove('hidden');
+    this.waitingTcSelect.classList.add('hidden');
+    this.waiting960Btn.textContent = this._waitingChess960 ? 'Chess960' : 'Standard';
+  }
+
   /** Called when a setting change is applied (immediate, no approval needed) */
   showSettingChanged(payload) {
+    // While waiting, update local waiting state display
+    if (this._currentView === 'waiting') {
+      if (payload.settings?.timeControl !== undefined) {
+        this._waitingTc = payload.settings.timeControl;
+      }
+      if (payload.settings?.chess960 !== undefined) {
+        this._waitingChess960 = payload.settings.chess960;
+      }
+      this._renderWaitingSettings();
+      return;
+    }
     if (!this._lobbyState) return;
     if (payload.settings) {
       this._lobbyState.settings = { ...payload.settings };
@@ -200,6 +229,20 @@ export class MultiplayerUI {
     const tcString = wMin === bMin
       ? `${wMin}+${increment}`
       : `${wMin}/${bMin}+${increment}`;
+    if (this._currentView === 'waiting') {
+      // Update waiting state
+      let opt = this.waitingTcSelect.querySelector('option[value="__custom__"]');
+      if (!opt) {
+        opt = document.createElement('option');
+        opt.value = tcString;
+        this.waitingTcSelect.insertBefore(opt, this.waitingTcSelect.querySelector('option[value="custom"]'));
+      }
+      opt.value = tcString;
+      opt.textContent = `Custom ${tcString}`;
+      this._pendingLobbyCustomTc = false;
+      this.mp.proposeSetting('timeControl', tcString);
+      return;
+    }
     // Insert or update the custom option so the display reflects it
     let opt = this.inlineTcSelect.querySelector('option[value="__custom__"]');
     if (!opt) {
@@ -216,6 +259,10 @@ export class MultiplayerUI {
   /** Cancel a pending custom TC entry — revert the select display */
   resetLobbyCustomTc() {
     this._pendingLobbyCustomTc = false;
+    if (this._currentView === 'waiting') {
+      this.waitingTcSelect.value = this._waitingTc || 'none';
+      return;
+    }
     // Revert select value to current lobby TC
     const currentTc = this._lobbyState?.settings?.timeControl || 'none';
     this.inlineTcSelect.value = currentTc;
@@ -269,6 +316,9 @@ export class MultiplayerUI {
     this.shareUrlDisplay = document.getElementById('mp-share-url');
     this.cancelWaitBtn = document.getElementById('mp-cancel-wait');
     this.copyCodeBtn = document.getElementById('mp-copy-code');
+    this.waitingTcDisplay = document.getElementById('mp-waiting-tc-display');
+    this.waitingTcSelect = document.getElementById('mp-waiting-tc-select');
+    this.waiting960Btn = document.getElementById('mp-waiting-960-btn');
 
     // Searching view (in queue)
     this.searchingView = document.getElementById('mp-searching');
@@ -313,6 +363,7 @@ export class MultiplayerUI {
     this.createRoomBtn.addEventListener('click', () => {
       const tc = this.mpTimeControl.value;
       const name = this.mpPlayerName.value.trim() || null;
+      this._pendingCreateTc = tc;
       this.mp.createRoom(tc, name);
     });
 
@@ -440,6 +491,39 @@ export class MultiplayerUI {
       this._myReady = !this._myReady;
       this.mp.setReady(this._myReady);
       this._renderLobbyPanel();
+    });
+
+    // Waiting — TC: click value to show dropdown
+    this.waitingTcDisplay.addEventListener('click', () => {
+      this.waitingTcSelect.value = this._waitingTc || 'none';
+      this.waitingTcDisplay.classList.add('hidden');
+      this.waitingTcSelect.classList.remove('hidden');
+      this.waitingTcSelect.focus();
+    });
+
+    this.waitingTcSelect.addEventListener('change', () => {
+      const value = this.waitingTcSelect.value;
+      this.waitingTcDisplay.classList.remove('hidden');
+      this.waitingTcSelect.classList.add('hidden');
+      if (value === 'custom') {
+        this._pendingLobbyCustomTc = true;
+        document.getElementById('custom-time-modal').classList.remove('hidden');
+        return;
+      }
+      this._waitingTc = value;
+      this.mp.proposeSetting('timeControl', value);
+    });
+
+    this.waitingTcSelect.addEventListener('blur', () => {
+      this.waitingTcDisplay.classList.remove('hidden');
+      this.waitingTcSelect.classList.add('hidden');
+    });
+
+    // Waiting — Chess960 toggle
+    this.waiting960Btn.addEventListener('click', () => {
+      this._waitingChess960 = !this._waitingChess960;
+      this.waiting960Btn.textContent = this._waitingChess960 ? 'Chess960' : 'Standard';
+      this.mp.proposeSetting('chess960', this._waitingChess960);
     });
   }
 

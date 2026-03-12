@@ -3220,7 +3220,8 @@ mp.onGameStart = async (payload) => {
 
 // Room created — show waiting screen
 mp.onRoomCreated = (payload) => {
-  mpUI.showWaiting(payload.roomId);
+  mpUI.showWaiting(payload.roomId, mpUI._pendingCreateTc);
+  mpUI._pendingCreateTc = null;
 };
 
 // Lobby joined — show pre-game settings inline below board
@@ -3948,6 +3949,7 @@ newGameMenu.onFriend(async (action, tc, name, code, camMode, chess960) => {
     }
   }
   if (action === 'create') {
+    mpUI._pendingCreateTc = tc;
     mp.createRoom(tc, name, camMode, chess960);
     // mpUI will show waiting view via the room-created event
     mpUI.modal.classList.remove('hidden');

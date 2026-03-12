@@ -213,7 +213,7 @@
         </div>
       </div>
 
-      <!-- Waiting view (room created) -->
+      <!-- Waiting view (room created) — also serves as pre-game settings lobby -->
       <div id="mp-waiting" class="mp-view hidden">
         <p>Share this code with your opponent:</p>
         <div class="mp-room-code-display">
@@ -224,6 +224,29 @@
           <button id="mp-copy-code" class="mp-btn mp-btn-sm">Copy Link</button>
         </div>
         <p class="mp-waiting-text">Waiting for opponent to join...</p>
+
+        <!-- Game settings while waiting -->
+        <div class="mp-waiting-settings">
+          <div class="mp-lobby-setting">
+            <span class="mp-lobby-setting-label">Time Control</span>
+            <span id="mp-waiting-tc-display" class="mp-lobby-setting-value"></span>
+            <select id="mp-waiting-tc-select" class="mp-lobby-tc-select hidden">
+              <option value="1+0">Bullet 1+0</option>
+              <option value="3+2">Blitz 3+2</option>
+              <option value="5+0">Rapid 5+0</option>
+              <option value="10+0">Rapid 10+0</option>
+              <option value="15+10">Classical 15+10</option>
+              <option value="30+0">Classical 30+0</option>
+              <option value="none">No Timer</option>
+              <option value="custom">Custom...</option>
+            </select>
+          </div>
+          <div class="mp-lobby-setting">
+            <span class="mp-lobby-setting-label">Variant</span>
+            <button id="mp-waiting-960-btn" class="mp-lobby-setting-value mp-lobby-setting-btn">Standard</button>
+          </div>
+        </div>
+
         <button id="mp-cancel-wait" class="mp-btn mp-btn-danger mp-btn-block">Cancel</button>
       </div>
 
