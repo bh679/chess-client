@@ -68,6 +68,15 @@
 
     <!-- Pre-game lobby panel (inline, below board) -->
     <div id="lobby-panel" class="lobby-panel hidden">
+      <!-- Shown while waiting for opponent to join -->
+      <div id="lobby-waiting-section" class="lobby-waiting-section hidden">
+        <div class="lobby-waiting-share">
+          <span id="lobby-waiting-url" class="lobby-waiting-url"></span>
+          <button id="lobby-waiting-copy" class="lobby-waiting-copy-btn">Copy Link</button>
+        </div>
+        <p class="lobby-waiting-text">Waiting for opponent to join...</p>
+        <button id="lobby-waiting-cancel" class="lobby-waiting-cancel-btn">Cancel</button>
+      </div>
       <div class="lobby-settings-row">
         <div class="lobby-setting-item lobby-setting-tc">
           <span id="lobby-tc-display" class="lobby-setting-value">5+0</span>
@@ -85,14 +94,14 @@
         <div class="lobby-setting-item">
           <button id="lobby-960-btn" class="lobby-setting-btn">Chess</button>
         </div>
-        <div class="lobby-setting-item">
+        <div class="lobby-setting-item" id="lobby-color-item">
           <button id="lobby-swap-btn" class="lobby-setting-btn">I am White</button>
         </div>
         <div class="lobby-setting-item">
           <button id="lobby-cam-btn" class="lobby-setting-btn" data-mode="board-face">Board - Face</button>
         </div>
       </div>
-      <div class="lobby-ready-row">
+      <div class="lobby-ready-row" id="lobby-ready-row">
         <div class="lobby-ready-indicator" id="lobby-ready-you">
           <span class="lobby-ready-dot"></span>
           <span class="lobby-ready-name">You</span>
@@ -213,7 +222,7 @@
         </div>
       </div>
 
-      <!-- Waiting view (room created) -->
+      <!-- Waiting view (room created) — kept for reconnect fallback, not primary UI -->
       <div id="mp-waiting" class="mp-view hidden">
         <p>Share this code with your opponent:</p>
         <div class="mp-room-code-display">
