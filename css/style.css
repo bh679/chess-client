@@ -3419,6 +3419,8 @@ button.replay-summary-btn {
   padding: 10px 14px;
   background: var(--bg-surface);
   border-top: 1px solid var(--border);
+  max-width: min(90vw, 75vh, 800px);
+  width: 100%;
 }
 .lobby-panel.hidden { display: none; }
 
@@ -3582,6 +3584,16 @@ button.replay-summary-btn {
 .board.lobby-active .video-board-dark-tint {
   opacity: 0 !important;
   transition: opacity 0.4s ease;
+}
+
+/* Fade pieces and lock interaction during pre-game lobby */
+.board.lobby-active .piece {
+  opacity: 0.3;
+  transition: opacity 0.3s;
+}
+.board.lobby-active .square {
+  pointer-events: none;
+  cursor: default;
 }
 
 /* Modal */

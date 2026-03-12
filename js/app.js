@@ -3218,10 +3218,12 @@ mp.onLobbyJoined = async (payload) => {
   multiplayerActive = true;
   mpUI.showLobby(payload);
 
+  // Always add lobby-active: fades pieces to 30% and locks interaction until game starts
+  boardEl.classList.add('lobby-active');
+
   // Start camera immediately for video-enabled rooms — show directly on board,
   // no preview modal. Board tints disabled during pre-game lobby.
   if (payload.settings?.videoEnabled) {
-    boardEl.classList.add('lobby-active');
     try {
       const stream = await videoChat.requestCamera();
       videoBoard.enable(stream, null, payload.color);

@@ -153,6 +153,8 @@ export class MultiplayerUI {
     const oppReadyState = s.color === 'w' ? s.black?.ready : s.white?.ready;
     this.inlineReadyYou.classList.toggle('ready', !!myReadyState);
     this.inlineReadyOpp.classList.toggle('ready', !!oppReadyState);
+    this.inlineReadyYou.querySelector('.lobby-ready-name').textContent = myReadyState ? 'You are ready' : 'You';
+    this.inlineReadyOpp.querySelector('.lobby-ready-name').textContent = oppReadyState ? 'Opponent is ready' : 'Opponent';
 
     // Ready button state
     if (this._myReady) {
