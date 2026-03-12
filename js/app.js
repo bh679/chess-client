@@ -662,6 +662,10 @@ async function startNewGame() {
   // Don't override an active multiplayer game
   if (multiplayerActive) return;
 
+  // Clear any pre-game lobby state (e.g. user cancels waiting room via New Game)
+  boardEl.classList.remove('lobby-active');
+  mpUI.hideLobbyPanel();
+
   // Close post-game summary if open
   if (postGameSummary.isOpen()) {
     postGameSummary.close();
@@ -3294,6 +3298,14 @@ mp.onRoomCreated = (payload) => {
   diagnostics.setContext(null, payload.roomId);
   diagnostics.record('lifecycle', 'lobby_created', { roomId: payload.roomId });
   diagnostics.flush();
+
+  // Fade board and lock interaction while waiting for opponent (same as lobby)
+  boardEl.classList.add('lobby-active');
+  game.newGame(false);
+  board.getArrowOverlay().clear();
+  board.setFlipped(payload.color === 'b');
+  appEl.classList.toggle('board-flipped', payload.color === 'b');
+  board.render();
 };
 
 // Lobby joined — show pre-game settings inline below board
