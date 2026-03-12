@@ -28,6 +28,7 @@ export class IssueReporter {
 
     // DOM refs
     this._flagBtn = document.getElementById('ir-flag-btn');
+    this._lobbyFlagBtn = document.getElementById('lobby-flag-btn');
     this._pgsFlagBtn = null;
     this._modalEl = null;
     this._stepCategoriesEl = null;
@@ -37,6 +38,7 @@ export class IssueReporter {
 
     this._buildModal();
     this._bindFlagButton();
+    this._bindLobbyButton();
   }
 
   // --- Public API ---
@@ -75,6 +77,19 @@ export class IssueReporter {
     this._flagBtn.classList.add('hidden');
   }
 
+  /** Show the lobby flag button. */
+  showLobbyButton() {
+    if (!this._lobbyFlagBtn) return;
+    this._lobbyFlagBtn.classList.remove('hidden');
+    this._updateLobbyButtonState();
+  }
+
+  /** Hide the lobby flag button. */
+  hideLobbyButton() {
+    if (!this._lobbyFlagBtn) return;
+    this._lobbyFlagBtn.classList.add('hidden');
+  }
+
   /**
    * Create and return a flag button element for the post-game summary.
    * The caller should insert it into the PGS actions area.
@@ -110,12 +125,37 @@ export class IssueReporter {
     this._updateButtonState();
     this._flagBtn.classList.add('hidden');
     this._pgsFlagBtn = null;
+    this.hideLobbyButton();
   }
 
   // --- Private: Flag button ---
 
   _bindFlagButton() {
     this._flagBtn.addEventListener('click', () => this._flagGame(this._flagBtn));
+  }
+
+  _bindLobbyButton() {
+    if (!this._lobbyFlagBtn) return;
+    this._lobbyFlagBtn.addEventListener('click', () => this._flagGame(this._lobbyFlagBtn));
+  }
+
+  _updateLobbyButtonState() {
+    if (!this._lobbyFlagBtn) return;
+    if (this._reportId) {
+      this._lobbyFlagBtn.classList.remove('ir-expanded');
+      this._lobbyFlagBtn.classList.add('ir-flagged');
+      this._lobbyFlagBtn.innerHTML = '&#10003;';
+      this._lobbyFlagBtn.title = 'Issue reported';
+    } else if (this._errorDetected) {
+      this._lobbyFlagBtn.classList.add('ir-expanded');
+      this._lobbyFlagBtn.classList.remove('ir-flagged');
+      this._lobbyFlagBtn.innerHTML = '&#9873; Submit Issue';
+      this._lobbyFlagBtn.title = 'An issue was detected — click to report';
+    } else {
+      this._lobbyFlagBtn.classList.remove('ir-expanded', 'ir-flagged');
+      this._lobbyFlagBtn.innerHTML = '&#9873;';
+      this._lobbyFlagBtn.title = 'Report an issue';
+    }
   }
 
   _updateButtonState() {
@@ -134,6 +174,7 @@ export class IssueReporter {
       this._flagBtn.innerHTML = '&#9873;';
       this._flagBtn.title = 'Report an issue';
     }
+    this._updateLobbyButtonState();
   }
 
   // --- Private: Flag action ---
@@ -161,10 +202,15 @@ export class IssueReporter {
       this._reportId = data.id;
       this._updateButtonState();
 
-      // Update PGS button if it exists
+      // Sync sibling buttons
       if (this._pgsFlagBtn && this._pgsFlagBtn !== triggerBtn) {
         this._pgsFlagBtn.classList.add('ir-flagged');
         this._pgsFlagBtn.textContent = '\u2713';
+      }
+      if (this._lobbyFlagBtn && this._lobbyFlagBtn !== triggerBtn) {
+        this._lobbyFlagBtn.classList.remove('ir-expanded');
+        this._lobbyFlagBtn.classList.add('ir-flagged');
+        this._lobbyFlagBtn.innerHTML = '&#10003;';
       }
 
       this._openModal();

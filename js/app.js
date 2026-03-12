@@ -3199,6 +3199,7 @@ mp.onGameStart = async (payload) => {
     camMode: activeCamMode,
     timeControl: payload.timeControl,
   });
+  issueReporter.hideLobbyButton();
   issueReporter.setGameContext(payload.dbGameId, mp.sessionId, !!payload.videoEnabled);
   issueReporter.showButton();
 
@@ -3231,6 +3232,8 @@ mp.onRoomCreated = (payload) => {
 mp.onLobbyJoined = async (payload) => {
   multiplayerActive = true;
   mpUI.showLobby(payload);
+  issueReporter.setGameContext(null, mp.sessionId, false);
+  issueReporter.showLobbyButton();
 
   // Always add lobby-active: fades pieces to 30% and locks interaction until game starts
   boardEl.classList.add('lobby-active');
