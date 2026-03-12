@@ -3239,6 +3239,9 @@ mp.onLobbyJoined = async (payload) => {
   // (startNewGame() won't run because multiplayerActive is true, so render directly)
   game.newGame(!!payload.settings?.chess960);
   board.getArrowOverlay().clear();
+  // Flip board to player's color so name elements are in correct visual positions
+  board.setFlipped(payload.color === 'b');
+  appEl.classList.toggle('board-flipped', payload.color === 'b');
   board.render();
 
   // Orient board to player's color and configure timer for lobby preview
