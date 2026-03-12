@@ -1089,6 +1089,16 @@ newGameBtn.addEventListener('click', async () => {
   newGameMenu.open();
 });
 
+// Flash lobby panel when user touches the board during pre-game lobby
+boardEl.addEventListener('pointerdown', () => {
+  if (!boardEl.classList.contains('lobby-active')) return;
+  const panel = document.getElementById('lobby-panel');
+  if (!panel || panel.classList.contains('hidden')) return;
+  panel.classList.remove('flash');
+  void panel.offsetWidth; // force reflow to restart animation
+  panel.classList.add('flash');
+});
+
 // Start button — deferred AI start
 startGameBtn.addEventListener('click', () => {
   startGameBtn.classList.add('hidden');
