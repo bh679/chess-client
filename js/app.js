@@ -1079,6 +1079,7 @@ timer.onTimeout((loser) => {
   fadeLiveMoveBar();
   ai.stop();
   game.setTimedOut();
+  board.setInteractive(false);
   newGameBtn.classList.add('game-ended');
   const winner = loser === 'White' ? 'Black' : 'White';
   updateStatus(`Time out! ${winner} wins`);
