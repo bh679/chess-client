@@ -21,6 +21,7 @@ import { NewGameMenu } from './new-game-menu.js';
 import { VideoChat } from './video-chat.js';
 import { VideoUI } from './video-ui.js';
 import { VideoBoard } from './video-board.js';
+import { KingCam } from './king-cam.js';
 import { Diagnostics } from './diagnostics.js';
 import { IssueReporter } from './issue-reporter.js';
 
@@ -323,7 +324,10 @@ window.addEventListener('unhandledrejection', (event) => {
 const videoChat = new VideoChat(mp, diagnostics);
 const videoUI = new VideoUI(videoChat);
 const videoBoard = new VideoBoard(boardEl);
+const kingCam = new KingCam();
+window.kingCam = kingCam;
 let videoActive = false;
+let activeCamMode = 'none'; // set by onGameStart, read by onVideoStart
 
 // Hide video buttons if browser doesn't support WebRTC
 if (!VideoChat.isSupported()) {
@@ -3175,17 +3179,18 @@ updateEloSliderRange('b');
 mp.onGameStart = async (payload) => {
   lastMultiplayerGameRecord = null;
   diagnostics.setContext(payload.dbGameId, payload.roomId);
+  activeCamMode = payload.camMode ?? (payload.videoEnabled ? 'board-face' : 'none');
   diagnostics.record('lifecycle', 'game_start', {
     color: payload.color,
-    videoEnabled: payload.videoEnabled,
+    camMode: activeCamMode,
     timeControl: payload.timeControl,
   });
   issueReporter.setGameContext(payload.dbGameId, mp.sessionId, !!payload.videoEnabled);
   issueReporter.showButton();
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
 
-  // If video is enabled, request camera (skip if already started in lobby)
-  if (payload.videoEnabled && !videoChat.hasLocalStream()) {
+  // If a camera mode is active, request camera (skip if already started in lobby)
+  if (activeCamMode !== 'none' && !videoChat.hasLocalStream()) {
     try {
       const stream = await videoChat.requestCamera();
       videoUI.showCameraPreview(stream);
@@ -3450,13 +3455,30 @@ mp.onRematchDeclined = () => {
 };
 
 // Rematch starting
-mp.onRematchStart = (payload) => {
+mp.onRematchStart = async (payload) => {
   diagnostics.setContext(payload.dbGameId, payload.roomId);
   diagnostics.record('lifecycle', 'rematch_start', { color: payload.color });
   issueReporter.setGameContext(payload.dbGameId, mp.sessionId, videoActive);
   issueReporter.showButton();
   mpUI.hideGameControls();
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
+
+  // Handle video board for the new game.
+  // Colors swap on rematch so _playerColor must be updated, and streams must
+  // be reassigned to the correct light/dark squares for the new color.
+  if (videoBoard.isActive()) {
+    // WebRTC connection still live — reset board with new player color.
+    videoBoard.reset(videoChat._localStream, videoChat._remoteStream, payload.color);
+  } else if (payload.videoEnabled && !videoActive) {
+    // Video was configured for this room but the connection dropped — re-request
+    // camera and signal readiness so the server can re-initiate WebRTC.
+    try {
+      const stream = await videoChat.requestCamera();
+      videoUI.showCameraPreview(stream);
+    } catch (e) {
+      videoUI.showError(e.message || 'Camera access failed on rematch.');
+    }
+  }
 };
 
 // Reconnection
@@ -3513,7 +3535,8 @@ mp.onReconnect = async (payload) => {
   mpUI.setConnectionStatus('connected');
 
   // Re-establish video if it was a video game
-  if (payload.videoEnabled && !videoActive) {
+  const reconnectCamMode = payload.camMode ?? (payload.videoEnabled ? 'board-face' : 'none');
+  if (reconnectCamMode !== 'none' && !videoActive) {
     try {
       await videoChat.requestCamera();
       mp.sendVideoReady();
@@ -3607,15 +3630,22 @@ mp.onVideoStart = async (payload) => {
     }
     await videoChat.startCall(payload.initiator);
     videoActive = true;
-    // Enable video board — local stream is already set, remote arrives via onRemoteStream
     if (mp.color) {
-      videoBoard.enable(videoChat._localStream, null, mp.color);
-      // If the remote stream already arrived during the async ICE/offer setup
-      // (race condition: handleOffer() completes before enable() runs), apply it now.
-      // Without this, updateRemoteStream() silently discards the stream because
-      // the board wasn't active yet when onRemoteStream fired.
-      if (videoChat._remoteStream) {
-        videoBoard.updateRemoteStream(videoChat._remoteStream, mp.color);
+      if (activeCamMode === 'king-cam') {
+        // Enable king cam — face appears on king pieces
+        kingCam.enable(videoChat._localStream, mp.color, null);
+        if (videoChat._remoteStream) {
+          const opponentColor = mp.color === 'w' ? 'b' : 'w';
+          kingCam.updateRemoteStream(videoChat._remoteStream, opponentColor);
+        }
+        board.render();
+      } else {
+        // Default: board-face mode — camera fills board squares
+        videoBoard.enable(videoChat._localStream, null, mp.color);
+        // Race condition fix: apply remote stream if it arrived before enable()
+        if (videoChat._remoteStream) {
+          videoBoard.updateRemoteStream(videoChat._remoteStream, mp.color);
+        }
       }
     } else {
       // Fallback: show floating popup only when board mode is unavailable
@@ -3647,7 +3677,12 @@ videoChat.onLocalStream = (stream) => {
 videoChat.onRemoteStream = (stream) => {
   videoUI.setRemoteStream(stream);
   if (mp.color) {
+    const opponentColor = mp.color === 'w' ? 'b' : 'w';
     videoBoard.updateRemoteStream(stream, mp.color);
+    if (kingCam.isActive()) {
+      kingCam.updateRemoteStream(stream, opponentColor);
+      board.render();
+    }
   }
 };
 videoChat.onDisconnected = () => { videoUI.showError('Video disconnected'); issueReporter.recordError(); };
@@ -3670,14 +3705,18 @@ videoUI.onEndCall = () => {
   videoChat.stop();
   videoUI.hide();
   videoBoard.disable();
+  if (kingCam.isActive()) { kingCam.disable(); board.render(); }
   videoActive = false;
+  activeCamMode = 'none';
 };
 
 mp.onVideoEnded = () => {
   videoChat.stop();
   videoUI.hide();
   videoBoard.disable();
+  if (kingCam.isActive()) { kingCam.disable(); board.render(); }
   videoActive = false;
+  activeCamMode = 'none';
 };
 
 // --- Shared Post-Game Review ---
@@ -3852,7 +3891,7 @@ newGameMenu.onStart((config) => {
   startNewGame();
 });
 
-newGameMenu.onOnline(async (tc, name, videoEnabled, chess960) => {
+newGameMenu.onOnline(async (tc, name, camMode, chess960) => {
   if (!mp.ws || mp.ws.readyState !== WebSocket.OPEN) {
     try {
       await mp.connect();
@@ -3862,13 +3901,13 @@ newGameMenu.onOnline(async (tc, name, videoEnabled, chess960) => {
     }
   }
   // Auto matchmaking — go straight to searching
-  mp.quickMatch(tc, name, videoEnabled, chess960);
+  mp.quickMatch(tc, name, camMode, chess960);
   mpUI.showSearching();
   mpUI.modal.classList.remove('hidden');
   mpUI.backdrop.classList.remove('hidden');
 });
 
-newGameMenu.onFriend(async (action, tc, name, code, videoEnabled, chess960) => {
+newGameMenu.onFriend(async (action, tc, name, code, camMode, chess960) => {
   if (!mp.ws || mp.ws.readyState !== WebSocket.OPEN) {
     try {
       await mp.connect();
@@ -3878,7 +3917,7 @@ newGameMenu.onFriend(async (action, tc, name, code, videoEnabled, chess960) => {
     }
   }
   if (action === 'create') {
-    mp.createRoom(tc, name, videoEnabled, chess960);
+    mp.createRoom(tc, name, camMode, chess960);
     // mpUI will show waiting view via the room-created event
     mpUI.modal.classList.remove('hidden');
     mpUI.backdrop.classList.remove('hidden');
