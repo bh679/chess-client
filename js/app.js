@@ -3218,10 +3218,11 @@ mp.onGameStart = async (payload) => {
   }
 };
 
-// Room created — show waiting screen
+// Room created — show waiting screen (lobby panel in waiting mode)
 mp.onRoomCreated = (payload) => {
-  mpUI.showWaiting(payload.roomId, mpUI._pendingCreateTc);
+  mpUI.showWaiting(payload.roomId, mpUI._pendingCreateTc, mpUI._pendingCreateChess960);
   mpUI._pendingCreateTc = null;
+  mpUI._pendingCreateChess960 = false;
 };
 
 // Lobby joined — show pre-game settings inline below board
@@ -3950,10 +3951,9 @@ newGameMenu.onFriend(async (action, tc, name, code, camMode, chess960) => {
   }
   if (action === 'create') {
     mpUI._pendingCreateTc = tc;
+    mpUI._pendingCreateChess960 = !!chess960;
     mp.createRoom(tc, name, camMode, chess960);
-    // mpUI will show waiting view via the room-created event
-    mpUI.modal.classList.remove('hidden');
-    mpUI.backdrop.classList.remove('hidden');
+    // mpUI.showWaiting() will open the lobby panel when room_created fires
   } else if (action === 'join') {
     multiplayerActive = true;  // Prevent startNewGame() from overwriting
     mp.joinRoom(code, name);
