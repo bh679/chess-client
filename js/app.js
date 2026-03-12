@@ -809,6 +809,19 @@ async function startNewGame() {
   router.silentUpdate('/');
 }
 
+/** Configure timer display for lobby preview without starting it */
+function configureLobbyTimer(timeControl) {
+  const tcMatch = timeControl ? timeControl.match(/^(\d+)\+(\d+)$/) : null;
+  const tcOddsMatch = timeControl ? timeControl.match(/^(\d+)\/(\d+)\+(\d+)$/) : null;
+  if (tcMatch) {
+    timer.configure(parseInt(tcMatch[1], 10) * 60, parseInt(tcMatch[2], 10));
+  } else if (tcOddsMatch) {
+    timer.configure(parseInt(tcOddsMatch[1], 10) * 60, parseInt(tcOddsMatch[3], 10), parseInt(tcOddsMatch[2], 10) * 60);
+  } else {
+    timer.configure(0, 0);
+  }
+}
+
 /** Start a multiplayer game (called by multiplayer event handlers) */
 function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
   multiplayerActive = true;
@@ -3227,9 +3240,10 @@ mp.onLobbyJoined = async (payload) => {
   board.getArrowOverlay().clear();
   board.render();
 
-  // Orient board to player's color for lobby preview
+  // Orient board to player's color and configure timer for lobby preview
   board.setFlipped(payload.color === 'b');
   appEl.classList.toggle('board-flipped', payload.color === 'b');
+  configureLobbyTimer(payload.settings?.timeControl);
 
   // Start camera for video-enabled rooms — request access and signal ready.
   // Board tints are suppressed by CSS (.board.lobby-active) until game starts.
@@ -3253,9 +3267,10 @@ mp.onSettingChanged = (payload) => {
   // Keep mp.color in sync (server sends current color in every setting_changed)
   mp.color = payload.color;
 
-  // Flip board to match new color assignment
+  // Flip board to match new color assignment and update timer display
   board.setFlipped(payload.color === 'b');
   appEl.classList.toggle('board-flipped', payload.color === 'b');
+  configureLobbyTimer(payload.settings?.timeControl);
 
   // Reset board position when variant changes
   if (payload.field === 'chess960') {
