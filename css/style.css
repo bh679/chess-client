@@ -3509,6 +3509,63 @@ button.replay-summary-btn {
 }
 .lobby-panel.hidden { display: none; }
 
+/* Waiting section shown inside lobby panel before opponent joins */
+.lobby-waiting-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.lobby-waiting-section.hidden { display: none; }
+
+.lobby-waiting-share {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.lobby-waiting-url {
+  flex: 1;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lobby-waiting-copy-btn {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 3px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.lobby-waiting-copy-btn:hover {
+  background: var(--bg-hover, rgba(255,255,255,0.08));
+}
+.lobby-waiting-text {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin: 0;
+}
+.lobby-waiting-cancel-btn {
+  align-self: center;
+  background: var(--danger-muted, rgba(220,50,50,0.15));
+  border: 1px solid var(--danger, #c0392b);
+  border-radius: 6px;
+  color: var(--danger, #e74c3c);
+  padding: 4px 16px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.lobby-waiting-cancel-btn:hover {
+  background: var(--danger-muted-hover, rgba(220,50,50,0.28));
+}
+
 @keyframes lobby-panel-flash {
   0%   { box-shadow: none; }
   30%  { box-shadow: 0 0 0 3px var(--accent, #f0a500); }
@@ -3529,7 +3586,6 @@ button.replay-summary-btn {
 .lobby-setting-item {
   display: flex;
   align-items: center;
-  gap: 6px;
   flex: 1;
   min-width: 0;
 }
@@ -3553,14 +3609,21 @@ button.replay-summary-btn {
 }
 
 .lobby-setting-value {
+  height: 36px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-primary);
   cursor: pointer;
-  padding: 3px 8px;
+  padding: 0 8px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 4px;
+  white-space: nowrap;
 }
 .lobby-setting-value:hover {
   border-color: var(--accent);
@@ -3568,26 +3631,32 @@ button.replay-summary-btn {
 .lobby-setting-value.hidden { display: none; }
 
 .lobby-tc-select {
+  height: 36px;
+  width: 100%;
+  box-sizing: border-box;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-primary);
   background: var(--bg-sunken);
   border: 1px solid var(--accent);
   border-radius: 4px;
-  padding: 3px 6px;
+  padding: 0 6px;
 }
 .lobby-tc-select.hidden { display: none; }
 
 .lobby-setting-btn {
+  height: 36px;
+  width: 100%;
   font-size: 0.85rem;
   font-weight: 600;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   color: var(--text-primary);
   border-radius: 4px;
-  padding: 3px 10px;
+  padding: 0 10px;
   cursor: pointer;
   transition: border-color 0.15s;
+  white-space: nowrap;
 }
 .lobby-setting-btn:hover {
   border-color: var(--accent);
@@ -3600,6 +3669,8 @@ button.replay-summary-btn {
   justify-content: space-between;
   gap: 8px;
 }
+.lobby-ready-row.hidden { display: none; }
+.lobby-setting-item.hidden { display: none; }
 
 .lobby-ready-indicator {
   display: flex;
@@ -3863,6 +3934,7 @@ button.replay-summary-btn {
   font-size: 0.85rem;
   margin-bottom: 12px;
 }
+
 
 /* Searching animation */
 .mp-searching-anim {

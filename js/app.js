@@ -3202,12 +3202,16 @@ updateEloSliderRange('b');
 mp.onGameStart = async (payload) => {
   lastMultiplayerGameRecord = null;
   diagnostics.setContext(payload.dbGameId, payload.roomId);
-  activeCamMode = payload.camMode ?? (payload.videoEnabled ? 'board-face' : 'none');
+  activeCamMode = (mpUI.inlineCamBtn ? mpUI.getCamMode() : null)
+    ?? payload.camMode
+    ?? (payload.videoEnabled ? 'board-face' : 'none');
   diagnostics.record('lifecycle', 'game_start', {
     color: payload.color,
     camMode: activeCamMode,
     timeControl: payload.timeControl,
   });
+  issueReporter.hideLobbyButton();
+  issueReporter.hideWaitingButton();
   issueReporter.setGameContext(payload.dbGameId, mp.sessionId, !!payload.videoEnabled);
   issueReporter.showButton();
 
@@ -3262,15 +3266,20 @@ mp.onGameStart = async (payload) => {
   }
 };
 
-// Room created — show waiting screen
+// Room created — show waiting screen (lobby panel in waiting mode)
 mp.onRoomCreated = (payload) => {
   mpUI.showWaiting(payload.roomId);
+  issueReporter.setGameContext(null, mp.sessionId, false);
+  issueReporter.showWaitingButton();
 };
 
 // Lobby joined — show pre-game settings inline below board
 mp.onLobbyJoined = async (payload) => {
   multiplayerActive = true;
+  issueReporter.hideWaitingButton();
   mpUI.showLobby(payload);
+  issueReporter.setGameContext(null, mp.sessionId, false);
+  issueReporter.showLobbyButton();
 
   // Always add lobby-active: fades pieces to 30% and locks interaction until game starts
   boardEl.classList.add('lobby-active');
@@ -3279,6 +3288,9 @@ mp.onLobbyJoined = async (payload) => {
   // (startNewGame() won't run because multiplayerActive is true, so render directly)
   game.newGame(!!payload.settings?.chess960);
   board.getArrowOverlay().clear();
+  // Flip board to player's color so name elements are in correct visual positions
+  board.setFlipped(payload.color === 'b');
+  appEl.classList.toggle('board-flipped', payload.color === 'b');
   board.render();
 
   // Orient board to player's color and configure timer for lobby preview
@@ -3320,9 +3332,11 @@ mp.onSettingChanged = (payload) => {
     board.render();
   }
 
-  // Sync active cam mode when the remote player changes it in the lobby
-  if (payload.field === 'camMode') {
-    activeCamMode = payload.settings?.camMode ?? 'board-face';
+  // Sync cam mode when the other player changes it
+  if (payload.field === 'camMode' && payload.settings?.camMode !== undefined) {
+    activeCamMode = payload.settings.camMode;
+    mpUI.syncCamMode(payload.settings.camMode);
+    applyCamMode(payload.settings.camMode);
   }
 };
 
@@ -4041,11 +4055,9 @@ newGameMenu.onFriend(async (action, code) => {
     }
   }
   if (action === 'create') {
-    // Defaults — lobby handles TC, variant, colors, cam
+    // Defaults — waiting panel and lobby handle TC, variant, colors, cam
     mp.createRoom('5+0', null, 'board-face', false);
-    // mpUI will show waiting view via the room-created event
-    mpUI.modal.classList.remove('hidden');
-    mpUI.backdrop.classList.remove('hidden');
+    // mpUI.showWaiting() will open the lobby panel when room_created fires
   } else if (action === 'join') {
     multiplayerActive = true;  // Prevent startNewGame() from overwriting
     mp.joinRoom(code, null);
@@ -4056,8 +4068,54 @@ newGameMenu.onCustomTime(() => {
   customTimeModal.classList.remove('hidden');
 });
 
-// Lobby cam mode change — update activeCamMode for use at game start
-mpUI.onCamChange((mode) => { activeCamMode = mode; });
+// Switch live video display to match a cam mode (used by both local button clicks and remote setting changes)
+function applyCamMode(mode) {
+  if (!videoActive) return;
+  if (mode === 'king-cam') {
+    videoBoard.disable();
+    splitCam.disable();
+    // Restore raw camera track — videoBoard replaced it with a cropped canvas stream that is now stopped
+    const rawVideoTrack = videoChat._localStream?.getVideoTracks()[0];
+    if (rawVideoTrack) videoChat.replaceVideoTrack(rawVideoTrack);
+    kingCam.enable(videoChat._localStream, mp.color, null);
+    if (videoChat._remoteStream) {
+      kingCam.updateRemoteStream(videoChat._remoteStream, mp.color === 'w' ? 'b' : 'w');
+    }
+    board.render();
+  } else if (mode === 'board-face') {
+    kingCam.disable();
+    splitCam.disable();
+    board.render();
+    videoBoard.enable(videoChat._localStream, null, mp.color);
+    // videoBoard replaces the WebRTC track via onCroppedStreamReady when face tracking is ready
+    if (videoChat._remoteStream) {
+      videoBoard.updateRemoteStream(videoChat._remoteStream, mp.color);
+    }
+  } else if (mode === 'split-cam') {
+    kingCam.disable();
+    videoBoard.disable();
+    // Restore raw camera track — videoBoard may have replaced it
+    const rawVideoTrack = videoChat._localStream?.getVideoTracks()[0];
+    if (rawVideoTrack) videoChat.replaceVideoTrack(rawVideoTrack);
+    splitCam.enable(videoChat._localStream, videoChat._remoteStream, mp.color);
+    splitCam.setTintEnabled(true);
+  } else {
+    kingCam.disable();
+    videoBoard.disable();
+    splitCam.disable();
+    // Restore raw camera track when disabling all video modes
+    const rawVideoTrack = videoChat._localStream?.getVideoTracks()[0];
+    if (rawVideoTrack) videoChat.replaceVideoTrack(rawVideoTrack);
+    board.render();
+  }
+}
+
+// Lobby cam mode change — update activeCamMode, notify opponent, and switch live video
+mpUI.onCamChange((mode) => {
+  activeCamMode = mode;
+  mp.proposeSetting('camMode', mode);
+  applyCamMode(mode);
+});
 
 // --- Route handlers ---
 

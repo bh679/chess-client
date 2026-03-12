@@ -99,6 +99,8 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Inline lobby panel**](https://github.com/bh679/chess-client/wiki/Feature:-Lobby-Redesign) — pre-game lobby shown inline below the board (not a modal); room code in header; pieces faded at 30% opacity; camera feed on board squares during lobby preview; ready button with dynamic labels
 - [**Simplified friend modal**](https://github.com/bh679/chess-client/wiki/Feature:-Simplify-Friend-Modal) — Play with Friend step reduced to Create Room + Join; camera mode (Board Face / King Cam / No Cam) moved to lobby panel alongside TC, Variant, and Colors
 - **Lobby flash on board touch** — tapping or clicking the board during the pre-game lobby flashes the lobby panel with a glowing border ring to draw attention to the Ready button
+- [**Waiting room settings**](https://github.com/bh679/chess-client/wiki/Feature:-Waiting-Lobby-Settings) — when a host creates a Friend game, the inline lobby panel opens immediately below the board; TC and Variant (Chess960) are configurable while waiting for the opponent; settings persist when the opponent joins
+- [**Submit issue flag in lobby**](https://github.com/bh679/chess-client/wiki/Feature:-Lobby-Issue-Flag) — the ⚑ issue report button now appears in the waiting room (while waiting for opponent) and in the lobby panel (once both players connect), not just during active games
 
 ## Roadmap
 

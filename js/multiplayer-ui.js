@@ -4,7 +4,12 @@
  *
  * The pre-game lobby settings (TC, variant, colors, ready) are rendered
  * in an inline panel below the board (#lobby-panel), not in the modal.
- * The modal is kept for: menu, waiting (room created), searching.
+ * The modal is kept for: menu, searching.
+ *
+ * When a room is created (waiting for opponent), the lobby panel opens
+ * immediately in "waiting" mode — the host can configure settings while
+ * waiting. When the opponent joins, the panel transitions to full lobby
+ * mode (ready buttons, color swap).
  */
 export class MultiplayerUI {
   constructor(mp) {
@@ -15,6 +20,8 @@ export class MultiplayerUI {
     this._lobbyState = null;
     this._myReady = false;
     this._pendingLobbyCustomTc = false;
+    // Settings tracked while in waiting state (host-only, before opponent joins)
+    this._waitingSettings = { timeControl: '5+0', chess960: false };
 
     this._initElements();
     this._bindEvents();
@@ -30,6 +37,14 @@ export class MultiplayerUI {
 
   /** Get current cam mode from lobby button */
   getCamMode() { return this.inlineCamBtn?.dataset.mode ?? 'board-face'; }
+
+  /** Sync the cam button to a mode received from the other player */
+  syncCamMode(mode) {
+    if (!this.inlineCamBtn) return;
+    const CAM_LABELS = { 'board-face': 'Board - Face', 'king-cam': 'King - Cam', 'split-cam': 'Split Cam', 'none': 'No-Cam' };
+    this.inlineCamBtn.dataset.mode = mode;
+    this.inlineCamBtn.textContent = CAM_LABELS[mode] ?? mode;
+  }
 
   /** Open the multiplayer modal (main menu) */
   open() {
@@ -100,14 +115,31 @@ export class MultiplayerUI {
     this.connectionStatus.textContent = labels[status] || status;
   }
 
-  /** Show waiting screen with room code */
-  showWaiting(roomId) {
-    this._showView('waiting');
-    this.roomCodeDisplay.textContent = roomId;
-    // Build the share URL
+  /**
+   * Show waiting state — lobby panel opens immediately below board.
+   * Host can adjust settings while waiting for opponent to join.
+   * initialTc seeds the TC display from the room creation settings.
+   */
+  showWaiting(roomId, initialTc, initialChess960) {
+    this._waitingSettings = {
+      timeControl: initialTc || this.mpTimeControl?.value || '5+0',
+      chess960: !!initialChess960,
+    };
+    this._currentView = 'waiting';
+
+    // Set up the share URL
     const shareUrl = `${location.origin}${location.pathname}?room=${roomId}`;
-    this.shareUrlDisplay.textContent = shareUrl;
-    // Also show room code in the header while waiting
+    this.waitingUrlDisplay.textContent = shareUrl;
+
+    // Show lobby panel in waiting mode
+    this._renderLobbyPanelWaiting();
+    this.waitingSection.classList.remove('hidden');
+    this.readyRow.classList.add('hidden');
+    this.colorItem.classList.add('hidden');
+    this.lobbyPanel.classList.remove('hidden');
+
+    // Close modal, show room code in header
+    this.close();
     this._showHeaderRoomCode(roomId);
   }
 
@@ -116,19 +148,26 @@ export class MultiplayerUI {
     this._showView('searching');
   }
 
-  /** Show lobby — inline panel below board, modal closes */
+  /**
+   * Show full lobby — opponent joined, transition from waiting mode.
+   * Hides the waiting section, shows ready buttons and color control.
+   */
   showLobby(payload) {
     this._lobbyState = { ...payload };
     this._myReady = false;
-    // Set cam button from lobby settings (or default to board-face)
+    // Initialize cam button from lobby settings (creator's chosen mode)
     if (this.inlineCamBtn) {
-      const CAM_LABELS = { 'board-face': 'Board Face', 'split-cam': 'Split Cam', 'king-cam': 'King Cam', 'none': 'No Cam' };
-      const initialMode = payload.settings?.camMode ?? 'board-face';
-      this.inlineCamBtn.dataset.mode = initialMode;
-      this.inlineCamBtn.textContent = CAM_LABELS[initialMode] ?? 'Board Face';
+      const CAM_LABELS = { 'board-face': 'Board - Face', 'king-cam': 'King - Cam', 'split-cam': 'Split Cam', 'none': 'No-Cam' };
+      const mode = payload.settings?.camMode ?? 'board-face';
+      this.inlineCamBtn.dataset.mode = mode;
+      this.inlineCamBtn.textContent = CAM_LABELS[mode] ?? mode;
     }
     this._renderLobbyPanel();
-    // Show inline panel, hide modal
+    // Hide waiting section, show full lobby controls
+    this.waitingSection.classList.add('hidden');
+    this.readyRow.classList.remove('hidden');
+    this.colorItem.classList.remove('hidden');
+    // Show inline panel, close modal
     this.lobbyPanel.classList.remove('hidden');
     this.close();
     // Show room code in header
@@ -139,27 +178,46 @@ export class MultiplayerUI {
   /** Hide the inline lobby panel — called when game starts */
   hideLobbyPanel() {
     this.lobbyPanel.classList.add('hidden');
+    this.waitingSection.classList.add('hidden');
+    this.readyRow.classList.remove('hidden');
+    this.colorItem.classList.remove('hidden');
     this._hideHeaderRoomCode();
     this._lobbyState = null;
     this._myReady = false;
   }
 
-  /** Render inline lobby panel from current state */
+  /** Render lobby panel in waiting mode from _waitingSettings */
+  _renderLobbyPanelWaiting() {
+    const tc = this._waitingSettings.timeControl || 'none';
+    this.inlineTcDisplay.textContent = tc === 'none' ? 'No Timer' : tc;
+    this.inlineTcDisplay.classList.remove('hidden');
+    this.inlineTcSelect.classList.add('hidden');
+    this.inline960Btn.textContent = this._waitingSettings.chess960 ? 'Chess960' : 'Standard';
+    // Color swap not applicable while waiting
+    this.inlineSwapBtn.textContent = 'Random';
+  }
+
+  /** Render inline lobby panel from current lobby state */
   _renderLobbyPanel() {
     if (!this._lobbyState) return;
     const s = this._lobbyState;
 
     // TC
+    const TC_LABELS = {
+      '1+0': 'Bullet 1+0', '3+2': 'Blitz 3+2', '5+0': 'Rapid 5+0',
+      '10+0': 'Rapid 10+0', '15+10': 'Classical 15+10', '30+0': 'Classical 30+0',
+      'none': 'No Timer'
+    };
     const tc = s.settings?.timeControl || 'none';
-    this.inlineTcDisplay.textContent = tc === 'none' ? 'No Timer' : tc;
+    this.inlineTcDisplay.textContent = TC_LABELS[tc] ?? tc;
     this.inlineTcDisplay.classList.remove('hidden');
     this.inlineTcSelect.classList.add('hidden');
 
     // Variant
-    this.inline960Btn.textContent = s.settings?.chess960 ? 'Chess960' : 'Standard';
+    this.inline960Btn.textContent = s.settings?.chess960 ? 'Chess960' : 'Chess';
 
     // Color — from our perspective
-    const myColor = s.color === 'w' ? 'White' : 'Black';
+    const myColor = s.color === 'w' ? 'I am White' : 'I am Black';
     this.inlineSwapBtn.textContent = myColor;
 
     // Ready states
@@ -182,6 +240,17 @@ export class MultiplayerUI {
 
   /** Called when a setting change is applied (immediate, no approval needed) */
   showSettingChanged(payload) {
+    if (this._currentView === 'waiting') {
+      // Update waiting settings display
+      if (payload.settings?.timeControl !== undefined) {
+        this._waitingSettings.timeControl = payload.settings.timeControl;
+      }
+      if (payload.settings?.chess960 !== undefined) {
+        this._waitingSettings.chess960 = payload.settings.chess960;
+      }
+      this._renderLobbyPanelWaiting();
+      return;
+    }
     if (!this._lobbyState) return;
     if (payload.settings) {
       this._lobbyState.settings = { ...payload.settings };
@@ -236,8 +305,10 @@ export class MultiplayerUI {
   /** Cancel a pending custom TC entry — revert the select display */
   resetLobbyCustomTc() {
     this._pendingLobbyCustomTc = false;
-    // Revert select value to current lobby TC
-    const currentTc = this._lobbyState?.settings?.timeControl || 'none';
+    // Revert select value
+    const currentTc = this._currentView === 'waiting'
+      ? (this._waitingSettings.timeControl || 'none')
+      : (this._lobbyState?.settings?.timeControl || 'none');
     this.inlineTcSelect.value = currentTc;
   }
 
@@ -275,6 +346,14 @@ export class MultiplayerUI {
     this.inlineReadyYou = document.getElementById('lobby-ready-you');
     this.inlineReadyOpp = document.getElementById('lobby-ready-opp');
 
+    // Waiting section in lobby panel
+    this.waitingSection = document.getElementById('lobby-waiting-section');
+    this.waitingUrlDisplay = document.getElementById('lobby-waiting-url');
+    this.waitingCopyBtn = document.getElementById('lobby-waiting-copy');
+    this.waitingCancelBtn = document.getElementById('lobby-waiting-cancel');
+    this.readyRow = document.getElementById('lobby-ready-row');
+    this.colorItem = document.getElementById('lobby-color-item');
+
     // Menu view
     this.menuView = document.getElementById('mp-menu');
     this.quickMatchBtn = document.getElementById('mp-quick-match-btn');
@@ -284,7 +363,7 @@ export class MultiplayerUI {
     this.mpTimeControl = document.getElementById('mp-time-control');
     this.mpPlayerName = document.getElementById('mp-player-name');
 
-    // Waiting view (room created, waiting for opponent)
+    // Waiting view in modal (still used for display but no longer primary waiting UI)
     this.waitingView = document.getElementById('mp-waiting');
     this.roomCodeDisplay = document.getElementById('mp-room-code');
     this.shareUrlDisplay = document.getElementById('mp-share-url');
@@ -350,15 +429,15 @@ export class MultiplayerUI {
       if (e.key === 'Enter') this.joinRoomBtn.click();
     });
 
-    // Cancel waiting
-    this.cancelWaitBtn.addEventListener('click', () => {
+    // Cancel waiting (modal — fallback)
+    this.cancelWaitBtn?.addEventListener('click', () => {
       this._hideHeaderRoomCode();
       this.mp.disconnect();
       this.close();
     });
 
-    // Copy room code
-    this.copyCodeBtn.addEventListener('click', () => {
+    // Copy room code (modal — fallback)
+    this.copyCodeBtn?.addEventListener('click', () => {
       const shareUrl = this.shareUrlDisplay.textContent;
       navigator.clipboard.writeText(shareUrl).then(() => {
         this.copyCodeBtn.textContent = 'Copied!';
@@ -370,6 +449,21 @@ export class MultiplayerUI {
     this.cancelSearchBtn.addEventListener('click', () => {
       this.mp.cancelQueue();
       this._showView('menu');
+    });
+
+    // Waiting section — copy link
+    this.waitingCopyBtn.addEventListener('click', () => {
+      const url = this.waitingUrlDisplay.textContent;
+      navigator.clipboard.writeText(url).then(() => {
+        this.waitingCopyBtn.textContent = 'Copied!';
+        setTimeout(() => { this.waitingCopyBtn.textContent = 'Copy Link'; }, 2000);
+      });
+    });
+
+    // Waiting section — cancel
+    this.waitingCancelBtn.addEventListener('click', () => {
+      this.hideLobbyPanel();
+      this.mp.disconnect();
     });
 
     // Resign
@@ -421,7 +515,9 @@ export class MultiplayerUI {
 
     // Inline lobby — TC: click value to show dropdown
     this.inlineTcDisplay.addEventListener('click', () => {
-      const currentTc = this._lobbyState?.settings?.timeControl || 'none';
+      const currentTc = this._currentView === 'waiting'
+        ? (this._waitingSettings.timeControl || 'none')
+        : (this._lobbyState?.settings?.timeControl || 'none');
       this.inlineTcSelect.value = currentTc;
       this.inlineTcDisplay.classList.add('hidden');
       this.inlineTcSelect.classList.remove('hidden');
@@ -437,6 +533,9 @@ export class MultiplayerUI {
         document.getElementById('custom-time-modal').classList.remove('hidden');
         return;
       }
+      if (this._currentView === 'waiting') {
+        this._waitingSettings.timeControl = value;
+      }
       this.mp.proposeSetting('timeControl', value);
     });
 
@@ -447,19 +546,27 @@ export class MultiplayerUI {
 
     // Inline lobby — 960 toggle
     this.inline960Btn.addEventListener('click', () => {
+      if (this._currentView === 'waiting') {
+        const next = !this._waitingSettings.chess960;
+        this._waitingSettings.chess960 = next;
+        this.inline960Btn.textContent = next ? 'Chess960' : 'Standard';
+        this.mp.proposeSetting('chess960', next);
+        return;
+      }
       const current = this._lobbyState?.settings?.chess960 || false;
       this.mp.proposeSetting('chess960', !current);
     });
 
-    // Inline lobby — color swap
+    // Inline lobby — color swap (only in full lobby mode)
     this.inlineSwapBtn.addEventListener('click', () => {
+      if (this._currentView !== 'lobby') return;
       this.mp.proposeSetting('colorSwap', true);
     });
 
     // Inline lobby — cam mode cycle
     if (this.inlineCamBtn) {
-      const CAM_MODES = ['board-face', 'split-cam', 'king-cam', 'none'];
-      const CAM_LABELS = { 'board-face': 'Board Face', 'split-cam': 'Split Cam', 'king-cam': 'King Cam', 'none': 'No Cam' };
+      const CAM_MODES = ['board-face', 'king-cam', 'split-cam', 'none'];
+      const CAM_LABELS = { 'board-face': 'Board - Face', 'king-cam': 'King - Cam', 'split-cam': 'Split Cam', 'none': 'No-Cam' };
       this.inlineCamBtn.addEventListener('click', () => {
         const next = CAM_MODES[(CAM_MODES.indexOf(this.inlineCamBtn.dataset.mode) + 1) % CAM_MODES.length];
         this.inlineCamBtn.dataset.mode = next;
@@ -484,8 +591,8 @@ export class MultiplayerUI {
     // Legacy lobby view in modal — always hidden (lobby is now inline)
     this.lobbyView.classList.add('hidden');
     this.lobbyCloseBtn.classList.add('hidden');
-    // Show modal for menu/waiting/searching
-    if (view === 'menu' || view === 'waiting' || view === 'searching') {
+    // Show modal for menu/searching
+    if (view === 'menu' || view === 'searching') {
       this.modal.classList.remove('hidden');
       this.backdrop.classList.remove('hidden');
     }
