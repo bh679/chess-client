@@ -3191,7 +3191,9 @@ updateEloSliderRange('b');
 mp.onGameStart = async (payload) => {
   lastMultiplayerGameRecord = null;
   diagnostics.setContext(payload.dbGameId, payload.roomId);
-  activeCamMode = payload.camMode ?? (payload.videoEnabled ? 'board-face' : 'none');
+  activeCamMode = (mpUI.inlineCamBtn ? mpUI.getCamMode() : null)
+    ?? payload.camMode
+    ?? (payload.videoEnabled ? 'board-face' : 'none');
   diagnostics.record('lifecycle', 'game_start', {
     color: payload.color,
     camMode: activeCamMode,
@@ -3985,8 +3987,30 @@ newGameMenu.onCustomTime(() => {
   customTimeModal.classList.remove('hidden');
 });
 
-// Lobby cam mode change — update activeCamMode for use at game start
-mpUI.onCamChange((mode) => { activeCamMode = mode; });
+// Lobby cam mode change — update activeCamMode and switch live video if already running
+mpUI.onCamChange((mode) => {
+  activeCamMode = mode;
+  if (!videoActive) return;
+  if (mode === 'king-cam') {
+    videoBoard.disable();
+    kingCam.enable(videoChat._localStream, mp.color, null);
+    if (videoChat._remoteStream) {
+      kingCam.updateRemoteStream(videoChat._remoteStream, mp.color === 'w' ? 'b' : 'w');
+    }
+    board.render();
+  } else if (mode === 'board-face') {
+    kingCam.disable();
+    board.render();
+    videoBoard.enable(videoChat._localStream, null, mp.color);
+    if (videoChat._remoteStream) {
+      videoBoard.updateRemoteStream(videoChat._remoteStream, mp.color);
+    }
+  } else {
+    kingCam.disable();
+    videoBoard.disable();
+    board.render();
+  }
+});
 
 // --- Route handlers ---
 
