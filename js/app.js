@@ -3291,6 +3291,11 @@ mp.onSettingChanged = (payload) => {
     board.getArrowOverlay().clear();
     board.render();
   }
+
+  // Sync active cam mode when the remote player changes it in the lobby
+  if (payload.field === 'camMode') {
+    activeCamMode = payload.settings?.camMode ?? 'board-face';
+  }
 };
 
 // Ready state update

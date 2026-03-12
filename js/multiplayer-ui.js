@@ -120,10 +120,12 @@ export class MultiplayerUI {
   showLobby(payload) {
     this._lobbyState = { ...payload };
     this._myReady = false;
-    // Reset cam button to default on each new lobby
+    // Set cam button from lobby settings (or default to board-face)
     if (this.inlineCamBtn) {
-      this.inlineCamBtn.dataset.mode = 'board-face';
-      this.inlineCamBtn.textContent = 'Board Face';
+      const CAM_LABELS = { 'board-face': 'Board Face', 'split-cam': 'Split Cam', 'king-cam': 'King Cam', 'none': 'No Cam' };
+      const initialMode = payload.settings?.camMode ?? 'board-face';
+      this.inlineCamBtn.dataset.mode = initialMode;
+      this.inlineCamBtn.textContent = CAM_LABELS[initialMode] ?? 'Board Face';
     }
     this._renderLobbyPanel();
     // Show inline panel, hide modal
@@ -186,6 +188,12 @@ export class MultiplayerUI {
     }
     if (payload.field === 'colorSwap') {
       this._lobbyState.color = this._lobbyState.color === 'w' ? 'b' : 'w';
+    }
+    if (payload.field === 'camMode' && this.inlineCamBtn) {
+      const CAM_LABELS = { 'board-face': 'Board Face', 'split-cam': 'Split Cam', 'king-cam': 'King Cam', 'none': 'No Cam' };
+      const newMode = payload.settings?.camMode ?? 'board-face';
+      this.inlineCamBtn.dataset.mode = newMode;
+      this.inlineCamBtn.textContent = CAM_LABELS[newMode] ?? 'Board Face';
     }
     // Reset our ready state
     this._myReady = false;
@@ -456,7 +464,7 @@ export class MultiplayerUI {
         const next = CAM_MODES[(CAM_MODES.indexOf(this.inlineCamBtn.dataset.mode) + 1) % CAM_MODES.length];
         this.inlineCamBtn.dataset.mode = next;
         this.inlineCamBtn.textContent = CAM_LABELS[next];
-        if (this._onCamChange) this._onCamChange(next);
+        this.mp.proposeSetting('camMode', next);
       });
     }
 
