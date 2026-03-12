@@ -3291,6 +3291,9 @@ mp.onRoomCreated = (payload) => {
   mpUI.showWaiting(payload.roomId);
   issueReporter.setGameContext(null, mp.sessionId, false);
   issueReporter.showWaitingButton();
+  diagnostics.setContext(null, payload.roomId);
+  diagnostics.record('lifecycle', 'lobby_created', { roomId: payload.roomId });
+  diagnostics.flush();
 };
 
 // Lobby joined — show pre-game settings inline below board
@@ -3300,6 +3303,9 @@ mp.onLobbyJoined = async (payload) => {
   mpUI.showLobby(payload);
   issueReporter.setGameContext(null, mp.sessionId, false);
   issueReporter.showLobbyButton();
+  diagnostics.setContext(null, payload.roomId);
+  diagnostics.record('lifecycle', 'lobby_joined', { roomId: payload.roomId, color: payload.color });
+  diagnostics.flush();
 
   // Always add lobby-active: fades pieces to 30% and locks interaction until game starts
   boardEl.classList.add('lobby-active');
