@@ -4134,6 +4134,7 @@ function applyCamMode(mode) {
   } else if (mode === 'split-cam') {
     kingCam.disable();
     videoBoard.disable();
+    board.render();
     // Restore raw camera track — videoBoard may have replaced it
     const rawVideoTrack = videoChat._localStream?.getVideoTracks()[0];
     if (rawVideoTrack) videoChat.replaceVideoTrack(rawVideoTrack);
