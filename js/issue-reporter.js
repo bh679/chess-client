@@ -29,6 +29,7 @@ export class IssueReporter {
     // DOM refs
     this._flagBtn = document.getElementById('ir-flag-btn');
     this._lobbyFlagBtn = document.getElementById('lobby-flag-btn');
+    this._waitingFlagBtn = document.getElementById('waiting-flag-btn');
     this._pgsFlagBtn = null;
     this._modalEl = null;
     this._stepCategoriesEl = null;
@@ -39,6 +40,7 @@ export class IssueReporter {
     this._buildModal();
     this._bindFlagButton();
     this._bindLobbyButton();
+    this._bindWaitingButton();
   }
 
   // --- Public API ---
@@ -90,6 +92,19 @@ export class IssueReporter {
     this._lobbyFlagBtn.classList.add('hidden');
   }
 
+  /** Show the waiting room flag button. */
+  showWaitingButton() {
+    if (!this._waitingFlagBtn) return;
+    this._waitingFlagBtn.classList.remove('hidden');
+    this._updateWaitingButtonState();
+  }
+
+  /** Hide the waiting room flag button. */
+  hideWaitingButton() {
+    if (!this._waitingFlagBtn) return;
+    this._waitingFlagBtn.classList.add('hidden');
+  }
+
   /**
    * Create and return a flag button element for the post-game summary.
    * The caller should insert it into the PGS actions area.
@@ -126,6 +141,7 @@ export class IssueReporter {
     this._flagBtn.classList.add('hidden');
     this._pgsFlagBtn = null;
     this.hideLobbyButton();
+    this.hideWaitingButton();
   }
 
   // --- Private: Flag button ---
@@ -137,6 +153,11 @@ export class IssueReporter {
   _bindLobbyButton() {
     if (!this._lobbyFlagBtn) return;
     this._lobbyFlagBtn.addEventListener('click', () => this._flagGame(this._lobbyFlagBtn));
+  }
+
+  _bindWaitingButton() {
+    if (!this._waitingFlagBtn) return;
+    this._waitingFlagBtn.addEventListener('click', () => this._flagGame(this._waitingFlagBtn));
   }
 
   _updateLobbyButtonState() {
@@ -158,6 +179,25 @@ export class IssueReporter {
     }
   }
 
+  _updateWaitingButtonState() {
+    if (!this._waitingFlagBtn) return;
+    if (this._reportId) {
+      this._waitingFlagBtn.classList.remove('ir-expanded');
+      this._waitingFlagBtn.classList.add('ir-flagged');
+      this._waitingFlagBtn.innerHTML = '&#10003;';
+      this._waitingFlagBtn.title = 'Issue reported';
+    } else if (this._errorDetected) {
+      this._waitingFlagBtn.classList.add('ir-expanded');
+      this._waitingFlagBtn.classList.remove('ir-flagged');
+      this._waitingFlagBtn.innerHTML = '&#9873; Submit Issue';
+      this._waitingFlagBtn.title = 'An issue was detected — click to report';
+    } else {
+      this._waitingFlagBtn.classList.remove('ir-expanded', 'ir-flagged');
+      this._waitingFlagBtn.innerHTML = '&#9873;';
+      this._waitingFlagBtn.title = 'Report an issue';
+    }
+  }
+
   _updateButtonState() {
     if (this._reportId) {
       this._flagBtn.classList.remove('ir-expanded');
@@ -175,6 +215,7 @@ export class IssueReporter {
       this._flagBtn.title = 'Report an issue';
     }
     this._updateLobbyButtonState();
+    this._updateWaitingButtonState();
   }
 
   // --- Private: Flag action ---
@@ -211,6 +252,11 @@ export class IssueReporter {
         this._lobbyFlagBtn.classList.remove('ir-expanded');
         this._lobbyFlagBtn.classList.add('ir-flagged');
         this._lobbyFlagBtn.innerHTML = '&#10003;';
+      }
+      if (this._waitingFlagBtn && this._waitingFlagBtn !== triggerBtn) {
+        this._waitingFlagBtn.classList.remove('ir-expanded');
+        this._waitingFlagBtn.classList.add('ir-flagged');
+        this._waitingFlagBtn.innerHTML = '&#10003;';
       }
 
       this._openModal();
