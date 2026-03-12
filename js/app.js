@@ -3228,7 +3228,7 @@ mp.onGameStart = async (payload) => {
   });
   issueReporter.hideLobbyButton();
   issueReporter.hideWaitingButton();
-  issueReporter.setGameContext(payload.dbGameId, mp.sessionId, !!payload.videoEnabled);
+  issueReporter.setGameContext(payload.dbGameId, mp.sessionId, !!payload.videoEnabled, payload.roomId);
   issueReporter.showButton();
 
   // Hide lobby panel and restore header; re-enable board tints for gameplay
@@ -3293,7 +3293,7 @@ mp.onGameStart = async (payload) => {
 // Room created — show waiting screen (lobby panel in waiting mode)
 mp.onRoomCreated = (payload) => {
   mpUI.showWaiting(payload.roomId);
-  issueReporter.setGameContext(null, mp.sessionId, false);
+  issueReporter.setGameContext(null, mp.sessionId, false, payload.roomId);
   issueReporter.showWaitingButton();
   diagnostics.setContext(null, payload.roomId);
   diagnostics.record('lifecycle', 'lobby_created', { roomId: payload.roomId });
@@ -3313,7 +3313,7 @@ mp.onLobbyJoined = async (payload) => {
   multiplayerActive = true;
   issueReporter.hideWaitingButton();
   mpUI.showLobby(payload);
-  issueReporter.setGameContext(null, mp.sessionId, false);
+  issueReporter.setGameContext(null, mp.sessionId, false, payload.roomId);
   issueReporter.showLobbyButton();
   diagnostics.setContext(null, payload.roomId);
   diagnostics.record('lifecycle', 'lobby_joined', { roomId: payload.roomId, color: payload.color });
@@ -3616,7 +3616,7 @@ mp.onRematchDeclined = () => {
 mp.onRematchStart = async (payload) => {
   diagnostics.setContext(payload.dbGameId, payload.roomId);
   diagnostics.record('lifecycle', 'rematch_start', { color: payload.color });
-  issueReporter.setGameContext(payload.dbGameId, mp.sessionId, videoActive);
+  issueReporter.setGameContext(payload.dbGameId, mp.sessionId, videoActive, payload.roomId);
   issueReporter.showButton();
   mpUI.hideGameControls();
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);

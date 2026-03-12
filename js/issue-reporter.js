@@ -21,6 +21,7 @@ export class IssueReporter {
   constructor() {
     this._gameId = null;
     this._sessionId = null;
+    this._roomCode = null;
     this._errorDetected = false;
     this._reportId = null;
     this._videoGame = false;
@@ -46,9 +47,10 @@ export class IssueReporter {
   // --- Public API ---
 
   /** Set context for the current game. */
-  setGameContext(gameId, sessionId, isVideoGame) {
+  setGameContext(gameId, sessionId, isVideoGame, roomCode = null) {
     this._gameId = gameId;
     this._sessionId = sessionId;
+    this._roomCode = roomCode;
     this._videoGame = !!isVideoGame;
     this._errorDetected = false;
     this._reportId = null;
@@ -229,6 +231,7 @@ export class IssueReporter {
         body: JSON.stringify({
           gameId: this._gameId,
           sessionId,
+          roomCode: this._roomCode,
           autoDetected: this._errorDetected,
           deviceInfo: this._detectDeviceInfo(),
         }),
