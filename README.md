@@ -45,6 +45,10 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Neo**](https://github.com/bh679/Chess/wiki/Feature:-Art-Styles) — bold modern style
 - [**Fish**](https://github.com/bh679/Chess/wiki/Feature:-Art-Styles) — fish/sea creature themed pieces
 
+### [Sound Effects](https://github.com/bh679/chess-client/wiki/Feature:-Sound-Effects)
+- [**Piano sound effects**](https://github.com/bh679/chess-client/wiki/Feature:-Sound-Effects) — distinct sounds for piece moves, captures, check, checkmate/draw, and game start (MIT-licensed Lichess piano audio)
+- [**Sound Effects toggle**](https://github.com/bh679/chess-client/wiki/Feature:-Sound-Effects) — enable/disable in the Display settings section (default on, persists across reloads)
+
 ### [Animations](https://github.com/bh679/Chess/wiki/Feature:-Combat-Animations)
 - [**Move animations**](https://github.com/bh679/Chess/wiki/Feature:-Move-Animations) — smooth piece movement with easing
 - [**Combat animations**](https://github.com/bh679/Chess/wiki/Feature:-Combat-Animations) — unique per-piece capture animations (pawn thrust, knight leap, bishop slash, rook crush, queen spin, king sword swing)
