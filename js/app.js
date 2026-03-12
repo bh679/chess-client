@@ -3805,6 +3805,12 @@ videoChat.onLocalStream = (stream) => {
   videoUI.setLocalStream(stream);
   if (mp.color) {
     videoBoard.updateLocalStream(stream, mp.color);
+    if (splitCam.isActive()) {
+      splitCam.updateLocalStream(stream, mp.color);
+    }
+    if (kingCam.isActive()) {
+      kingCam.updateLocalStream(stream, mp.color);
+    }
   }
 };
 videoChat.onRemoteStream = (stream) => {
