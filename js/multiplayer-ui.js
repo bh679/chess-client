@@ -10,6 +10,7 @@ export class MultiplayerUI {
   constructor(mp) {
     this.mp = mp; // MultiplayerClient instance
     this._onStartGame = null; // callback from app.js
+    this._onCamChange = null; // callback for cam mode changes
     this._currentView = 'menu'; // 'menu' | 'waiting' | 'searching' | 'lobby' | 'ingame'
     this._lobbyState = null;
     this._myReady = false;
@@ -23,6 +24,12 @@ export class MultiplayerUI {
   onStartGame(cb) {
     this._onStartGame = cb;
   }
+
+  /** Set callback for when cam mode changes in the lobby */
+  onCamChange(cb) { this._onCamChange = cb; }
+
+  /** Get current cam mode from lobby button */
+  getCamMode() { return this.inlineCamBtn?.dataset.mode ?? 'board-face'; }
 
   /** Open the multiplayer modal (main menu) */
   open() {
@@ -113,6 +120,11 @@ export class MultiplayerUI {
   showLobby(payload) {
     this._lobbyState = { ...payload };
     this._myReady = false;
+    // Reset cam button to default on each new lobby
+    if (this.inlineCamBtn) {
+      this.inlineCamBtn.dataset.mode = 'board-face';
+      this.inlineCamBtn.textContent = 'Board Face';
+    }
     this._renderLobbyPanel();
     // Show inline panel, hide modal
     this.lobbyPanel.classList.remove('hidden');
@@ -250,6 +262,7 @@ export class MultiplayerUI {
     this.inlineTcSelect = document.getElementById('lobby-tc-select');
     this.inline960Btn = document.getElementById('lobby-960-btn');
     this.inlineSwapBtn = document.getElementById('lobby-swap-btn');
+    this.inlineCamBtn = document.getElementById('lobby-cam-btn');
     this.inlineReadyBtn = document.getElementById('lobby-ready-btn');
     this.inlineReadyYou = document.getElementById('lobby-ready-you');
     this.inlineReadyOpp = document.getElementById('lobby-ready-opp');
@@ -434,6 +447,18 @@ export class MultiplayerUI {
     this.inlineSwapBtn.addEventListener('click', () => {
       this.mp.proposeSetting('colorSwap', true);
     });
+
+    // Inline lobby — cam mode cycle
+    if (this.inlineCamBtn) {
+      const CAM_MODES = ['board-face', 'king-cam', 'none'];
+      const CAM_LABELS = { 'board-face': 'Board Face', 'king-cam': 'King Cam', 'none': 'No Cam' };
+      this.inlineCamBtn.addEventListener('click', () => {
+        const next = CAM_MODES[(CAM_MODES.indexOf(this.inlineCamBtn.dataset.mode) + 1) % CAM_MODES.length];
+        this.inlineCamBtn.dataset.mode = next;
+        this.inlineCamBtn.textContent = CAM_LABELS[next];
+        if (this._onCamChange) this._onCamChange(next);
+      });
+    }
 
     // Inline lobby — ready
     this.inlineReadyBtn.addEventListener('click', () => {

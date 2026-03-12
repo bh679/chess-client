@@ -809,6 +809,19 @@ async function startNewGame() {
   router.silentUpdate('/');
 }
 
+/** Configure timer display for lobby preview without starting it */
+function configureLobbyTimer(timeControl) {
+  const tcMatch = timeControl ? timeControl.match(/^(\d+)\+(\d+)$/) : null;
+  const tcOddsMatch = timeControl ? timeControl.match(/^(\d+)\/(\d+)\+(\d+)$/) : null;
+  if (tcMatch) {
+    timer.configure(parseInt(tcMatch[1], 10) * 60, parseInt(tcMatch[2], 10));
+  } else if (tcOddsMatch) {
+    timer.configure(parseInt(tcOddsMatch[1], 10) * 60, parseInt(tcOddsMatch[3], 10), parseInt(tcOddsMatch[2], 10) * 60);
+  } else {
+    timer.configure(0, 0);
+  }
+}
+
 /** Start a multiplayer game (called by multiplayer event handlers) */
 function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
   multiplayerActive = true;
@@ -1317,12 +1330,6 @@ customTimeOk.addEventListener('click', () => {
     return;
   }
 
-  // If a friend game triggered this, update the friend TC select and reopen wizard
-  if (newGameMenu.hasPendingFriendCustomTime()) {
-    newGameMenu.resumeFriendWithCustomTc(wMin, bMin, increment);
-    return;
-  }
-
   // If the new game wizard triggered this, resume at settings step
   if (newGameMenu.hasPendingCustomTime()) {
     newGameMenu.resumeAtSettings(tcValue);
@@ -1338,11 +1345,6 @@ customTimeCancel.addEventListener('click', () => {
   // If a lobby custom TC is pending, cancel it
   if (mpUI && mpUI.hasPendingLobbyCustomTc()) {
     mpUI.resetLobbyCustomTc();
-    return;
-  }
-  // If a friend game triggered this, restore the wizard at the friend step
-  if (newGameMenu.hasPendingFriendCustomTime()) {
-    newGameMenu.resetFriendCustomTime();
     return;
   }
   timeControlSelect.value = '600|0'; // fallback to Rapid 10+0
@@ -3189,7 +3191,9 @@ updateEloSliderRange('b');
 mp.onGameStart = async (payload) => {
   lastMultiplayerGameRecord = null;
   diagnostics.setContext(payload.dbGameId, payload.roomId);
-  activeCamMode = payload.camMode ?? (payload.videoEnabled ? 'board-face' : 'none');
+  activeCamMode = (mpUI.inlineCamBtn ? mpUI.getCamMode() : null)
+    ?? payload.camMode
+    ?? (payload.videoEnabled ? 'board-face' : 'none');
   diagnostics.record('lifecycle', 'game_start', {
     color: payload.color,
     camMode: activeCamMode,
@@ -3240,6 +3244,11 @@ mp.onLobbyJoined = async (payload) => {
   appEl.classList.toggle('board-flipped', payload.color === 'b');
   board.render();
 
+  // Orient board to player's color and configure timer for lobby preview
+  board.setFlipped(payload.color === 'b');
+  appEl.classList.toggle('board-flipped', payload.color === 'b');
+  configureLobbyTimer(payload.settings?.timeControl);
+
   // Start camera for video-enabled rooms — request access and signal ready.
   // Board tints are suppressed by CSS (.board.lobby-active) until game starts.
   // onVideoStart handles videoBoard.enable() once both players are ready.
@@ -3258,6 +3267,21 @@ mp.onLobbyJoined = async (payload) => {
 // Setting changed (applied immediately, no approval needed)
 mp.onSettingChanged = (payload) => {
   mpUI.showSettingChanged(payload);
+
+  // Keep mp.color in sync (server sends current color in every setting_changed)
+  mp.color = payload.color;
+
+  // Flip board to match new color assignment and update timer display
+  board.setFlipped(payload.color === 'b');
+  appEl.classList.toggle('board-flipped', payload.color === 'b');
+  configureLobbyTimer(payload.settings?.timeControl);
+
+  // Reset board position when variant changes
+  if (payload.field === 'chess960') {
+    game.newGame(!!payload.settings?.chess960);
+    board.getArrowOverlay().clear();
+    board.render();
+  }
 };
 
 // Ready state update
@@ -3941,7 +3965,7 @@ newGameMenu.onOnline(async (tc, name, camMode, chess960) => {
   mpUI.backdrop.classList.remove('hidden');
 });
 
-newGameMenu.onFriend(async (action, tc, name, code, camMode, chess960) => {
+newGameMenu.onFriend(async (action, code) => {
   if (!mp.ws || mp.ws.readyState !== WebSocket.OPEN) {
     try {
       await mp.connect();
@@ -3951,22 +3975,44 @@ newGameMenu.onFriend(async (action, tc, name, code, camMode, chess960) => {
     }
   }
   if (action === 'create') {
-    mp.createRoom(tc, name, camMode, chess960);
+    // Defaults — lobby handles TC, variant, colors, cam
+    mp.createRoom('5+0', null, 'board-face', false);
     // mpUI will show waiting view via the room-created event
     mpUI.modal.classList.remove('hidden');
     mpUI.backdrop.classList.remove('hidden');
   } else if (action === 'join') {
     multiplayerActive = true;  // Prevent startNewGame() from overwriting
-    mp.joinRoom(code, name);
+    mp.joinRoom(code, null);
   }
 });
 
 newGameMenu.onCustomTime(() => {
-  if (newGameMenu.hasPendingFriendCustomTime()) {
-    customWhiteLabel.textContent = 'Your time (min):';
-    customBlackLabel.textContent = "Opponent's time (min):";
-  }
   customTimeModal.classList.remove('hidden');
+});
+
+// Lobby cam mode change — update activeCamMode and switch live video if already running
+mpUI.onCamChange((mode) => {
+  activeCamMode = mode;
+  if (!videoActive) return;
+  if (mode === 'king-cam') {
+    videoBoard.disable();
+    kingCam.enable(videoChat._localStream, mp.color, null);
+    if (videoChat._remoteStream) {
+      kingCam.updateRemoteStream(videoChat._remoteStream, mp.color === 'w' ? 'b' : 'w');
+    }
+    board.render();
+  } else if (mode === 'board-face') {
+    kingCam.disable();
+    board.render();
+    videoBoard.enable(videoChat._localStream, null, mp.color);
+    if (videoChat._remoteStream) {
+      videoBoard.updateRemoteStream(videoChat._remoteStream, mp.color);
+    }
+  } else {
+    kingCam.disable();
+    videoBoard.disable();
+    board.render();
+  }
 });
 
 // --- Route handlers ---
