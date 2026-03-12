@@ -219,7 +219,7 @@ export class MultiplayerUI {
     this.inline960Btn.textContent = s.settings?.chess960 ? 'Chess960' : 'Chess';
 
     // Color button — show current preference
-    const COLOR_LABELS = { w: 'White', random: '?', b: 'Black' };
+    const COLOR_LABELS = { w: 'White', random: 'Random Color', b: 'Black' };
     this.inlineColorBtn.textContent = COLOR_LABELS[this._myColorPreference];
 
     // Ready states
@@ -558,7 +558,7 @@ export class MultiplayerUI {
 
     // Inline lobby — color cycle button (random → White → Black → random…)
     const COLOR_CYCLE = ['random', 'w', 'b'];
-    const COLOR_LABELS = { w: 'White', random: '?', b: 'Black' };
+    const COLOR_LABELS = { w: 'White', random: 'Random Color', b: 'Black' };
     this.inlineColorBtn.addEventListener('click', () => {
       if (this._currentView !== 'lobby') return;
       const next = COLOR_CYCLE[(COLOR_CYCLE.indexOf(this._myColorPreference) + 1) % COLOR_CYCLE.length];
