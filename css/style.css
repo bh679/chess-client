@@ -422,37 +422,19 @@ body {
   object-fit: cover;
 }
 
-.split-cam-left-tint {
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 50%;
-  background-color: var(--board-light);
-  opacity: 0.55;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
-}
-
+/* Tint divs are hidden — board checker pattern provides the color overlay */
+.split-cam-left-tint,
 .split-cam-right-tint {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 50%;
-  background-color: var(--board-dark);
-  opacity: 0.55;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
+  display: none;
 }
 
-/* When split cam is active, make square backgrounds transparent */
+/* When split cam is active, show semi-transparent board checker pattern over camera */
 .board.split-cam-active .square.light {
-  background-color: transparent;
+  background-color: rgba(240, 217, 181, 0.55);
 }
 
 .board.split-cam-active .square.dark {
-  background-color: transparent;
+  background-color: rgba(181, 136, 99, 0.55);
 }
 
 .board.split-cam-active .square {
