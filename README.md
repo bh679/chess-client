@@ -103,6 +103,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Waiting room settings**](https://github.com/bh679/chess-client/wiki/Feature:-Waiting-Lobby-Settings) — when a host creates a Friend game, the inline lobby panel opens immediately below the board; TC and Variant (Chess960) are configurable while waiting for the opponent; settings persist when the opponent joins
 - [**Submit issue flag in lobby**](https://github.com/bh679/chess-client/wiki/Feature:-Lobby-Issue-Flag) — the ⚑ issue report button now appears in the waiting room (while waiting for opponent) and in the lobby panel (once both players connect), not just during active games
 - [**Split Cam mode**](https://github.com/bh679/chess-client/wiki/Feature:-Split-Cam) — new camera mode where the left half of the board shows white player's camera and the right half shows black player's camera; board color tints indicate whose turn it is
+- [**Connection & video diagnostics**](https://github.com/bh679/chess-client/wiki/Feature:-Connection-and-Video-Logging) — 12 new diagnostic events covering WebSocket reconnect attempts, heartbeat timeouts, room-lost errors, camera acquisition/denial, video call start/fail, and ICE reconnect lifecycle; critical failure events flush immediately for maximum delivery reliability
 
 ## Roadmap
 
