@@ -129,7 +129,8 @@ export class MultiplayerUI {
 
     // Set up the share URL
     const shareUrl = `${location.origin}${location.pathname}?room=${roomId}`;
-    this.waitingUrlDisplay.textContent = shareUrl;
+    this._shareUrl = shareUrl;
+    this.waitingUrlDisplay.textContent = roomId;
 
     // Show lobby panel in waiting mode
     this._renderLobbyPanelWaiting();
@@ -344,7 +345,6 @@ export class MultiplayerUI {
     this.waitingSection = document.getElementById('lobby-waiting-section');
     this.waitingUrlDisplay = document.getElementById('lobby-waiting-url');
     this.waitingCopyBtn = document.getElementById('lobby-waiting-copy');
-    this.waitingCancelBtn = document.getElementById('lobby-waiting-cancel');
     this.readyRow = document.getElementById('lobby-ready-row');
     this.colorItem = document.getElementById('lobby-color-item');
 
@@ -447,17 +447,10 @@ export class MultiplayerUI {
 
     // Waiting section — copy link
     this.waitingCopyBtn.addEventListener('click', () => {
-      const url = this.waitingUrlDisplay.textContent;
-      navigator.clipboard.writeText(url).then(() => {
+      navigator.clipboard.writeText(this._shareUrl || '').then(() => {
         this.waitingCopyBtn.textContent = 'Copied!';
         setTimeout(() => { this.waitingCopyBtn.textContent = 'Copy Link'; }, 2000);
       });
-    });
-
-    // Waiting section — cancel
-    this.waitingCancelBtn.addEventListener('click', () => {
-      this.hideLobbyPanel();
-      this.mp.disconnect();
     });
 
     // Resign
