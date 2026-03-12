@@ -97,6 +97,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Cropped video stream**](https://github.com/bh679/chess-client/wiki/Feature:-Cropped-Video-Stream) — face-tracked 480×480 canvas stream transmitted over WebRTC instead of raw camera; face tracking runs only on the local feed; both players see identical output regardless of board size
 - [**Video chat reliability**](https://github.com/bh679/chess-client/wiki/Feature:-Video-Chat) — Chrome-compatible face tracking (off-screen video instead of display:none), race condition fix for remote stream on joiners, face tracking fallback to raw camera, explicit play() for iOS Safari
 - [**Inline lobby panel**](https://github.com/bh679/chess-client/wiki/Feature:-Lobby-Redesign) — pre-game lobby shown inline below the board (not a modal); room code in header; pieces faded at 30% opacity; camera feed on board squares during lobby preview; ready button with dynamic labels
+- **Lobby flash on board touch** — tapping or clicking the board during the pre-game lobby flashes the lobby panel with a glowing border ring to draw attention to the Ready button
 
 ## Roadmap
 
