@@ -181,6 +181,11 @@ export class MultiplayerUI {
     this._currentView = 'lobby';
   }
 
+  /** Returns whether the local player is the room creator */
+  isCreator() {
+    return this._lobbyState?.isCreator ?? true;
+  }
+
   /** Hide the inline lobby panel — called when game starts */
   hideLobbyPanel() {
     this.lobbyPanel.classList.add('hidden');
@@ -215,7 +220,18 @@ export class MultiplayerUI {
       'none': 'No Timer'
     };
     const tc = s.settings?.timeControl || 'none';
-    this.inlineTcDisplay.textContent = TC_LABELS[tc] ?? tc;
+    // For odds TC, show player-relative display instead of raw string
+    const oddsMatch = tc.match(/^(\d+)\/(\d+)\+(\d+)$/);
+    if (oddsMatch) {
+      const creatorMin = oddsMatch[1];
+      const opponentMin = oddsMatch[2];
+      const increment = oddsMatch[3];
+      const myMin = s.isCreator ? creatorMin : opponentMin;
+      const theirMin = s.isCreator ? opponentMin : creatorMin;
+      this.inlineTcDisplay.textContent = `You: ${myMin}min / Opp: ${theirMin}min +${increment}s`;
+    } else {
+      this.inlineTcDisplay.textContent = TC_LABELS[tc] ?? tc;
+    }
     this.inlineTcDisplay.classList.remove('hidden');
     this.inlineTcSelect.classList.add('hidden');
 
@@ -548,8 +564,8 @@ export class MultiplayerUI {
       this.inlineTcSelect.classList.add('hidden');
       if (value === 'custom') {
         this._pendingLobbyCustomTc = true;
-        document.getElementById('custom-white-label').textContent = 'Your time (min):';
-        document.getElementById('custom-black-label').textContent = "Opponent's time (min):";
+        document.getElementById('custom-your-label').textContent = 'Your time (min):';
+        document.getElementById('custom-opponent-label').textContent = "Opponent's time (min):";
         document.getElementById('custom-time-modal').classList.remove('hidden');
         return;
       }

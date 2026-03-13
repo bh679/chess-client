@@ -35,6 +35,8 @@ export class NewGameMenu {
   onOnline(cb) { this._onOnline = cb; }
   onFriend(cb) { this._onFriend = cb; }
   onCustomTime(cb) { this._onCustomTime = cb; }
+  /** Returns the current game mode ('bot' | 'local' | 'online' | 'friend' | null) */
+  getMode() { return this._mode; }
   onRequestPublicRooms(cb) { this._onRequestPublicRooms = cb; }
 
   /** Update the public rooms list display */
