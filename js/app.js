@@ -3340,6 +3340,10 @@ mp.onRoomCreated = (payload) => {
   board.setFlipped(payload.color === 'b');
   appEl.classList.toggle('board-flipped', payload.color === 'b');
   board.render();
+  playerNameWhite.textContent = payload.color === 'w' ? 'You' : 'Opponent';
+  playerNameBlack.textContent = payload.color === 'b' ? 'You' : 'Opponent';
+  playerNameWhite.classList.toggle('multiplayer-opponent', payload.color !== 'w');
+  playerNameBlack.classList.toggle('multiplayer-opponent', payload.color !== 'b');
 };
 
 // Lobby joined — show pre-game settings inline below board
@@ -3373,6 +3377,10 @@ mp.onLobbyJoined = async (payload) => {
   board.setFlipped(payload.color === 'b');
   appEl.classList.toggle('board-flipped', payload.color === 'b');
   board.render();
+  playerNameWhite.textContent = payload.color === 'w' ? 'You' : payload.opponentName || 'Opponent';
+  playerNameBlack.textContent = payload.color === 'b' ? 'You' : payload.opponentName || 'Opponent';
+  playerNameWhite.classList.toggle('multiplayer-opponent', payload.color !== 'w');
+  playerNameBlack.classList.toggle('multiplayer-opponent', payload.color !== 'b');
 
   // Orient board to player's color and configure timer for lobby preview
   board.setFlipped(payload.color === 'b');
