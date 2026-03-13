@@ -3333,6 +3333,8 @@ mp.onRoomCreated = (payload) => {
   diagnostics.record('lifecycle', 'lobby_created', { roomId: payload.roomId });
   diagnostics.flush();
 
+  multiplayerActive = true;
+
   // Fade board and lock interaction while waiting for opponent (same as lobby)
   boardEl.classList.add('lobby-active');
   game.newGame(false);
