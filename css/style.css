@@ -714,8 +714,9 @@ body {
 .top-bar       { order: 2; }
 .board-row     { order: 3; }
 .bottom-bar    { order: 4; }
-#lobby-panel   { order: 5; }
-#live-move-bar { order: 6; }
+#lobby-panel            { order: 5; }
+#public-lobbies-panel   { order: 5; }
+#live-move-bar          { order: 6; }
 
 /* When board is flipped (playing as black): swap player bars so
    local player (black) is always at the bottom */
