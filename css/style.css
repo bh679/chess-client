@@ -714,8 +714,9 @@ body {
 .top-bar       { order: 2; }
 .board-row     { order: 3; }
 .bottom-bar    { order: 4; }
-#lobby-panel   { order: 5; }
-#live-move-bar { order: 6; }
+#lobby-panel            { order: 5; }
+#public-lobbies-panel   { order: 5; }
+#live-move-bar          { order: 6; }
 
 /* When board is flipped (playing as black): swap player bars so
    local player (black) is always at the bottom */
@@ -3805,6 +3806,71 @@ button.replay-summary-btn {
   font-weight: 700;
   letter-spacing: 0.15em;
   color: var(--text-primary);
+}
+
+/* ── Public lobbies panel (below board, visible when not in a game) ── */
+.public-lobbies-panel {
+  display: flex;
+  flex-direction: column;
+  max-width: min(90vw, 75vh, 800px);
+  width: 100%;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+}
+.public-lobbies-panel.hidden { display: none; }
+
+.public-lobbies-header {
+  padding: 8px 14px 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted, #888);
+}
+
+.public-lobbies-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.public-lobby-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 14px;
+  border-top: 1px solid var(--border);
+  gap: 10px;
+}
+.public-lobby-row:hover {
+  background: var(--bg-hover, rgba(255,255,255,0.04));
+}
+
+.public-lobby-info {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-lobby-join-btn {
+  flex-shrink: 0;
+  padding: 4px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.public-lobby-join-btn:hover {
+  background: var(--accent, #5b8dd9);
+  border-color: var(--accent, #5b8dd9);
+  color: #fff;
 }
 
 /* Suppress tints during pre-game lobby */
