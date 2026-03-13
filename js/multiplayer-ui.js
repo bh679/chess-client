@@ -286,7 +286,12 @@ export class MultiplayerUI {
   }
 
   /** Apply a custom TC from the custom-time-modal to the lobby */
-  applyCustomTc(wMin, bMin, increment) {
+  applyCustomTc(yourMin, opponentMin, increment) {
+    // yourMin/opponentMin are always from the stable "Your time" / "Opponent's time" inputs.
+    // Map to actual white/black based on the player's color.
+    const playerColor = this._lobbyState?.color ?? this.mp.color;
+    const wMin = playerColor === 'b' ? opponentMin : yourMin;
+    const bMin = playerColor === 'b' ? yourMin : opponentMin;
     const tcString = wMin === bMin
       ? `${wMin}+${increment}`
       : `${wMin}/${bMin}+${increment}`;
@@ -524,17 +529,8 @@ export class MultiplayerUI {
       this.inlineTcSelect.classList.add('hidden');
       if (value === 'custom') {
         this._pendingLobbyCustomTc = true;
-        // Update labels to "You" / "Opponent" based on player's color
-        const playerColor = this._lobbyState?.color ?? this.mp.color;
-        const whiteLabel = document.getElementById('custom-white-label');
-        const blackLabel = document.getElementById('custom-black-label');
-        if (playerColor === 'w') {
-          whiteLabel.textContent = 'Your time (min):';
-          blackLabel.textContent = "Opponent's time (min):";
-        } else if (playerColor === 'b') {
-          whiteLabel.textContent = "Opponent's time (min):";
-          blackLabel.textContent = 'Your time (min):';
-        }
+        document.getElementById('custom-white-label').textContent = 'Your time (min):';
+        document.getElementById('custom-black-label').textContent = "Opponent's time (min):";
         document.getElementById('custom-time-modal').classList.remove('hidden');
         return;
       }
