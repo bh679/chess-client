@@ -74,16 +74,16 @@ const timerBlackEl = document.getElementById('timer-black');
 const timeControlSelect = document.getElementById('time-control');
 const customTimeModal = document.getElementById('custom-time-modal');
 const customMinutesInput = document.getElementById('custom-minutes');
-const customWhiteMinutes = document.getElementById('custom-white-minutes');
-const customBlackMinutes = document.getElementById('custom-black-minutes');
+const customYourMinutes = document.getElementById('custom-your-minutes');
+const customOpponentMinutes = document.getElementById('custom-opponent-minutes');
 const customIncrementInput = document.getElementById('custom-increment');
 const customOddsToggle = document.getElementById('custom-odds-toggle');
 const sameTimeFields = document.getElementById('same-time-fields');
 const oddsTimeFields = document.getElementById('odds-time-fields');
 const customTimeOk = document.getElementById('custom-time-ok');
 const customTimeCancel = document.getElementById('custom-time-cancel');
-const customWhiteLabel = document.getElementById('custom-white-label');
-const customBlackLabel = document.getElementById('custom-black-label');
+const customYourLabel = document.getElementById('custom-your-label');
+const customOpponentLabel = document.getElementById('custom-opponent-label');
 const chess960Toggle = document.getElementById('chess960-toggle');
 const animationsToggle = document.getElementById('animations-toggle');
 const evalBarToggle = document.getElementById('eval-bar-toggle');
@@ -830,20 +830,26 @@ async function startNewGame() {
 }
 
 /** Configure timer display for lobby preview without starting it */
-function configureLobbyTimer(timeControl) {
+function configureLobbyTimer(timeControl, color, isCreator) {
   const tcMatch = timeControl ? timeControl.match(/^(\d+)\+(\d+)$/) : null;
   const tcOddsMatch = timeControl ? timeControl.match(/^(\d+)\/(\d+)\+(\d+)$/) : null;
   if (tcMatch) {
     timer.configure(parseInt(tcMatch[1], 10) * 60, parseInt(tcMatch[2], 10));
   } else if (tcOddsMatch) {
-    timer.configure(parseInt(tcOddsMatch[1], 10) * 60, parseInt(tcOddsMatch[3], 10), parseInt(tcOddsMatch[2], 10) * 60);
+    const creatorMin = parseInt(tcOddsMatch[1], 10);
+    const opponentMin = parseInt(tcOddsMatch[2], 10);
+    const increment = parseInt(tcOddsMatch[3], 10);
+    // Map creator/opponent to white/black based on which side this player is
+    const wMin = (isCreator && color === 'w') || (!isCreator && color === 'b') ? creatorMin : opponentMin;
+    const bMin = (isCreator && color === 'b') || (!isCreator && color === 'w') ? creatorMin : opponentMin;
+    timer.configure(wMin * 60, increment, bMin * 60);
   } else {
     timer.configure(0, 0);
   }
 }
 
 /** Start a multiplayer game (called by multiplayer event handlers) */
-function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
+function startMultiplayerGame(color, fen, timeControl, opponentName, chess960, isCreator) {
   multiplayerActive = true;
   multiplayerGameStartTime = Date.now();
   multiplayerMoveTimes = [];
@@ -882,6 +888,7 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
   board.setAI(ai);
 
   // Configure timer from multiplayer time control (format: "5+0" or odds "10/5+3")
+  // Odds format: first number = creator's time, second = opponent's time
   const tcMatch = timeControl ? timeControl.match(/^(\d+)\+(\d+)$/) : null;
   const tcOddsMatch = timeControl ? timeControl.match(/^(\d+)\/(\d+)\+(\d+)$/) : null;
   if (tcMatch) {
@@ -892,9 +899,12 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960) {
     board.setAnimationsEnabled(false);
     animationsToggle.checked = false;
   } else if (tcOddsMatch) {
-    const wMin = parseInt(tcOddsMatch[1], 10);
-    const bMin = parseInt(tcOddsMatch[2], 10);
+    const creatorMin = parseInt(tcOddsMatch[1], 10);
+    const opponentMin = parseInt(tcOddsMatch[2], 10);
     const increment = parseInt(tcOddsMatch[3], 10);
+    // Map creator/opponent to white/black based on which side we're playing
+    const wMin = (isCreator && color === 'w') || (!isCreator && color === 'b') ? creatorMin : opponentMin;
+    const bMin = (isCreator && color === 'b') || (!isCreator && color === 'w') ? creatorMin : opponentMin;
     timer.configure(wMin * 60, increment, bMin * 60);
     timer.setServerAuthoritative(true);
     board.setAnimationsEnabled(false);
@@ -1317,6 +1327,8 @@ gameHistoryBtn.addEventListener('click', () => {
 // Time control select
 timeControlSelect.addEventListener('change', () => {
   if (timeControlSelect.value === 'custom') {
+    customYourLabel.textContent = 'Your time (min):';
+    customOpponentLabel.textContent = "Opponent's time (min):";
     customTimeModal.classList.remove('hidden');
   } else {
     startNewGame();
@@ -1333,36 +1345,34 @@ customOddsToggle.addEventListener('change', () => {
 customTimeOk.addEventListener('click', () => {
   const odds = customOddsToggle.checked;
   const increment = parseInt(customIncrementInput.value, 10) || 0;
-  let wMin, bMin;
+  let yourMin, oppMin;
 
   if (odds) {
-    wMin = parseInt(customWhiteMinutes.value, 10) || 10;
-    bMin = parseInt(customBlackMinutes.value, 10) || 5;
+    yourMin = parseInt(customYourMinutes.value, 10) || 10;
+    oppMin = parseInt(customOpponentMinutes.value, 10) || 5;
   } else {
-    wMin = parseInt(customMinutesInput.value, 10) || 10;
-    bMin = wMin;
+    yourMin = parseInt(customMinutesInput.value, 10) || 10;
+    oppMin = yourMin;
   }
 
   // Add custom option and select it
   const existingCustom = timeControlSelect.querySelector('[data-custom]');
   if (existingCustom) existingCustom.remove();
   const opt = document.createElement('option');
-  const label = wMin === bMin
-    ? `Custom ${wMin}+${increment}`
-    : `Custom W${wMin} / B${bMin} +${increment}`;
-  const tcValue = `${wMin * 60}|${increment}|${bMin * 60}`;
+  const label = yourMin === oppMin
+    ? `Custom ${yourMin}+${increment}`
+    : `Custom ${yourMin}/${oppMin}+${increment}`;
+  const tcValue = `${yourMin * 60}|${increment}|${oppMin * 60}`;
   opt.value = tcValue;
   opt.textContent = label;
   opt.dataset.custom = 'true';
   opt.selected = true;
   timeControlSelect.insertBefore(opt, timeControlSelect.querySelector('[value="custom"]'));
   customTimeModal.classList.add('hidden');
-  customWhiteLabel.textContent = 'White minutes:';
-  customBlackLabel.textContent = 'Black minutes:';
 
   // If a lobby custom TC is pending, apply it to the lobby
   if (mpUI && mpUI.hasPendingLobbyCustomTc()) {
-    mpUI.applyCustomTc(wMin, bMin, increment);
+    mpUI.applyCustomTc(yourMin, oppMin, increment);
     return;
   }
 
@@ -1376,8 +1386,6 @@ customTimeOk.addEventListener('click', () => {
 
 customTimeCancel.addEventListener('click', () => {
   customTimeModal.classList.add('hidden');
-  customWhiteLabel.textContent = 'White minutes:';
-  customBlackLabel.textContent = 'Black minutes:';
   // If a lobby custom TC is pending, cancel it
   if (mpUI && mpUI.hasPendingLobbyCustomTc()) {
     mpUI.resetLobbyCustomTc();
@@ -1745,6 +1753,8 @@ function showTimerDropdown(timerEl) {
       e.stopPropagation();
       if (opt.value === 'custom') {
         closeAllPopups();
+        customYourLabel.textContent = 'Your time (min):';
+        customOpponentLabel.textContent = "Opponent's time (min):";
         customTimeModal.classList.remove('hidden');
         return;
       }
@@ -2203,12 +2213,21 @@ function scheduleReplayNext() {
 
 function parseReplayTimeControl(tc) {
   if (!tc || tc === 'none' || tc === 'No Timer') return null;
-  const oddsMatch = tc.match(/W(\d+)\s*\/\s*B(\d+)\s*\+(\d+)/);
+  // Odds format: "Custom 10/5+2" or raw "10/5+3" or legacy "Custom W10 / B5 +2"
+  const oddsMatch = tc.match(/(\d+)\/(\d+)\+(\d+)/);
   if (oddsMatch) {
     return {
       baseSec: parseInt(oddsMatch[1], 10) * 60,
-      blackBaseSec: parseInt(oddsMatch[2], 10) * 60,
+      secondPlayerBaseSec: parseInt(oddsMatch[2], 10) * 60,
       increment: parseInt(oddsMatch[3], 10),
+    };
+  }
+  const legacyOddsMatch = tc.match(/W(\d+)\s*\/\s*B(\d+)\s*\+(\d+)/);
+  if (legacyOddsMatch) {
+    return {
+      baseSec: parseInt(legacyOddsMatch[1], 10) * 60,
+      secondPlayerBaseSec: parseInt(legacyOddsMatch[2], 10) * 60,
+      increment: parseInt(legacyOddsMatch[3], 10),
     };
   }
   const match = tc.match(/(\d+)\+(\d+)/);
@@ -2225,7 +2244,7 @@ function reconstructClocks(gameRecord) {
   }
 
   let whiteTime = tc.baseSec;
-  let blackTime = tc.blackBaseSec || tc.baseSec;
+  let blackTime = tc.secondPlayerBaseSec || tc.baseSec;
   let prevTimestamp = gameRecord.startTime;
 
   for (const move of gameRecord.moves) {
@@ -2261,7 +2280,7 @@ function updateReplayTimers() {
     const tc = parseReplayTimeControl(replayGame.timeControl);
     if (tc) {
       timerWhiteEl.textContent = formatClockTime(tc.baseSec);
-      timerBlackEl.textContent = formatClockTime(tc.blackBaseSec || tc.baseSec);
+      timerBlackEl.textContent = formatClockTime(tc.secondPlayerBaseSec || tc.baseSec);
     } else {
       timerWhiteEl.textContent = '--:--';
       timerBlackEl.textContent = '--:--';
@@ -3292,7 +3311,7 @@ mp.onGameStart = async (payload) => {
     }
   }
 
-  startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
+  startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960, payload.isCreator);
 
   // If a camera mode is active, request camera (skip if already started in lobby)
   if (activeCamMode !== 'none' && !videoChat.hasLocalStream()) {
@@ -3358,7 +3377,7 @@ mp.onLobbyJoined = async (payload) => {
   // Orient board to player's color and configure timer for lobby preview
   board.setFlipped(payload.color === 'b');
   appEl.classList.toggle('board-flipped', payload.color === 'b');
-  configureLobbyTimer(payload.settings?.timeControl);
+  configureLobbyTimer(payload.settings?.timeControl, payload.color, payload.isCreator);
 
   // Start camera for video-enabled rooms — request access and signal ready.
   // Board tints are suppressed by CSS (.board.lobby-active) until game starts.
@@ -3385,7 +3404,7 @@ mp.onSettingChanged = (payload) => {
   // Flip board to match new color assignment and update timer display
   board.setFlipped(payload.color === 'b');
   appEl.classList.toggle('board-flipped', payload.color === 'b');
-  configureLobbyTimer(payload.settings?.timeControl);
+  configureLobbyTimer(payload.settings?.timeControl, payload.color, mpUI.isCreator());
 
   // Reset board position when variant changes
   if (payload.field === 'chess960') {
@@ -3645,7 +3664,7 @@ mp.onRematchStart = async (payload) => {
   issueReporter.setGameContext(payload.dbGameId, mp.sessionId, videoActive, payload.roomId);
   issueReporter.showButton();
   mpUI.hideGameControls();
-  startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960);
+  startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960, payload.isCreator);
 
   // Handle video board for the new game.
   // Colors swap on rematch so _playerColor must be updated, and streams must
@@ -3684,7 +3703,7 @@ mp.onReconnect = async (payload) => {
   // Use startingFen (null = standard) so the board starts at the correct initial position
   // before replaying moves. Using payload.fen (current state) would cause "Invalid move"
   // errors because moves would be applied on top of an already-advanced board.
-  startMultiplayerGame(payload.color, payload.startingFen || null, payload.timeControl, payload.opponentName, payload.chess960);
+  startMultiplayerGame(payload.color, payload.startingFen || null, payload.timeControl, payload.opponentName, payload.chess960, payload.isCreator);
 
   // Replay all moves to restore game state and populate the move strip
   if (payload.moves && payload.moves.length > 0) {
@@ -4304,6 +4323,14 @@ mp.onPublicRoomsList = (rooms) => {
 };
 
 newGameMenu.onCustomTime(() => {
+  // Set context-dependent labels based on game mode
+  if (newGameMenu.getMode() === 'local') {
+    customYourLabel.textContent = 'Player 1 time (min):';
+    customOpponentLabel.textContent = 'Player 2 time (min):';
+  } else {
+    customYourLabel.textContent = 'Your time (min):';
+    customOpponentLabel.textContent = "Opponent's time (min):";
+  }
   customTimeModal.classList.remove('hidden');
 });
 
