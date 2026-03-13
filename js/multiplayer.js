@@ -66,6 +66,10 @@ export class MultiplayerClient {
     this.onLobbyJoined = null;
     this.onSettingChanged = null;
     this.onReadyState = null;
+
+    // Public lobby callbacks
+    this.onPublicSet = null;
+    this.onPublicRoomsList = null;
   }
 
   /** Connect to the WebSocket server */
@@ -217,6 +221,12 @@ export class MultiplayerClient {
 
   /** Set ready state */
   setReady(ready) { this._send('player_ready', { ready }); }
+
+  /** Toggle public visibility for the current waiting room */
+  setPublic(isPublic) { this._send('set_public', { isPublic }); }
+
+  /** Request list of public rooms available to join */
+  requestPublicRooms() { this._send('list_public_rooms', {}); }
 
   /** Disconnect from the server */
   disconnect() {
@@ -429,6 +439,14 @@ export class MultiplayerClient {
 
       case 'ready_state':
         if (this.onReadyState) this.onReadyState(payload);
+        break;
+
+      case 'public_set':
+        if (this.onPublicSet) this.onPublicSet(payload);
+        break;
+
+      case 'public_rooms_list':
+        if (this.onPublicRoomsList) this.onPublicRoomsList(payload.rooms);
         break;
 
       case 'error':

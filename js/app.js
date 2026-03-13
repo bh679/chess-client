@@ -4248,6 +4248,21 @@ newGameMenu.onFriend(async (action, code) => {
   }
 });
 
+newGameMenu.onRequestPublicRooms(async () => {
+  if (!mp.ws || mp.ws.readyState !== WebSocket.OPEN) {
+    try {
+      await mp.connect();
+    } catch (e) {
+      return; // silently fail — no public rooms to show
+    }
+  }
+  mp.requestPublicRooms();
+});
+
+mp.onPublicRoomsList = (rooms) => {
+  newGameMenu.setPublicRooms(rooms);
+};
+
 newGameMenu.onCustomTime(() => {
   customTimeModal.classList.remove('hidden');
 });

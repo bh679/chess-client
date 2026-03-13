@@ -132,6 +132,11 @@ export class MultiplayerUI {
     this._shareUrl = shareUrl;
     this.waitingUrlDisplay.textContent = roomId;
 
+    // Reset public state
+    this._isPublic = false;
+    this.publicToggleBtn.classList.remove('active');
+    this.publicToggleBtn.title = 'Make lobby public';
+
     // Show lobby panel in waiting mode
     this._renderLobbyPanelWaiting();
     this.waitingSection.classList.remove('hidden');
@@ -351,6 +356,7 @@ export class MultiplayerUI {
     this.waitingSection = document.getElementById('lobby-waiting-section');
     this.waitingUrlDisplay = document.getElementById('lobby-waiting-url');
     this.waitingCopyBtn = document.getElementById('lobby-waiting-copy');
+    this.publicToggleBtn = document.getElementById('lobby-public-toggle');
     this.readyRow = document.getElementById('lobby-ready-row');
     this.colorItem = document.getElementById('lobby-color-item');
 
@@ -450,6 +456,22 @@ export class MultiplayerUI {
       this.mp.cancelQueue();
       this._showView('menu');
     });
+
+    // Public toggle button
+    this._isPublic = false;
+    this.publicToggleBtn.addEventListener('click', () => {
+      this._isPublic = !this._isPublic;
+      this.mp.setPublic(this._isPublic);
+      this.publicToggleBtn.classList.toggle('active', this._isPublic);
+      this.publicToggleBtn.title = this._isPublic ? 'Lobby is public' : 'Make lobby public';
+    });
+
+    // Listen for server confirmation
+    this.mp.onPublicSet = (payload) => {
+      this._isPublic = payload.isPublic;
+      this.publicToggleBtn.classList.toggle('active', this._isPublic);
+      this.publicToggleBtn.title = this._isPublic ? 'Lobby is public' : 'Make lobby public';
+    };
 
     // Waiting section — copy link
     this.waitingCopyBtn.addEventListener('click', () => {
