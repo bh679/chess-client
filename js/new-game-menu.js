@@ -35,6 +35,31 @@ export class NewGameMenu {
   onOnline(cb) { this._onOnline = cb; }
   onFriend(cb) { this._onFriend = cb; }
   onCustomTime(cb) { this._onCustomTime = cb; }
+  onRequestPublicRooms(cb) { this._onRequestPublicRooms = cb; }
+
+  /** Update the public rooms list display */
+  setPublicRooms(rooms) {
+    if (!this.publicList || !this.publicLobbiesSection) return;
+    this.publicList.innerHTML = '';
+    if (!rooms || rooms.length === 0) {
+      this.publicLobbiesSection.classList.add('hidden');
+      return;
+    }
+    this.publicLobbiesSection.classList.remove('hidden');
+    for (const room of rooms) {
+      const row = document.createElement('button');
+      row.className = 'ng-btn ng-btn-block ng-public-room';
+      const tc = room.timeControl || 'No Timer';
+      const variant = room.chess960 ? ' 960' : '';
+      const host = room.hostName || 'Anonymous';
+      row.textContent = `${host} — ${tc}${variant}`;
+      row.addEventListener('click', () => {
+        this.close();
+        if (this._onFriend) this._onFriend('join', room.roomId);
+      });
+      this.publicList.appendChild(row);
+    }
+  }
 
   open() {
     this._showStep('opponent');
@@ -110,6 +135,8 @@ export class NewGameMenu {
     this.createRoomBtn = document.getElementById('ng-create-room');
     this.joinCodeInput = document.getElementById('ng-join-code');
     this.joinRoomBtn = document.getElementById('ng-join-room');
+    this.publicLobbiesSection = document.getElementById('ng-public-lobbies');
+    this.publicList = document.getElementById('ng-public-list');
 
     // Time control elements
     this.tcCatBtns = this.stepTime.querySelectorAll('.ng-tc-cat');
@@ -361,6 +388,10 @@ export class NewGameMenu {
 
     if (step === 'settings') {
       this.botSettings.classList.toggle('hidden', this._mode !== 'bot');
+    }
+
+    if (step === 'friend' && this._onRequestPublicRooms) {
+      this._onRequestPublicRooms();
     }
 
     // Sync Chess960 button state from settings checkbox
