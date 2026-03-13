@@ -3578,6 +3578,7 @@ button.replay-summary-btn {
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   flex: 1;
   background: #2e7d32;
@@ -3618,7 +3619,7 @@ button.replay-summary-btn {
   letter-spacing: 0.08em;
 }
 .lobby-waiting-copy-label {
-  font-size: 0.9rem;
+  font-size: 0.72rem;
   color: #fff;
   text-transform: uppercase;
   letter-spacing: 0.05em;
