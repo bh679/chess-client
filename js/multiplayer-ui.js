@@ -287,14 +287,11 @@ export class MultiplayerUI {
 
   /** Apply a custom TC from the custom-time-modal to the lobby */
   applyCustomTc(yourMin, opponentMin, increment) {
-    // yourMin/opponentMin are always from the stable "Your time" / "Opponent's time" inputs.
-    // Map to actual white/black based on the player's color.
-    const playerColor = this._lobbyState?.color ?? this.mp.color;
-    const wMin = playerColor === 'b' ? opponentMin : yourMin;
-    const bMin = playerColor === 'b' ? yourMin : opponentMin;
-    const tcString = wMin === bMin
-      ? `${wMin}+${increment}`
-      : `${wMin}/${bMin}+${increment}`;
+    // yourMin/opponentMin are from the stable "Your time" / "Opponent's time" inputs.
+    // Sent as-is: color is not used here as it may not yet be defined.
+    const tcString = yourMin === opponentMin
+      ? `${yourMin}+${increment}`
+      : `${yourMin}/${opponentMin}+${increment}`;
     // Insert or update the custom option so the display reflects it
     let opt = this.inlineTcSelect.querySelector('option[value="__custom__"]');
     if (!opt) {
