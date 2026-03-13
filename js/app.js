@@ -4399,6 +4399,13 @@ mpUI.onCamChange((mode) => {
   applyCamMode(mode);
 });
 
+// Waiting room color preference — flip board to preview selected color
+mpUI.onColorPreferenceChange((pref) => {
+  const asBlack = pref === 'black';
+  board.setFlipped(asBlack);
+  appEl.classList.toggle('board-flipped', asBlack);
+});
+
 // --- Route handlers ---
 
 // Helper: fetch a game by server ID and enter replay mode

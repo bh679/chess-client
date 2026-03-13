@@ -16,6 +16,7 @@ export class MultiplayerUI {
     this.mp = mp; // MultiplayerClient instance
     this._onStartGame = null; // callback from app.js
     this._onCamChange = null; // callback for cam mode changes
+    this._onColorPreferenceChange = null; // callback for waiting-room color preview
     this._currentView = 'menu'; // 'menu' | 'waiting' | 'searching' | 'lobby' | 'ingame'
     this._lobbyState = null;
     this._myReady = false;
@@ -34,6 +35,9 @@ export class MultiplayerUI {
 
   /** Set callback for when cam mode changes in the lobby */
   onCamChange(cb) { this._onCamChange = cb; }
+
+  /** Set callback for when color preference changes in the waiting room (for board preview flip) */
+  onColorPreferenceChange(cb) { this._onColorPreferenceChange = cb; }
 
   /** Get current cam mode from lobby button */
   getCamMode() { return this.inlineCamBtn?.dataset.mode ?? 'board-face'; }
@@ -605,6 +609,7 @@ export class MultiplayerUI {
         this._waitingSettings.colorPreference = next;
         this.mp.proposeSetting('colorPreference', next);
         this._renderLobbyPanelWaiting();
+        this._onColorPreferenceChange?.(next);
         return;
       }
       if (this._currentView !== 'lobby') return;
