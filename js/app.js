@@ -3324,6 +3324,15 @@ mp.onRoomCreated = (payload) => {
 
 // Lobby joined — show pre-game settings inline below board
 mp.onLobbyJoined = async (payload) => {
+  // Guard: don't reset board if a game is actively in progress
+  if (mp.isActive() && moveCount > 0 && !game.isGameOver()) {
+    diagnostics.record('lifecycle', 'lobby_joined_rejected', {
+      reason: 'game_in_progress', moveCount, roomId: payload.roomId
+    });
+    console.warn('[MP] Ignoring lobby_joined — game in progress with', moveCount, 'moves');
+    return;
+  }
+
   multiplayerActive = true;
   issueReporter.hideWaitingButton();
   mpUI.showLobby(payload);

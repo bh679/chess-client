@@ -428,6 +428,9 @@ export class MultiplayerClient {
 
       // Lobby messages
       case 'lobby_joined':
+        if (this.active) {
+          console.warn('[MP] Received lobby_joined while game active — possible mid-game reset', { roomId: payload.roomId, currentRoom: this.roomId });
+        }
         this.roomId = payload.roomId;
         this.color = payload.color;
         if (this.onLobbyJoined) this.onLobbyJoined(payload);
