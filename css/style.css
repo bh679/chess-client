@@ -3576,9 +3576,9 @@ button.replay-summary-btn {
 }
 .lobby-waiting-copy-btn {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
   flex: 1;
   background: #2e7d32;
   border: 1px solid #43a047;
@@ -3618,7 +3618,7 @@ button.replay-summary-btn {
   letter-spacing: 0.08em;
 }
 .lobby-waiting-copy-label {
-  font-size: 0.72rem;
+  font-size: 0.9rem;
   color: #fff;
   text-transform: uppercase;
   letter-spacing: 0.05em;
