@@ -117,6 +117,9 @@ const gameHistoryBtn = document.getElementById('game-history-btn');
 const startGameBtn = document.getElementById('start-game-btn');
 const gameTypeLabel = document.getElementById('game-type-label');
 const appEl = document.querySelector('.app');
+const lobbyPanel         = document.getElementById('lobby-panel');
+const publicLobbiesPanel = document.getElementById('public-lobbies-panel');
+const publicLobbiesList  = document.getElementById('public-lobbies-list');
 
 // Confirmation modal DOM elements
 const confirmModal = document.getElementById('confirm-modal');
@@ -851,6 +854,7 @@ function configureLobbyTimer(timeControl, color, isCreator) {
 /** Start a multiplayer game (called by multiplayer event handlers) */
 function startMultiplayerGame(color, fen, timeControl, opponentName, chess960, isCreator) {
   multiplayerActive = true;
+  stopPublicLobbyPolling();
   multiplayerGameStartTime = Date.now();
   multiplayerMoveTimes = [];
 
@@ -3360,6 +3364,7 @@ mp.onLobbyJoined = async (payload) => {
   }
 
   multiplayerActive = true;
+  stopPublicLobbyPolling();
   issueReporter.hideWaitingButton();
   mpUI.showLobby(payload);
   issueReporter.setGameContext(null, mp.sessionId, false, payload.roomId);
@@ -3412,8 +3417,11 @@ mp.onSettingChanged = (payload) => {
   mp.color = payload.color;
 
   // Flip board to match new color assignment and update timer display
-  board.setFlipped(payload.color === 'b');
-  appEl.classList.toggle('board-flipped', payload.color === 'b');
+  // Skip board flip for colorPreference — handled live by onColorPreferenceChange callback
+  if (payload.field !== 'colorPreference') {
+    board.setFlipped(payload.color === 'b');
+    appEl.classList.toggle('board-flipped', payload.color === 'b');
+  }
   configureLobbyTimer(payload.settings?.timeControl, payload.color, mpUI.isCreator());
 
   // Reset board position when variant changes
@@ -3591,6 +3599,7 @@ mp.onGameEnd = (payload) => {
   fadeLiveMoveBar();
   sound.gameOver();
   multiplayerActive = false;
+  startPublicLobbyPolling();
   playerNameWhite.classList.remove('multiplayer-opponent');
   playerNameBlack.classList.remove('multiplayer-opponent');
   timer.stop();
@@ -3841,6 +3850,7 @@ mp.onConnectionLost = () => {
   diagnostics.flush();
   mpUI.setConnectionStatus('connection-lost');
   multiplayerActive = false;
+  startPublicLobbyPolling();
   issueReporter.recordError();
   updateStatus('Connection lost — game may have ended');
 };
@@ -4330,7 +4340,62 @@ newGameMenu.onRequestPublicRooms(async () => {
 
 mp.onPublicRoomsList = (rooms) => {
   newGameMenu.setPublicRooms(rooms);
+  renderPublicLobbies(rooms);
 };
+
+// ── Public lobbies below-board panel ─────────────────────────────────
+let _publicLobbyPollTimer = null;
+
+function renderPublicLobbies(rooms) {
+  // Hide if in a game, in pre-game lobby, or no rooms available
+  if (multiplayerActive || !lobbyPanel.classList.contains('hidden') || !rooms || rooms.length === 0) {
+    publicLobbiesPanel.classList.add('hidden');
+    return;
+  }
+  publicLobbiesPanel.classList.remove('hidden');
+  publicLobbiesList.innerHTML = '';
+  for (const room of rooms) {
+    const tc = room.timeControl === 'none' ? 'No timer' : room.timeControl;
+    const variant = room.chess960 ? ' · 960' : '';
+    const row = document.createElement('div');
+    row.className = 'public-lobby-row';
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'public-lobby-info';
+    nameSpan.textContent = `${room.hostName || 'Anonymous'} — ${tc}${variant}`;
+    const joinBtn = document.createElement('button');
+    joinBtn.className = 'public-lobby-join-btn';
+    joinBtn.textContent = 'Join';
+    joinBtn.addEventListener('click', () => {
+      stopPublicLobbyPolling();
+      multiplayerActive = true;
+      mp.joinRoom(room.roomId, null);
+    });
+    row.appendChild(nameSpan);
+    row.appendChild(joinBtn);
+    publicLobbiesList.appendChild(row);
+  }
+}
+
+async function fetchPublicLobbies() {
+  if (multiplayerActive) return;
+  if (!mp.ws || mp.ws.readyState !== WebSocket.OPEN) {
+    try { await mp.connect(); } catch { return; }
+  }
+  mp.requestPublicRooms();
+}
+
+function startPublicLobbyPolling() {
+  if (_publicLobbyPollTimer) return;
+  fetchPublicLobbies();
+  _publicLobbyPollTimer = setInterval(fetchPublicLobbies, 15_000);
+}
+
+function stopPublicLobbyPolling() {
+  clearInterval(_publicLobbyPollTimer);
+  _publicLobbyPollTimer = null;
+  publicLobbiesPanel.classList.add('hidden');
+}
+// ─────────────────────────────────────────────────────────────────────
 
 newGameMenu.onCustomTime(() => {
   // Set context-dependent labels based on game mode
@@ -4407,6 +4472,13 @@ mpUI.onCamChange((mode) => {
   activeCamMode = mode;
   mp.proposeSetting('camMode', mode);
   applyCamMode(mode);
+});
+
+// Waiting room color preference — flip board to preview selected color
+mpUI.onColorPreferenceChange((pref) => {
+  const asBlack = pref === 'black';
+  board.setFlipped(asBlack);
+  appEl.classList.toggle('board-flipped', asBlack);
 });
 
 // --- Route handlers ---
@@ -4491,4 +4563,6 @@ Promise.all([
   if (hasRoomCode) multiplayerActive = true;
   router.start();
   checkRoomCodeInUrl();
+  // Start polling for public lobbies (only runs while not in a game)
+  if (!multiplayerActive) startPublicLobbyPolling();
 });
