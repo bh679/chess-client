@@ -21,7 +21,7 @@ export class MultiplayerUI {
     this._myReady = false;
     this._pendingLobbyCustomTc = false;
     // Settings tracked while in waiting state (host-only, before opponent joins)
-    this._waitingSettings = { timeControl: '5+0', chess960: false };
+    this._waitingSettings = { timeControl: '5+0', chess960: false, colorPreference: 'random' };
 
     this._initElements();
     this._bindEvents();
@@ -124,6 +124,7 @@ export class MultiplayerUI {
     this._waitingSettings = {
       timeControl: initialTc || this.mpTimeControl?.value || '5+0',
       chess960: !!initialChess960,
+      colorPreference: 'random',
     };
     this._currentView = 'waiting';
 
@@ -141,7 +142,7 @@ export class MultiplayerUI {
     this._renderLobbyPanelWaiting();
     this.waitingSection.classList.remove('hidden');
     this.readyRow.classList.add('hidden');
-    this.colorItem.classList.add('hidden');
+    this.colorItem.classList.remove('hidden');
     this.lobbyPanel.classList.remove('hidden');
 
     // Close modal, show room code in header
@@ -204,8 +205,8 @@ export class MultiplayerUI {
     this.inlineTcDisplay.classList.remove('hidden');
     this.inlineTcSelect.classList.add('hidden');
     this.inline960Btn.textContent = this._waitingSettings.chess960 ? 'Chess960' : 'Standard';
-    // Color swap not applicable while waiting
-    this.inlineSwapBtn.textContent = 'Random';
+    const COLOR_LABELS = { white: 'I am White', black: 'I am Black', random: 'Random Color' };
+    this.inlineSwapBtn.textContent = COLOR_LABELS[this._waitingSettings.colorPreference] ?? 'Random Color';
   }
 
   /** Render inline lobby panel from current lobby state */
@@ -269,6 +270,9 @@ export class MultiplayerUI {
       }
       if (payload.settings?.chess960 !== undefined) {
         this._waitingSettings.chess960 = payload.settings.chess960;
+      }
+      if (payload.settings?.colorPreference !== undefined) {
+        this._waitingSettings.colorPreference = payload.settings.colorPreference;
       }
       this._renderLobbyPanelWaiting();
       return;
@@ -593,8 +597,16 @@ export class MultiplayerUI {
       this.mp.proposeSetting('chess960', !current);
     });
 
-    // Inline lobby — color swap (only in full lobby mode)
+    // Inline lobby — color swap / color preference
     this.inlineSwapBtn.addEventListener('click', () => {
+      if (this._currentView === 'waiting') {
+        const ORDER = ['random', 'white', 'black'];
+        const next = ORDER[(ORDER.indexOf(this._waitingSettings.colorPreference) + 1) % ORDER.length];
+        this._waitingSettings.colorPreference = next;
+        this.mp.proposeSetting('colorPreference', next);
+        this._renderLobbyPanelWaiting();
+        return;
+      }
       if (this._currentView !== 'lobby') return;
       this.mp.proposeSetting('colorSwap', true);
     });
