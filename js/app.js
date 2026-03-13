@@ -336,6 +336,7 @@ const splitCamH = new SplitCamH(boardEl);
 window.kingCam = kingCam;
 let videoActive = false;
 let activeCamMode = 'none'; // set by onGameStart, read by onVideoStart
+let _userStoppedCamera = false; // set before videoChat.stop() to tag track ended reason as "user"
 
 // Hide video buttons if browser doesn't support WebRTC
 if (!VideoChat.isSupported()) {
@@ -3911,8 +3912,36 @@ videoChat.onCameraError = (msg) => {
 };
 videoChat.onLocalStream = (stream) => {
   diagnostics.record('lifecycle', 'camera_acquired', {});
+
+  // Track the last time the page became hidden, so we can correlate it with track endings.
+  let lastHiddenAt = null;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) lastHiddenAt = Date.now();
+  });
+
   stream.getVideoTracks().forEach(track => {
-    track.onended = () => diagnostics.record('webrtc', 'local_track_ended', { kind: 'video' });
+    let pendingMuteReason = null;
+
+    track.onmute = () => {
+      diagnostics.record('webrtc', 'local_track_muted', { kind: 'video' });
+      pendingMuteReason = 'muted';
+    };
+
+    track.onended = () => {
+      let reason;
+      if (_userStoppedCamera) {
+        reason = 'user';
+        _userStoppedCamera = false;
+      } else if (pendingMuteReason) {
+        reason = pendingMuteReason;
+      } else if (lastHiddenAt !== null && (Date.now() - lastHiddenAt) < 2000) {
+        reason = 'visibility';
+      } else {
+        reason = 'ended';
+      }
+      pendingMuteReason = null;
+      diagnostics.record('webrtc', 'local_track_ended', { kind: 'video', reason });
+    };
   });
   videoUI.setLocalStream(stream);
   if (mp.color) {
@@ -4024,11 +4053,13 @@ videoUI.onPreviewConfirm = () => {
 
 videoUI.onPreviewCancel = () => {
   // User cancelled — stop camera, don't send video_ready
+  _userStoppedCamera = true;
   videoChat.stop();
 };
 
 videoUI.onEndCall = () => {
   mp.sendVideoEnd();
+  _userStoppedCamera = true;
   videoChat.stop();
   videoUI.hide();
   videoBoard.disable();
