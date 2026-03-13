@@ -70,10 +70,15 @@
     <div id="lobby-panel" class="lobby-panel hidden">
       <!-- Shown while waiting for opponent to join -->
       <div id="lobby-waiting-section" class="lobby-waiting-section hidden">
-        <button id="lobby-waiting-copy" class="lobby-waiting-copy-btn">
-          <span id="lobby-waiting-url" class="lobby-waiting-url"></span>
-          <span class="lobby-waiting-copy-label">Copy Link</span>
-        </button>
+        <div class="lobby-waiting-actions">
+          <button id="lobby-waiting-copy" class="lobby-waiting-copy-btn">
+            <span id="lobby-waiting-url" class="lobby-waiting-url"></span>
+            <span class="lobby-waiting-copy-label">Copy Link</span>
+          </button>
+          <button id="lobby-public-toggle" class="lobby-public-btn" title="Make lobby public">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </button>
+        </div>
         <p class="lobby-waiting-text">Waiting for opponent to join...</p>
       </div>
       <div class="lobby-settings-row">
@@ -387,6 +392,10 @@
         <div class="ng-join-row">
           <input type="text" id="ng-join-code" class="ng-input ng-code-input" placeholder="ROOM CODE" maxlength="6">
           <button id="ng-join-room" class="ng-btn">Join</button>
+        </div>
+        <div id="ng-public-lobbies" class="ng-public-lobbies hidden">
+          <div class="ng-divider"><span>or join a public game</span></div>
+          <div id="ng-public-list" class="ng-public-list"></div>
         </div>
       </div>
 

@@ -3568,12 +3568,17 @@ button.replay-summary-btn {
 }
 .lobby-waiting-section.hidden { display: none; }
 
+.lobby-waiting-actions {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
 .lobby-waiting-copy-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  width: 100%;
+  flex: 1;
   background: #2e7d32;
   border: 1px solid #43a047;
   border-radius: 8px;
@@ -3583,6 +3588,27 @@ button.replay-summary-btn {
 }
 .lobby-waiting-copy-btn:hover {
   background: #388e3c;
+}
+.lobby-public-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  background: var(--bg-tertiary, #333);
+  border: 1px solid var(--border, #555);
+  border-radius: 8px;
+  color: var(--text-secondary, #aaa);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.lobby-public-btn:hover {
+  background: var(--bg-hover, #444);
+  color: var(--text-primary, #fff);
+}
+.lobby-public-btn.active {
+  background: #1565c0;
+  border-color: #1976d2;
+  color: #fff;
 }
 .lobby-waiting-url {
   font-family: monospace;
@@ -4638,6 +4664,24 @@ button.replay-summary-btn {
   letter-spacing: 0.15em;
   font-weight: 600;
   text-align: center;
+}
+.ng-public-lobbies.hidden { display: none; }
+.ng-public-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.ng-public-room {
+  text-align: left;
+  font-size: 0.9rem;
+  background: var(--bg-tertiary, #333);
+  border: 1px solid var(--border, #555);
+}
+.ng-public-room:hover {
+  background: var(--bg-hover, #444);
+  border-color: var(--accent, #f0a500);
 }
 
 /* Step 2: Time control — collapsible categories */
