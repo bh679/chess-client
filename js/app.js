@@ -3402,8 +3402,11 @@ mp.onSettingChanged = (payload) => {
   mp.color = payload.color;
 
   // Flip board to match new color assignment and update timer display
-  board.setFlipped(payload.color === 'b');
-  appEl.classList.toggle('board-flipped', payload.color === 'b');
+  // Skip board flip for colorPreference — handled live by onColorPreferenceChange callback
+  if (payload.field !== 'colorPreference') {
+    board.setFlipped(payload.color === 'b');
+    appEl.classList.toggle('board-flipped', payload.color === 'b');
+  }
   configureLobbyTimer(payload.settings?.timeControl, payload.color, mpUI.isCreator());
 
   // Reset board position when variant changes
