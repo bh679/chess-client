@@ -347,15 +347,12 @@ export class MultiplayerUI {
 
   // --- Private ---
 
-  _showHeaderRoomCode(roomId) {
-    this.statusEl.classList.add('hidden');
-    this.headerRoomCodeDisplay.classList.remove('hidden');
-    this.headerRoomCodeValue.textContent = roomId || '------';
+  _showHeaderRoomCode(_roomId) {
+    // Room code display removed from header
   }
 
   _hideHeaderRoomCode() {
-    this.headerRoomCodeDisplay.classList.add('hidden');
-    this.statusEl.classList.remove('hidden');
+    // Room code display removed from header
   }
 
   _initElements() {
@@ -363,10 +360,7 @@ export class MultiplayerUI {
     this.modal = document.getElementById('mp-modal');
     this.backdrop = document.getElementById('mp-backdrop');
 
-    // Header room code display
     this.statusEl = document.getElementById('status');
-    this.headerRoomCodeDisplay = document.getElementById('lobby-room-code-display');
-    this.headerRoomCodeValue = document.getElementById('lobby-room-code-header');
 
     // Inline lobby panel
     this.lobbyPanel = document.getElementById('lobby-panel');

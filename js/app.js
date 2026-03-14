@@ -71,7 +71,6 @@ const playerEloWhite = document.getElementById('player-elo-white');
 const playerEloBlack = document.getElementById('player-elo-black');
 const gameHistoryBtn = document.getElementById('game-history-btn');
 const startGameBtn = document.getElementById('start-game-btn');
-const gameTypeLabel = document.getElementById('game-type-label');
 const appEl = document.querySelector('.app');
 const lobbyPanel         = document.getElementById('lobby-panel');
 const publicLobbiesPanel = document.getElementById('public-lobbies-panel');
@@ -133,7 +132,7 @@ const replayController = new ReplayController({
     replayStartBtn, replayPrevBtn, replayPlayBtn, replayNextBtn, replayEndBtn,
     replayResultEl, playerNameWhite, playerNameBlack,
     playerIconWhite, playerIconBlack, playerEloWhite, playerEloBlack,
-    capturedByWhiteEl, capturedByBlackEl, gameTypeLabel,
+    capturedByWhiteEl, capturedByBlackEl,
     startGameBtn, appEl, newGameBtn,
     replayAnalyzeToggleEl,
   },
@@ -470,7 +469,7 @@ gameCtrl.setCallbacks({
   getLiveEvalEngine: () => liveEvalEngine,
   getEngineInfo,
   dom: {
-    boardEl, appEl, newGameBtn, startGameBtn, gameTypeLabel,
+    boardEl, appEl, newGameBtn, startGameBtn,
     playerIconWhite, playerIconBlack, playerNameWhite, playerNameBlack,
     playerEloWhite, playerEloBlack, mainEvalBar,
   },
@@ -942,12 +941,6 @@ playerIconBlack.addEventListener('click', () => {
   startNewGame();
 });
 
-// Click game type label to toggle Chess960 ↔ Standard (only before first move)
-gameTypeLabel.addEventListener('click', () => {
-  if (replayController.isActive || gameCtrl.moveCount > 0) return;
-  settingsCtrl.setChess960(!settingsCtrl.isChess960());
-  startNewGame();
-});
 
 // Click timer for time control dropdown (only before first move)
 timerWhiteEl.addEventListener('click', (e) => {

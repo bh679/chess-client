@@ -189,9 +189,6 @@ export class GameController {
       this._board.setAnimationsEnabled(this._settingsController.isAnimationsEnabled());
     }
 
-    // Update game type label
-    dom.gameTypeLabel.textContent = chess960 ? 'Chess960' : 'Standard';
-
     // Show matchup info in status briefly
     const matchup = this._buildMatchupString(aiCfg, wIsAI, bIsAI);
     updateStatus(matchup, true);
@@ -295,9 +292,6 @@ export class GameController {
 
     // Configure timer from multiplayer time control
     this._configureMultiplayerTimer(timeControl, color, isCreator);
-
-    // Update game type label
-    dom.gameTypeLabel.textContent = 'Online';
 
     // Player names and icons
     dom.playerIconWhite.textContent = '\uD83C\uDF10';
