@@ -1156,6 +1156,7 @@ mp.onGameStart = async (payload) => {
 
 // Room created — show waiting screen (lobby panel in waiting mode)
 mp.onRoomCreated = (payload) => {
+  uiCtrl.stopPublicLobbyPolling();
   mpUI.showWaiting(payload.roomId);
   issueReporter.setGameContext(null, mp.sessionId, false, payload.roomId);
   issueReporter.showWaitingButton();

@@ -15,6 +15,7 @@ const LS_IDS_KEY = 'chess-game-ids';        // legacy — kept for isOwnGame loo
 const REQUIRED_SERVER_VERSION = '1.0.0';
 const SYNC_INTERVAL = 10_000;               // 10 seconds
 const EVICT_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
+const IDLE_THRESHOLD = 60_000;              // pause sync after 60s idle
 
 class GameDatabase {
   constructor() {
@@ -25,6 +26,8 @@ class GameDatabase {
     this._syncing = false;
     this._serverIds = new Set(); // numeric server IDs (for isOwnGame)
     this._auth = null;
+    this._lastActivity = Date.now();
+    this._activityBound = () => { this._lastActivity = Date.now(); };
   }
 
   /** Set the Auth instance to include JWT headers in API calls. */
@@ -64,6 +67,11 @@ class GameDatabase {
     } catch (e) {
       console.warn('Chess API not available:', e);
       this._available = false;
+    }
+
+    // Track user activity for idle-aware sync
+    for (const evt of ['mousedown', 'keydown', 'touchstart', 'scroll']) {
+      window.addEventListener(evt, this._activityBound, { passive: true });
     }
 
     // Start background sync
@@ -265,6 +273,8 @@ class GameDatabase {
 
   async _sync() {
     if (this._syncing || !this._available) return;
+    // Skip sync when user has been idle
+    if (Date.now() - this._lastActivity > IDLE_THRESHOLD) return;
     this._syncing = true;
 
     try {
