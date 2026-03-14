@@ -54,7 +54,9 @@ export class NewGameMenu {
       const tc = room.timeControl || 'No Timer';
       const variant = room.chess960 ? ' 960' : '';
       const host = room.hostName || 'Opponent';
-      row.textContent = `${host} — ${tc}${variant}`;
+      const CAM_LABELS = { 'king-cam': 'King Cam', 'board-face': 'Board Face', 'split-cam': 'Split Cam', 'split-cam-h': 'Split Cam H' };
+      const cam = room.camMode && room.camMode !== 'none' ? ` · ${CAM_LABELS[room.camMode] || room.camMode}` : '';
+      row.textContent = `${host} — ${tc}${variant}${cam}`;
       row.addEventListener('click', () => {
         this.close();
         if (this._onFriend) this._onFriend('join', room.roomId);

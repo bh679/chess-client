@@ -4357,11 +4357,13 @@ function renderPublicLobbies(rooms) {
   for (const room of rooms) {
     const tc = room.timeControl === 'none' ? 'No timer' : room.timeControl;
     const variant = room.chess960 ? ' · 960' : '';
+    const CAM_LABELS = { 'king-cam': 'King Cam', 'board-face': 'Board Face', 'split-cam': 'Split Cam', 'split-cam-h': 'Split Cam H' };
+    const cam = room.camMode && room.camMode !== 'none' ? ` · ${CAM_LABELS[room.camMode] || room.camMode}` : '';
     const row = document.createElement('div');
     row.className = 'public-lobby-row';
     const nameSpan = document.createElement('span');
     nameSpan.className = 'public-lobby-info';
-    nameSpan.textContent = `${room.hostName || 'Opponent'} — ${tc}${variant}`;
+    nameSpan.textContent = `${room.hostName || 'Opponent'} — ${tc}${variant}${cam}`;
     const joinBtn = document.createElement('button');
     joinBtn.className = 'public-lobby-join-btn';
     joinBtn.textContent = 'Join';
