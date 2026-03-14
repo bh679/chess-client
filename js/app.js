@@ -31,6 +31,7 @@ import { IssueReporter } from './issue-reporter.js';
 import { Sound } from './sound.js';
 import { LiveMoveBar } from './live-move-bar.js';
 import { SettingsController } from './settings-controller.js';
+import { GameController } from './game-controller.js';
 
 const sound = new Sound();
 
@@ -159,10 +160,10 @@ const replayController = new ReplayController({
     exitLiveReview: () => liveMoveBar.exit(),
     isLiveReview: () => liveMoveBar.isReviewing,
     showConfirmation: (msg, title) => showConfirmation(msg, title),
-    getCurrentDbGameId: () => currentDbGameId,
+    getCurrentDbGameId: () => gameCtrl.currentDbGameId,
     endCurrentGame: (id) => db.endGame(id, 'abandoned', 'abandoned'),
-    resetMoveCount: () => { moveCount = 0; },
-    getMoveCount: () => moveCount,
+    resetMoveCount: () => { gameCtrl.moveCount = 0; },
+    getMoveCount: () => gameCtrl.moveCount,
     isGameOver: () => game.isGameOver(),
     getLastMultiplayerGameRecord: () => lastMultiplayerGameRecord,
     stopAI: () => ai.stop(),
@@ -188,7 +189,7 @@ const settingsCtrl = new SettingsController({ auth, board, sound });
 // React to eval bar and board tint changes (requires app-level state)
 settingsCtrl.onSettingChanged = (name, value) => {
   if (name === 'evalBar') {
-    if (multiplayerActive) { settingsCtrl.setEvalBarEnabled(false); return; }
+    if (gameCtrl.multiplayerActive) { settingsCtrl.setEvalBarEnabled(false); return; }
     if (replayController.isActive) {
       if (value && analysisCtrl.data) { mainEvalBar.show(); analysisCtrl.updateEvalBar(replayController.getPly()); }
       else { mainEvalBar.hide(); }
@@ -322,16 +323,13 @@ if (!VideoChat.isSupported()) {
 // New Game Wizard
 const newGameMenu = new NewGameMenu();
 
-let moveCount = 0;
-let gameId = 0;
-let currentDbGameId = null;
 let customWhiteName = null;
 let customBlackName = null;
 
-// Replay state managed by ReplayController (instantiated after DOM elements)
-let multiplayerActive = false;
-let multiplayerGameStartTime = null;
-let multiplayerMoveTimes = [];
+// Game state is now owned by gameCtrl (GameController) — declared below.
+// These module-level aliases provide backward-compatible access for the
+// many existing call-sites in app.js event handlers and multiplayer logic.
+// They are initialised after gameCtrl is constructed (search: "gameCtrl").
 
 // Live move bar (persistent move strip + live review mode)
 const liveMoveBar = new LiveMoveBar({
@@ -343,7 +341,7 @@ const liveMoveBar = new LiveMoveBar({
   livePrevBtn: document.getElementById('live-prev-btn'),
   liveNextBtn: document.getElementById('live-next-btn'),
   liveEndBtn: document.getElementById('live-end-btn'),
-  getMoveCount: () => moveCount,
+  getMoveCount: () => gameCtrl.moveCount,
   getIsReplayMode: () => replayController.isActive,
 });
 
@@ -489,498 +487,76 @@ function updateStatus(msg, isGameInfo) {
   }
 }
 
-function getTimeConfig() {
-  const val = timeControlSelect.value;
-  if (val === '0' || val === 'custom') return null;
-  const parts = val.split('|').map(Number);
-  // Format: whiteSec|increment or whiteSec|increment|blackSec
-  return {
-    whiteSec: parts[0],
-    increment: parts[1],
-    blackSec: parts[2] !== undefined ? parts[2] : parts[0],
-  };
+// ─── GameController ─────────────────────────────────────────────
+const gameCtrl = new GameController({
+  game, board, timer, ai, sound, db, postGameSummary,
+  replayController, liveMoveBar, analysisController: analysisCtrl,
+  settingsController: settingsCtrl, mpUI, mp,
+});
+
+gameCtrl.setCallbacks({
+  updateStatus,
+  renderCaptured,
+  closeAllPopups: () => closeAllPopups(),
+  liveEval,
+  getTimeConfig: () => {
+    const val = timeControlSelect.value;
+    if (val === '0' || val === 'custom') return null;
+    const parts = val.split('|').map(Number);
+    return {
+      whiteSec: parts[0],
+      increment: parts[1],
+      blackSec: parts[2] !== undefined ? parts[2] : parts[0],
+    };
+  },
+  getTimeControlLabel: () => {
+    const val = timeControlSelect.value;
+    if (val === '0') return 'none';
+    const selectedOption = timeControlSelect.selectedOptions[0];
+    return selectedOption ? selectedOption.textContent : 'none';
+  },
+  getCustomWhiteName: () => customWhiteName,
+  getCustomBlackName: () => customBlackName,
+  startPublicLobbyPolling: () => startPublicLobbyPolling(),
+  stopPublicLobbyPolling: () => stopPublicLobbyPolling(),
+  routerSilentUpdate: (path) => router.silentUpdate(path),
+  issueReporter,
+  videoBoard,
+  splitCam,
+  splitCamH,
+  getLiveEvalEngine: () => liveEvalEngine,
+  getEngineInfo,
+  dom: {
+    boardEl, appEl, newGameBtn, startGameBtn, gameTypeLabel,
+    playerIconWhite, playerIconBlack, playerNameWhite, playerNameBlack,
+    playerEloWhite, playerEloBlack, mainEvalBar,
+  },
+});
+
+// Thin delegation functions for backward-compat with existing call sites
+function getTimeConfig() { return gameCtrl._callbacks.getTimeConfig(); }
+function triggerAIMove() { gameCtrl.triggerAIMove(); }
+function getGameResult() { return gameCtrl.getGameResult(); }
+function buildCurrentGameRecord() { return gameCtrl.buildCurrentGameRecord(); }
+function buildMultiplayerGameRecord(result, reason) { return gameCtrl.buildMultiplayerGameRecord(result, reason); }
+function triggerPostGameSummary() { gameCtrl.triggerPostGameSummary(); }
+function configureLobbyTimer(tc, color, isCreator) { gameCtrl.configureLobbyTimer(tc, color, isCreator); }
+async function startNewGame() { return gameCtrl.startNewGame(); }
+function startMultiplayerGame(color, fen, tc, oppName, chess960, isCreator) {
+  gameCtrl.startMultiplayerGame(color, fen, tc, oppName, chess960, isCreator);
 }
 
-// --- AI Move Trigger ---
+// Expose gameCtrl state aliases for existing references in app.js
+// (these are accessed by multiplayer handlers, board.onMove, etc.)
 
-function triggerAIMove() {
-  if (!ai.isEnabled()) return;
-  if (liveMoveBar.isReviewing) return;
-  if (game.isGameOver()) return;
-  const turn = game.getTurn();
-  if (!ai.isAITurn(turn)) return;
-  if (ai.isThinking()) return;
-
-  const currentGameId = gameId;
-  const elo = ai.getElo(turn);
-  const sideLabel = turn === 'w' ? 'White' : 'Black';
-
-  // Dynamic delay: shorter when clock is ticking to reduce overhead
-  let aiDelay = 400;
-  if (timer.isEnabled()) {
-    const minTime = Math.min(timer.getTime('w'), timer.getTime('b'));
-    if (minTime <= 60000) aiDelay = 50;
-    else if (minTime <= 300000) aiDelay = 150;
-  }
-
-  setTimeout(async () => {
-    // Check again after delay in case game state changed
-    if (currentGameId !== gameId) return;
-    if (game.isGameOver()) return;
-
-    updateStatus(`${sideLabel} AI is thinking...`);
-
-    try {
-      const fen = game.chess.fen();
-      const wtime = timer.isEnabled() ? timer.getTime('w') : 0;
-      const btime = timer.isEnabled() ? timer.getTime('b') : 0;
-      const inc = timer.isEnabled() ? timer.getIncrement() : 0;
-      const move = await ai.requestMove(fen, elo, wtime, btime, inc);
-
-      // Discard if game changed during thinking
-      if (currentGameId !== gameId) return;
-      if (!move || game.isGameOver()) return;
-
-      board.executeAIMove(move.from, move.to, move.promotion);
-    } catch (e) {
-      // Move was cancelled (e.g., new game started)
-      if (e !== 'stopped') {
-        console.error('AI move error:', e);
-      }
-    }
-  }, aiDelay);
-}
-
-// --- Game Database Helpers ---
-
-function getGameResult() {
-  if (game.chess.isCheckmate()) {
-    const result = game.getTurn() === 'w' ? '0-1' : '1-0';
-    return { result, reason: 'checkmate' };
-  }
-  if (game.chess.isStalemate()) {
-    return { result: '1/2-1/2', reason: 'stalemate' };
-  }
-  if (game.chess.isInsufficientMaterial()) {
-    return { result: '1/2-1/2', reason: 'insufficient' };
-  }
-  if (game.chess.isThreefoldRepetition()) {
-    return { result: '1/2-1/2', reason: 'threefold' };
-  }
-  // 50-move rule or other draw
-  return { result: '1/2-1/2', reason: 'draw' };
-}
-
-function getTimeControlLabel() {
-  const val = timeControlSelect.value;
-  if (val === '0') return 'none';
-  const selectedOption = timeControlSelect.selectedOptions[0];
-  return selectedOption ? selectedOption.textContent : 'none';
-}
-
-/**
- * Build a game record from the current live game state.
- * Converts local database format to the replay-compatible format.
- */
-function buildCurrentGameRecord() {
-  const g = db.getLocalGame(currentDbGameId);
-  if (!g) return null;
-  return {
-    startingFen: g.metadata.startingFen,
-    moves: g.moves,
-    white: g.metadata.white,
-    black: g.metadata.black,
-    result: g.result,
-    resultReason: g.resultReason,
-    timeControl: g.metadata.timeControl,
-    gameType: g.metadata.gameType,
-    startTime: g.createdAt,
-    serverId: g.serverId,
-  };
-}
-
-/**
- * Trigger the post-game summary after a game ends.
- */
-function triggerPostGameSummary() {
-  const record = buildCurrentGameRecord();
-  if (!record || !record.moves || record.moves.length === 0) return;
-
-  postGameSummary.setCallbacks({
-    onReview: (rec) => replayController.enter(rec),
-    onNewGame: () => startNewGame(),
-    onClose: () => {},
-  });
-
-  postGameSummary.addActionButton(issueReporter.createPostGameFlagButton());
-
-  postGameSummary.showWithAnalysis(
-    record,
-    analysisCtrl.getPostGameEngine(),
-    record.serverId || null,
-    {
-      onReview: (rec) => replayController.enter(rec),
-      onNewGame: () => startNewGame(),
-      onClose: () => {},
-    }
-  );
-}
-
-/**
- * Build a game record from the current multiplayer game state.
- * Used for post-game summary from in-memory game state.
- */
-function buildMultiplayerGameRecord(result, reason) {
-  const verboseHistory = game.chess.history({ verbose: true });
-  if (!verboseHistory || verboseHistory.length === 0) return null;
-
-  const startingFen = verboseHistory[0].before;
-  const replay = new Chess(startingFen);
-  const moves = [];
-
-  for (let i = 0; i < verboseHistory.length; i++) {
-    const moveObj = verboseHistory[i];
-    const side = i % 2 === 0 ? 'w' : 'b';
-    try {
-      replay.move({ from: moveObj.from, to: moveObj.to, promotion: moveObj.promotion });
-    } catch (e) {
-      console.warn(`buildMultiplayerGameRecord: failed to replay move ${moveObj.san} at ply ${i}:`, e.message);
-      break;
-    }
-    moves.push({
-      san: moveObj.san,
-      fen: replay.fen(),
-      ply: i,
-      side,
-      timestamp: multiplayerMoveTimes[i] || null,
-    });
-  }
-
-  return {
-    startingFen,
-    moves,
-    result: result || 'unknown',
-    resultReason: reason || 'unknown',
-    white: { name: mp.color === 'w' ? 'You' : 'Opponent', isAI: false },
-    black: { name: mp.color === 'b' ? 'You' : 'Opponent', isAI: false },
-    timeControl: 'Online',
-    gameType: 'online',
-    startTime: multiplayerGameStartTime,
-  };
-}
-
-// --- Game Flow ---
-
-async function startNewGame() {
-  // Don't override an active multiplayer game
-  if (multiplayerActive) return;
-
-  // Clear any pre-game lobby state (e.g. user cancels waiting room via New Game)
-  boardEl.classList.remove('lobby-active');
-  mpUI.hideLobbyPanel();
-
-  // Close post-game summary if open
-  if (postGameSummary.isOpen()) {
-    postGameSummary.close();
-  }
-  // Reset issue reporter for new game
-  issueReporter.reset();
-  // Stop post-game analysis engine if running
-  analysisCtrl.stopPostGameEngine();
-
-
-  // Exit live review or replay mode if active
-  if (liveMoveBar.isReviewing) liveMoveBar.exit();
-  if (replayController.isActive) {
-    replayController.exit(false);
-  }
-
-  // End the current game as abandoned if moves were made and game isn't over
-  if (currentDbGameId && moveCount > 0 && !game.isGameOver()) {
-    db.endGame(currentDbGameId, 'abandoned', 'abandoned');
-  }
-
-  gameId++;
-  ai.stop();
-  board.clearPremove();
-  board.setFlipped(false);
-  appEl.classList.remove('board-flipped');
-  newGameBtn.classList.remove('game-ended');
-  liveMoveBar.reset();
-
-  const chess960 = settingsCtrl.isChess960();
-  game.newGame(chess960);
-  board.getArrowOverlay().clear();
-  board.render();
-  moveCount = 0;
-  sound.start();
-
-  const aiCfg = settingsCtrl.getAIConfig();
-  const wIsAI = aiCfg.whiteEnabled;
-  const bIsAI = aiCfg.blackEnabled;
-
-  // Show loading status while engines initialise
-  if (wIsAI || bIsAI) {
-    updateStatus('Loading engine...', true);
-  }
-
-  // Configure AI (per-side) — async: loads engine WASM on first use
-  await ai.configure(aiCfg);
-  board.setAI(ai);
-  ai.newGame();
-
-  const config = getTimeConfig();
-  if (config) {
-    timer.configure(config.whiteSec, config.increment, config.blackSec);
-    // Auto-disable animations for timed games to reduce per-move overhead
-    settingsCtrl.setAnimationsEnabled(false);
-  } else {
-    timer.configure(0, 0);
-    // Restore user's animation preference for untimed games
-    board.setAnimationsEnabled(settingsCtrl.isAnimationsEnabled());
-  }
-
-  // Update game type label
-  gameTypeLabel.textContent = chess960 ? 'Chess960' : 'Standard';
-
-  // Show matchup info in status briefly
-  let matchup;
-  if (wIsAI && bIsAI) {
-    const wElo = aiCfg.whiteElo;
-    const bElo = aiCfg.blackElo;
-    const wEng = ai.getEngineName('w');
-    const bEng = ai.getEngineName('b');
-    matchup = `${wEng} (${wElo}) vs ${bEng} (${bElo})`;
-  } else if (wIsAI) {
-    matchup = `${ai.getEngineName('w')} (${aiCfg.whiteElo}) vs Human`;
-  } else if (bIsAI) {
-    matchup = `Human vs ${ai.getEngineName('b')} (${aiCfg.blackElo})`;
-  } else {
-    matchup = 'Human vs Human';
-  }
-  updateStatus(matchup, true);
-
-  // Update player type icons and info — use engine-specific icons
-  const wInfo = getEngineInfo(aiCfg.whiteEngineId);
-  const bInfo = getEngineInfo(aiCfg.blackEngineId);
-  playerIconWhite.textContent = wIsAI ? (wInfo?.icon || '\uD83E\uDD16') : '\uD83D\uDC64';
-  playerIconBlack.textContent = bIsAI ? (bInfo?.icon || '\uD83E\uDD16') : '\uD83D\uDC64';
-  const wEloVal = aiCfg.whiteElo;
-  const bEloVal = aiCfg.blackElo;
-  const wName = wIsAI ? ai.getEngineName('w') : (customWhiteName || 'Human');
-  const bName = bIsAI ? ai.getEngineName('b') : (customBlackName || 'Human');
-  playerNameWhite.textContent = wName;
-  playerNameBlack.textContent = bName;
-  playerEloWhite.textContent = wIsAI ? wEloVal : '';
-  playerEloBlack.textContent = bIsAI ? bEloVal : '';
-  playerEloWhite.classList.toggle('hidden', !wIsAI);
-  playerEloBlack.classList.toggle('hidden', !bIsAI);
-
-  // Enable pre-game interactive controls
-  appEl.classList.add('pre-game');
-  closeAllPopups();
-
-  renderCaptured();
-
-  // Save game to local-first database (always succeeds, syncs to server in background)
-  currentDbGameId = db.createGame({
-    gameType: chess960 ? 'chess960' : 'standard',
-    timeControl: getTimeControlLabel(),
-    startingFen: game.chess.fen(),
-    white: {
-      name: wIsAI ? `${ai.getEngineName('w')} ${wEloVal}` : wName,
-      isAI: wIsAI,
-      elo: wIsAI ? wEloVal : null,
-      engineId: wIsAI ? aiCfg.whiteEngineId : null,
-    },
-    black: {
-      name: bIsAI ? `${ai.getEngineName('b')} ${bEloVal}` : bName,
-      isAI: bIsAI,
-      elo: bIsAI ? bEloVal : null,
-      engineId: bIsAI ? aiCfg.blackEngineId : null,
-    },
-  });
-
-  // Show eval bar if the toggle is enabled, and run initial evaluation
-  if (settingsCtrl.isEvalBarEnabled()) {
-    mainEvalBar.show();
-    mainEvalBar.reset();
-    liveEval();
-  } else {
-    mainEvalBar.hide();
-    mainEvalBar.reset();
-  }
-
-  // If AI plays White, show start button instead of auto-starting
-  if (ai.isEnabled() && ai.isAITurn('w')) {
-    startGameBtn.classList.remove('hidden');
-  } else {
-    startGameBtn.classList.add('hidden');
-  }
-
-  // Update URL to home
-  router.silentUpdate('/');
-
-  // Resume public lobby polling (may have been stopped during multiplayer transition)
-  startPublicLobbyPolling();
-}
-
-/** Configure timer display for lobby preview without starting it */
-function configureLobbyTimer(timeControl, color, isCreator) {
-  const tcMatch = timeControl ? timeControl.match(/^(\d+)\+(\d+)$/) : null;
-  const tcOddsMatch = timeControl ? timeControl.match(/^(\d+)\/(\d+)\+(\d+)$/) : null;
-  if (tcMatch) {
-    timer.configure(parseInt(tcMatch[1], 10) * 60, parseInt(tcMatch[2], 10));
-  } else if (tcOddsMatch) {
-    const creatorMin = parseInt(tcOddsMatch[1], 10);
-    const opponentMin = parseInt(tcOddsMatch[2], 10);
-    const increment = parseInt(tcOddsMatch[3], 10);
-    // Map creator/opponent to white/black based on which side this player is
-    const wMin = (isCreator && color === 'w') || (!isCreator && color === 'b') ? creatorMin : opponentMin;
-    const bMin = (isCreator && color === 'b') || (!isCreator && color === 'w') ? creatorMin : opponentMin;
-    timer.configure(wMin * 60, increment, bMin * 60);
-  } else {
-    timer.configure(0, 0);
-  }
-}
-
-/** Start a multiplayer game (called by multiplayer event handlers) */
-function startMultiplayerGame(color, fen, timeControl, opponentName, chess960, isCreator) {
-  multiplayerActive = true;
-  stopPublicLobbyPolling();
-  multiplayerGameStartTime = Date.now();
-  multiplayerMoveTimes = [];
-
-  // Close any open panels/overlays
-  if (postGameSummary.isOpen()) postGameSummary.close();
-  if (liveMoveBar.isReviewing) liveMoveBar.exit();
-  if (replayController.isActive) replayController.exit(false);
-
-  // End current local game if in progress
-  if (currentDbGameId && moveCount > 0 && !game.isGameOver()) {
-    db.endGame(currentDbGameId, 'abandoned', 'abandoned');
-  }
-
-  gameId++;
-  ai.stop();
-  board.clearPremove();
-  newGameBtn.classList.remove('game-ended');
-  startGameBtn.classList.add('hidden');
-
-  // Set up the game with the server-provided FEN
-  // For chess960, the server already generates the randomized FEN — don't regenerate on client
-  game.newGame(!!chess960, fen);
-  board.getArrowOverlay().clear();
-  sound.start();
-
-  // Flip board if playing black, and reposition player bars accordingly
-  board.setFlipped(color === 'b');
-  appEl.classList.toggle('board-flipped', color === 'b');
-  board.render();
-  moveCount = 0;
-  liveMoveBar.reset();
-
-  // Disable AI
-  ai.configure({ whiteEnabled: false, blackEnabled: false });
-  board.setAI(ai);
-
-  // Configure timer from multiplayer time control (format: "5+0" or odds "10/5+3")
-  // Odds format: first number = creator's time, second = opponent's time
-  const tcMatch = timeControl ? timeControl.match(/^(\d+)\+(\d+)$/) : null;
-  const tcOddsMatch = timeControl ? timeControl.match(/^(\d+)\/(\d+)\+(\d+)$/) : null;
-  if (tcMatch) {
-    const minutes = parseInt(tcMatch[1], 10);
-    const increment = parseInt(tcMatch[2], 10);
-    timer.configure(minutes * 60, increment);
-    timer.setServerAuthoritative(true);
-    settingsCtrl.setAnimationsEnabled(false);
-  } else if (tcOddsMatch) {
-    const creatorMin = parseInt(tcOddsMatch[1], 10);
-    const opponentMin = parseInt(tcOddsMatch[2], 10);
-    const increment = parseInt(tcOddsMatch[3], 10);
-    // Map creator/opponent to white/black based on which side we're playing
-    const wMin = (isCreator && color === 'w') || (!isCreator && color === 'b') ? creatorMin : opponentMin;
-    const bMin = (isCreator && color === 'b') || (!isCreator && color === 'w') ? creatorMin : opponentMin;
-    timer.configure(wMin * 60, increment, bMin * 60);
-    timer.setServerAuthoritative(true);
-    settingsCtrl.setAnimationsEnabled(false);
-  } else {
-    timer.configure(0, 0);
-    timer.setServerAuthoritative(false);
-  }
-
-  // Update game type label
-  gameTypeLabel.textContent = 'Online';
-
-  // Player names and icons
-  const myName = color === 'w' ? 'You' : opponentName || 'Opponent';
-  const oppName = color === 'w' ? opponentName || 'Opponent' : 'You';
-  playerIconWhite.textContent = '\uD83C\uDF10';
-  playerIconBlack.textContent = '\uD83C\uDF10';
-  playerNameWhite.textContent = color === 'w' ? 'You' : opponentName || 'Opponent';
-  playerNameBlack.textContent = color === 'b' ? 'You' : opponentName || 'Opponent';
-  // Mark opponent name as non-editable
-  playerNameWhite.classList.toggle('multiplayer-opponent', color !== 'w');
-  playerNameBlack.classList.toggle('multiplayer-opponent', color !== 'b');
-  playerEloWhite.classList.add('hidden');
-  playerEloBlack.classList.add('hidden');
-
-  // Enable pre-game state
-  appEl.classList.add('pre-game');
-  closeAllPopups();
-  renderCaptured();
-
-  // DB persistence — save multiplayer games locally for replay/history
-  currentDbGameId = db.createGame({
-    gameType: chess960 ? 'chess960' : 'standard',
-    timeControl: timeControl || 'Online',
-    startingFen: game.chess.fen(),
-    white: {
-      name: color === 'w' ? 'You' : (opponentName || 'Opponent'),
-      isAI: false,
-    },
-    black: {
-      name: color === 'b' ? 'You' : (opponentName || 'Opponent'),
-      isAI: false,
-    },
-  });
-
-  // Disable eval bar during multiplayer (no engine assistance in online play)
-  settingsCtrl.setEvalBarEnabled(false);
-  mainEvalBar.hide();
-  mainEvalBar.reset();
-  if (liveEvalEngine) liveEvalEngine.stop();
-
-  // Set board interactivity based on whose turn it is
-  const isMyTurn = mp.isMyTurn(game.getTurn());
-  board.setInteractive(isMyTurn);
-
-  // Update video feed tint for turn indication
-  if (videoBoard.isActive()) {
-    videoBoard.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
-  }
-  if (splitCam.isActive()) {
-    splitCam.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
-  }
-  if (splitCamH.isActive()) {
-    splitCamH.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
-  }
-
-  // Show multiplayer in-game controls
-  mpUI.showGameControls();
-  mpUI.close(); // close the modal
-
-  updateStatus(isMyTurn ? 'Your turn' : "Opponent's turn");
-  router.silentUpdate('/');
-}
 
 board.onMove((result) => {
   if (replayController.isActive || liveMoveBar.isReviewing) return;
-  moveCount++;
+  gameCtrl.moveCount++;
   showingGameInfo = false;
 
   // Disable pre-game interactive controls after first move
-  if (moveCount === 1) {
+  if (gameCtrl.moveCount === 1) {
     appEl.classList.remove('pre-game');
     closeAllPopups();
     startGameBtn.classList.add('hidden');
@@ -990,13 +566,13 @@ board.onMove((result) => {
 
   // Update the persistent live move bar
   const moveSide = game.getTurn() === 'w' ? 'b' : 'w'; // side that just moved
-  liveMoveBar.appendMove(result.san, moveSide, moveCount - 1);
-  if (moveCount === 1) liveMoveBar.activate();
+  liveMoveBar.appendMove(result.san, moveSide, gameCtrl.moveCount - 1);
+  if (gameCtrl.moveCount === 1) liveMoveBar.activate();
   liveMoveBar.updateButtons();
 
   // Multiplayer: send move to server, disable board until opponent moves
   if (mp.isActive()) {
-    multiplayerMoveTimes.push(Date.now());
+    gameCtrl.multiplayerMoveTimes.push(Date.now());
     mp.sendMove(result.san);
     diagnostics.flush();
     board.setInteractive(false);
@@ -1014,7 +590,7 @@ board.onMove((result) => {
     // Start/switch timer locally for visual feedback (server will sync)
     if (timer.isEnabled()) {
       const currentTurn = game.getTurn();
-      if (moveCount === 1) {
+      if (gameCtrl.moveCount === 1) {
         timer.start(currentTurn);
       } else {
         timer.switchTo(currentTurn);
@@ -1025,10 +601,10 @@ board.onMove((result) => {
     if (settingsCtrl.isEvalBarEnabled()) liveEval();
 
     // Save move to local database
-    if (currentDbGameId) {
+    if (gameCtrl.currentDbGameId) {
       const side = game.getTurn() === 'w' ? 'b' : 'w';
-      db.addMove(currentDbGameId, {
-        ply: moveCount - 1,
+      db.addMove(gameCtrl.currentDbGameId, {
+        ply: gameCtrl.moveCount - 1,
         san: result.san,
         fen: game.chess.fen(),
         timestamp: Date.now(),
@@ -1048,8 +624,8 @@ board.onMove((result) => {
 
   // Save move to local-first database
   const side = game.getTurn() === 'w' ? 'b' : 'w'; // side that just moved
-  db.addMove(currentDbGameId, {
-    ply: moveCount - 1,
+  db.addMove(gameCtrl.currentDbGameId, {
+    ply: gameCtrl.moveCount - 1,
     san: result.san,
     fen: game.chess.fen(),
     timestamp: Date.now(),
@@ -1058,7 +634,7 @@ board.onMove((result) => {
 
   if (timer.isEnabled()) {
     const currentTurn = game.getTurn();
-    if (moveCount === 1) {
+    if (gameCtrl.moveCount === 1) {
       // First move: start black's timer (white just moved)
       timer.start(currentTurn);
     } else {
@@ -1080,7 +656,7 @@ board.onMove((result) => {
 
     // Save game result to local-first database
     const { result: dbResult, reason } = getGameResult();
-    db.endGame(currentDbGameId, dbResult, reason);
+    db.endGame(gameCtrl.currentDbGameId, dbResult, reason);
 
     // Auto-trigger post-game summary
     triggerPostGameSummary();
@@ -1118,7 +694,7 @@ timer.onTimeout((loser) => {
 
   // Save timeout result to local-first database
   const dbResult = loser === 'White' ? '0-1' : '1-0';
-  db.endGame(currentDbGameId, dbResult, 'timeout');
+  db.endGame(gameCtrl.currentDbGameId, dbResult, 'timeout');
 
   // Auto-trigger post-game summary
   triggerPostGameSummary();
@@ -1126,20 +702,20 @@ timer.onTimeout((loser) => {
 
 newGameBtn.addEventListener('click', async () => {
   // If multiplayer game active, prompt to resign first
-  if (multiplayerActive) {
+  if (gameCtrl.multiplayerActive) {
     const confirmed = await showConfirmation(
       'Resign the current game and start a new one?',
       'Resign Game?'
     );
     if (!confirmed) return;
     stopPublicLobbyPolling();  // Prevent poll timer from auto-reconnecting during transition
-    if (moveCount > 0 && !game.isGameOver()) {
+    if (gameCtrl.moveCount > 0 && !game.isGameOver()) {
       mp.resign();
     } else {
       mp.cancelPendingRoom();  // Waiting room / lobby — cancel rather than resign
     }
     mp.disconnect();
-    multiplayerActive = false;
+    gameCtrl.multiplayerActive = false;
     timer.stop();
     mpUI.hideGameControls();
     newGameMenu.open();
@@ -1147,14 +723,14 @@ newGameBtn.addEventListener('click', async () => {
   }
 
   // If a game is in progress, confirm abandonment first
-  if (moveCount > 0 && !game.isGameOver()) {
+  if (gameCtrl.moveCount > 0 && !game.isGameOver()) {
     const confirmed = await showConfirmation(
       'You have a game in progress. Abandon it and start a new one?',
       'Abandon Game?'
     );
     if (!confirmed) return;
-    if (currentDbGameId) {
-      db.endGame(currentDbGameId, 'abandoned', 'abandoned');
+    if (gameCtrl.currentDbGameId) {
+      db.endGame(gameCtrl.currentDbGameId, 'abandoned', 'abandoned');
     }
   }
 
@@ -1203,7 +779,7 @@ function startNameEdit(nameEl, side) {
     nameEl.textContent = newName;
 
     // In multiplayer, broadcast name change to opponent
-    if (multiplayerActive) {
+    if (gameCtrl.multiplayerActive) {
       mp.changeName(newName);
       return;
     }
@@ -1219,7 +795,7 @@ function startNameEdit(nameEl, side) {
     }
 
     // Update local-first database
-    db.updatePlayerName(currentDbGameId, side, newName);
+    db.updatePlayerName(gameCtrl.currentDbGameId, side, newName);
   }
 
   function cancelEdit() {
@@ -1245,7 +821,7 @@ function startNameEdit(nameEl, side) {
 }
 
 function startEngineSwitch(nameEl, side) {
-  if (replayController.isActive || multiplayerActive) return;
+  if (replayController.isActive || gameCtrl.multiplayerActive) return;
   if (nameEl.querySelector('.engine-switch-select')) return;
 
   const isWhite = side === 'white';
@@ -1301,7 +877,7 @@ function startEngineSwitch(nameEl, side) {
 
 playerNameWhite.addEventListener('click', (e) => {
   e.stopPropagation();
-  if (multiplayerActive) {
+  if (gameCtrl.multiplayerActive) {
     // In multiplayer: only allow editing own name, not opponent's
     if (mp.color === 'w') {
       startNameEdit(playerNameWhite, 'white');
@@ -1317,7 +893,7 @@ playerNameWhite.addEventListener('click', (e) => {
 
 playerNameBlack.addEventListener('click', (e) => {
   e.stopPropagation();
-  if (multiplayerActive) {
+  if (gameCtrl.multiplayerActive) {
     // In multiplayer: only allow editing own name, not opponent's
     if (mp.color === 'b') {
       startNameEdit(playerNameBlack, 'black');
@@ -1520,27 +1096,27 @@ function closeAllPopups() {
 
 // Click player icon to toggle Human ↔ AI (only before first move)
 playerIconWhite.addEventListener('click', () => {
-  if (replayController.isActive || multiplayerActive || moveCount > 0) return;
+  if (replayController.isActive || gameCtrl.multiplayerActive || gameCtrl.moveCount > 0) return;
   settingsCtrl.toggleAI('w');
   startNewGame();
 });
 
 playerIconBlack.addEventListener('click', () => {
-  if (replayController.isActive || multiplayerActive || moveCount > 0) return;
+  if (replayController.isActive || gameCtrl.multiplayerActive || gameCtrl.moveCount > 0) return;
   settingsCtrl.toggleAI('b');
   startNewGame();
 });
 
 // Click game type label to toggle Chess960 ↔ Standard (only before first move)
 gameTypeLabel.addEventListener('click', () => {
-  if (replayController.isActive || moveCount > 0) return;
+  if (replayController.isActive || gameCtrl.moveCount > 0) return;
   settingsCtrl.setChess960(!settingsCtrl.isChess960());
   startNewGame();
 });
 
 // Click timer for time control dropdown (only before first move)
 function showTimerDropdown(timerEl) {
-  if (replayController.isActive || moveCount > 0) return;
+  if (replayController.isActive || gameCtrl.moveCount > 0) return;
   closeAllPopups();
 
   const dropdown = document.createElement('div');
@@ -1602,7 +1178,7 @@ timerBlackEl.addEventListener('click', (e) => {
 
 // Click ELO label for inline slider popup (only before first move, only for AI)
 function showEloPopup(eloEl, side) {
-  if (replayController.isActive || moveCount > 0) return;
+  if (replayController.isActive || gameCtrl.moveCount > 0) return;
   closeAllPopups();
 
   const slider = settingsCtrl.getEloSlider(side);
@@ -1674,7 +1250,7 @@ document.addEventListener('click', () => {
   const hadPopup = document.querySelector('.elo-popup');
   closeAllPopups();
   // If an elo popup was open and just closed, restart game to apply ELO change
-  if (hadPopup && moveCount === 0) {
+  if (hadPopup && gameCtrl.moveCount === 0) {
     startNewGame();
   }
 });
@@ -1685,7 +1261,7 @@ document.addEventListener('keydown', (e) => {
     board.clearPremove();
     const hadPopup = document.querySelector('.elo-popup');
     closeAllPopups();
-    if (hadPopup && moveCount === 0) {
+    if (hadPopup && gameCtrl.moveCount === 0) {
       startNewGame();
     }
   }
@@ -1734,7 +1310,7 @@ function showConfirmation(message, title) {
 // Global keydown listener for entering live review via arrow key
 document.addEventListener('keydown', (e) => {
   if (liveMoveBar.isReviewing || replayController.isActive) return;
-  if (e.key === 'ArrowLeft' && moveCount > 0 && !game.isGameOver()) {
+  if (e.key === 'ArrowLeft' && gameCtrl.moveCount > 0 && !game.isGameOver()) {
     e.preventDefault();
     liveMoveBar.enter();
   }
@@ -1923,7 +1499,7 @@ mp.onRoomCreated = (payload) => {
   diagnostics.record('lifecycle', 'lobby_created', { roomId: payload.roomId });
   diagnostics.flush();
 
-  multiplayerActive = true;
+  gameCtrl.multiplayerActive = true;
 
   // Fade board and lock interaction while waiting for opponent (same as lobby)
   boardEl.classList.add('lobby-active');
@@ -1941,15 +1517,15 @@ mp.onRoomCreated = (payload) => {
 // Lobby joined — show pre-game settings inline below board
 mp.onLobbyJoined = async (payload) => {
   // Guard: don't reset board if a game is actively in progress
-  if (mp.isActive() && moveCount > 0 && !game.isGameOver()) {
+  if (mp.isActive() && gameCtrl.moveCount > 0 && !game.isGameOver()) {
     diagnostics.record('lifecycle', 'lobby_joined_rejected', {
-      reason: 'game_in_progress', moveCount, roomId: payload.roomId
+      reason: 'game_in_progress', gameCtrl.moveCount, roomId: payload.roomId
     });
-    console.warn('[MP] Ignoring lobby_joined — game in progress with', moveCount, 'moves');
+    console.warn('[MP] Ignoring lobby_joined — game in progress with', gameCtrl.moveCount, 'moves');
     return;
   }
 
-  multiplayerActive = true;
+  gameCtrl.multiplayerActive = true;
   stopPublicLobbyPolling();
   issueReporter.hideWaitingButton();
   mpUI.showLobby(payload);
@@ -1963,7 +1539,7 @@ mp.onLobbyJoined = async (payload) => {
   boardEl.classList.add('lobby-active');
 
   // Initialize board with starting position for lobby preview
-  // (startNewGame() won't run because multiplayerActive is true, so render directly)
+  // (startNewGame() won't run because gameCtrl.multiplayerActive is true, so render directly)
   game.newGame(!!payload.settings?.chess960);
   board.getArrowOverlay().clear();
   // Flip board to player's color so name elements are in correct visual positions
@@ -2038,12 +1614,12 @@ mp.onQueueJoined = (payload) => {
 // Opponent made a move
 mp.onOpponentMove = (payload) => {
   const { san, fen, clocks } = payload;
-  multiplayerMoveTimes.push(Date.now());
+  gameCtrl.multiplayerMoveTimes.push(Date.now());
 
   // If in live review, buffer the move instead of applying immediately
   if (liveMoveBar.isReviewing) {
     liveMoveBar.pushPendingMove(payload);
-    moveCount++;
+    gameCtrl.moveCount++;
 
     // Compute the FEN for this move using a scratch chess instance
     const scratch = new Chess(liveMoveBar.getLastReviewFen());
@@ -2064,9 +1640,9 @@ mp.onOpponentMove = (payload) => {
       liveMoveBar.updateButtons();
 
       // Save opponent's move to local database even during live review
-      if (currentDbGameId) {
-        db.addMove(currentDbGameId, {
-          ply: moveCount - 1,
+      if (gameCtrl.currentDbGameId) {
+        db.addMove(gameCtrl.currentDbGameId, {
+          ply: gameCtrl.moveCount - 1,
           san,
           fen: scratch.fen(),
           timestamp: Date.now(),
@@ -2085,21 +1661,21 @@ mp.onOpponentMove = (payload) => {
 
   // Apply the opponent's move to local game state
   const oppMoveResult = game.makeMoveSan(san);
-  moveCount++;
+  gameCtrl.moveCount++;
   board.render();
   renderCaptured();
   sound.onMove(oppMoveResult);
 
   // Update the persistent live move bar
   const opponentSide = game.getTurn() === 'w' ? 'b' : 'w';
-  liveMoveBar.appendMove(san, opponentSide, moveCount - 1);
-  if (moveCount === 1) liveMoveBar.activate();
+  liveMoveBar.appendMove(san, opponentSide, gameCtrl.moveCount - 1);
+  if (gameCtrl.moveCount === 1) liveMoveBar.activate();
   liveMoveBar.updateButtons();
 
   // Save opponent's move to local database
-  if (currentDbGameId) {
-    db.addMove(currentDbGameId, {
-      ply: moveCount - 1,
+  if (gameCtrl.currentDbGameId) {
+    db.addMove(gameCtrl.currentDbGameId, {
+      ply: gameCtrl.moveCount - 1,
       san,
       fen: game.chess.fen(),
       timestamp: Date.now(),
@@ -2108,7 +1684,7 @@ mp.onOpponentMove = (payload) => {
   }
 
   // Disable pre-game state
-  if (moveCount === 1) {
+  if (gameCtrl.moveCount === 1) {
     appEl.classList.remove('pre-game');
     closeAllPopups();
   }
@@ -2118,7 +1694,7 @@ mp.onOpponentMove = (payload) => {
     timer.setTime('w', clocks.w);
     timer.setTime('b', clocks.b);
     const currentTurn = game.getTurn();
-    if (moveCount === 1) {
+    if (gameCtrl.moveCount === 1) {
       timer.start(currentTurn);
     } else {
       timer.switchTo(currentTurn);
@@ -2181,7 +1757,7 @@ mp.onGameEnd = (payload) => {
   if (liveMoveBar.isReviewing) liveMoveBar.exit();
   liveMoveBar.fade();
   sound.gameOver();
-  multiplayerActive = false;
+  gameCtrl.multiplayerActive = false;
   startPublicLobbyPolling();
   playerNameWhite.classList.remove('multiplayer-opponent');
   playerNameBlack.classList.remove('multiplayer-opponent');
@@ -2193,8 +1769,8 @@ mp.onGameEnd = (payload) => {
   const { result, reason } = payload;
 
   // Persist game result to local database
-  if (currentDbGameId) {
-    db.endGame(currentDbGameId, result, reason);
+  if (gameCtrl.currentDbGameId) {
+    db.endGame(gameCtrl.currentDbGameId, result, reason);
   }
 
   let statusText;
@@ -2225,7 +1801,7 @@ mp.onGameEnd = (payload) => {
       null,
       {
         onReview: (rec) => replayController.enter(rec),
-        onNewGame: () => { multiplayerActive = false; startNewGame(); },
+        onNewGame: () => { gameCtrl.multiplayerActive = false; startNewGame(); },
         onClose: () => {},
       }
     );
@@ -2311,14 +1887,14 @@ mp.onReconnect = async (payload) => {
       const result = scratch.move(san);
       if (!result) break;
       game.makeMoveSan(san);
-      moveCount++;
-      liveMoveBar.appendMove(san, result.color, moveCount - 1);
+      gameCtrl.moveCount++;
+      liveMoveBar.appendMove(san, result.color, gameCtrl.moveCount - 1);
       liveMoveBar.pushReviewMove({ san, fen: scratch.fen(), from: result.from, to: result.to, side: result.color });
 
       // Record replayed move to local database
-      if (currentDbGameId) {
-        db.addMove(currentDbGameId, {
-          ply: moveCount - 1,
+      if (gameCtrl.currentDbGameId) {
+        db.addMove(gameCtrl.currentDbGameId, {
+          ply: gameCtrl.moveCount - 1,
           san,
           fen: scratch.fen(),
           timestamp: Date.now(),
@@ -2404,7 +1980,7 @@ mp.onConnected = (payload) => {
     } else {
       // No room to rejoin — game is over
       mpUI.setConnectionStatus('connection-lost');
-      multiplayerActive = false;
+      gameCtrl.multiplayerActive = false;
       mp.active = false;
       updateStatus('Game ended — connection to room was lost');
     }
@@ -2429,7 +2005,7 @@ mp.onConnectionLost = () => {
   diagnostics.record('network', 'ws_connection_lost', {});
   diagnostics.flush();
   mpUI.setConnectionStatus('connection-lost');
-  multiplayerActive = false;
+  gameCtrl.multiplayerActive = false;
   startPublicLobbyPolling();
   issueReporter.recordError();
   updateStatus('Connection lost — game may have ended');
@@ -2451,7 +2027,7 @@ mp.onError = (msg) => {
   // "Not in a room" during active game is handled by multiplayer.js (triggers reconnect)
   // Don't show alerts or reset state during shared post-game review
   if (!mp.isActive() && !sharedReviewActive) {
-    multiplayerActive = false;
+    gameCtrl.multiplayerActive = false;
     alert(msg || 'Multiplayer error. Please try again.');
   }
 };
@@ -2788,12 +2364,12 @@ function checkRoomCodeInUrl() {
     window.history.replaceState({}, '', url.pathname + url.hash);
 
     // Connect and join the room
-    multiplayerActive = true;
+    gameCtrl.multiplayerActive = true;
     mp.connect().then(() => {
       const name = document.getElementById('mp-player-name').value.trim() || null;
       mp.joinRoom(roomCode, name);
     }).catch(() => {
-      multiplayerActive = false;
+      gameCtrl.multiplayerActive = false;
       alert('Could not connect to the multiplayer server.');
     });
   }
@@ -2868,7 +2444,7 @@ newGameMenu.onFriend(async (action, code) => {
     mp.createRoom('5+0', null, 'board-face', false);
     // mpUI.showWaiting() will open the lobby panel when room_created fires
   } else if (action === 'join') {
-    multiplayerActive = true;  // Prevent startNewGame() from overwriting
+    gameCtrl.multiplayerActive = true;  // Prevent startNewGame() from overwriting
     mp.joinRoom(code, null);
   }
 });
@@ -2894,7 +2470,7 @@ let _publicLobbyPollTimer = null;
 
 function renderPublicLobbies(rooms) {
   // Hide if in a game, in pre-game lobby, or no rooms available
-  if (multiplayerActive || !lobbyPanel.classList.contains('hidden') || !rooms || rooms.length === 0) {
+  if (gameCtrl.multiplayerActive || !lobbyPanel.classList.contains('hidden') || !rooms || rooms.length === 0) {
     publicLobbiesPanel.classList.add('hidden');
     return;
   }
@@ -2913,7 +2489,7 @@ function renderPublicLobbies(rooms) {
     joinBtn.textContent = 'Join';
     joinBtn.addEventListener('click', () => {
       stopPublicLobbyPolling();
-      multiplayerActive = true;
+      gameCtrl.multiplayerActive = true;
       mp.joinRoom(room.roomId, null);
     });
     row.appendChild(nameSpan);
@@ -2923,7 +2499,7 @@ function renderPublicLobbies(rooms) {
 }
 
 async function fetchPublicLobbies() {
-  if (multiplayerActive) return;
+  if (gameCtrl.multiplayerActive) return;
   if (!mp.ws || mp.ws.readyState !== WebSocket.OPEN) {
     try { await mp.connect(); } catch { return; }
   }
@@ -3050,7 +2626,7 @@ router.on('/', ({ params }) => {
   if (gameId) { loadGameById(gameId); return; }
   gameBrowser.close();
   if (replayController.isActive) replayController.exit(true);
-  else if (moveCount === 0) startNewGame();
+  else if (gameCtrl.moveCount === 0) startNewGame();
 });
 
 router.on('/replay', ({ params }) => {
@@ -3104,11 +2680,11 @@ Promise.all([
   db.open().catch(e => { console.warn('Database unavailable:', e); }),
   auth.validateToken().catch(() => {}),
 ]).then(() => {
-  // Set multiplayerActive BEFORE routing so startNewGame() won't overwrite the join
+  // Set gameCtrl.multiplayerActive BEFORE routing so startNewGame() won't overwrite the join
   const hasRoomCode = new URLSearchParams(window.location.search).has('room');
-  if (hasRoomCode) multiplayerActive = true;
+  if (hasRoomCode) gameCtrl.multiplayerActive = true;
   router.start();
   checkRoomCodeInUrl();
   // Start polling for public lobbies (only runs while not in a game)
-  if (!multiplayerActive) startPublicLobbyPolling();
+  if (!gameCtrl.multiplayerActive) startPublicLobbyPolling();
 });
