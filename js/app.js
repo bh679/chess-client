@@ -1134,8 +1134,21 @@ timer.onTimeout((loser) => {
 });
 
 newGameBtn.addEventListener('click', async () => {
-  // If multiplayer game active, don't interfere
-  if (multiplayerActive) return;
+  // If multiplayer game active, prompt to resign first
+  if (multiplayerActive) {
+    const confirmed = await showConfirmation(
+      'Resign the current game and start a new one?',
+      'Resign Game?'
+    );
+    if (!confirmed) return;
+    mp.resign();
+    mp.disconnect();
+    multiplayerActive = false;
+    timer.stop();
+    mpUI.hideGameControls();
+    newGameMenu.open();
+    return;
+  }
 
   // If a game is in progress, confirm abandonment first
   if (moveCount > 0 && !game.isGameOver()) {
