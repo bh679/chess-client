@@ -2168,11 +2168,17 @@ async function loadGameById(gameId) {
     router.navigate('/');
     return;
   }
-  const rec = await db.getGame(id);
-  if (rec && rec.moves && rec.moves.length > 0) {
-    replayController.enter(rec);
-  } else {
-    console.warn(`Game ${id} not found or has no moves`);
+  try {
+    const rec = await db.getGame(id);
+    if (rec && rec.moves && rec.moves.length > 0) {
+      replayController.enter(rec);
+    } else {
+      console.warn(`Game ${id} not found or has no moves`);
+      router.navigate('/');
+    }
+  } catch (e) {
+    console.error('Failed to load game:', id, e);
+    uiCtrl.updateStatus('Could not load game — please try again');
     router.navigate('/');
   }
 }
