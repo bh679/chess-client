@@ -9,6 +9,7 @@ import { GameBrowser } from './browser.js?v=4';
 import { ReplayViewer } from './replay.js';
 import { AnalysisEngine } from './analysis.js';
 import { EvalBar } from './eval-bar.js';
+import { AnalysisController } from './analysis-controller.js';
 import { PostGameSummary } from './post-game-summary.js';
 import { Router } from './router.js';
 import { Auth } from './auth.js';
@@ -34,20 +35,6 @@ const PIECE_ORDER = { q: 0, r: 1, b: 2, n: 3, p: 4 };
 const PIECE_VALUES = { q: 9, r: 5, b: 3, n: 3, p: 1 };
 const PIECE_DISPLAY = { k: 'K', q: 'Q', r: 'R', b: 'B', n: 'N', p: 'P' };
 
-// Analysis classification icons (shared with replay.js)
-const CLASSIFICATION_ICONS = {
-  brilliant:  { text: '!!',    cls: 'analysis-brilliant' },
-  great:      { text: '!',     cls: 'analysis-great' },
-  best:       { text: '\u2713', cls: 'analysis-best' },
-  excellent:  { text: '\u25CF', cls: 'analysis-excellent' },
-  good:       { text: '\u25CF', cls: 'analysis-good' },
-  book:       { text: '\u2261', cls: 'analysis-book' },
-  inaccuracy: { text: '?!',    cls: 'analysis-inaccuracy' },
-  mistake:    { text: '?',     cls: 'analysis-mistake' },
-  miss:       { text: '\u00D7', cls: 'analysis-miss' },
-  blunder:    { text: '??',    cls: 'analysis-blunder' },
-};
-const ANALYSIS_CACHE_KEY = 'chess-analysis-cache';
 
 // Art style configuration
 const STYLE_PATHS = {
@@ -378,19 +365,31 @@ let liveReviewStartingFen = null;
 let liveReviewSavedPgn = null;
 let liveReviewPendingMoves = [];    // buffered opponent moves during review
 
-// Analysis state for main-board replay
-let replayAnalysisData = null;
-let replayAnalysisEngine = null;
-
 // Eval bar for main board (used in both live play and replay)
 const mainEvalBar = new EvalBar();
 document.getElementById('main-eval-bar').appendChild(mainEvalBar.el);
 
+// Analysis controller for main-board replay
+const analysisCtrl = new AnalysisController({
+  board,
+  evalBar: mainEvalBar,
+  evalBarToggle,
+  moveListEl: replayMoveListEl,
+  progressEl: replayProgressEl,
+  progressFillEl: replayProgressFillEl,
+  accuracyEl: replayAccuracyEl,
+  detailEl: replayDetailEl,
+  classEl: replayClassEl,
+  evalEl: replayEvalEl,
+  bestEl: replayBestEl,
+  lineEl: replayLineEl,
+  critPrevBtn: replayCritPrevBtn,
+  critNextBtn: replayCritNextBtn,
+  summaryBtn: replaySummaryBtn,
+});
+
 // Dedicated analysis engine for live position evaluation (separate from replay/game AI)
 let liveEvalEngine = null;
-
-// Dedicated analysis engine for post-game summary
-let postGameAnalysisEngine = null;
 
 /**
  * Evaluate the current board position and update the eval bar.
@@ -603,10 +602,6 @@ function triggerPostGameSummary() {
   const record = buildCurrentGameRecord();
   if (!record || !record.moves || record.moves.length === 0) return;
 
-  if (!postGameAnalysisEngine) {
-    postGameAnalysisEngine = new AnalysisEngine();
-  }
-
   postGameSummary.setCallbacks({
     onReview: (rec) => enterReplayMode(rec),
     onNewGame: () => startNewGame(),
@@ -617,7 +612,7 @@ function triggerPostGameSummary() {
 
   postGameSummary.showWithAnalysis(
     record,
-    postGameAnalysisEngine,
+    analysisCtrl.getPostGameEngine(),
     record.serverId || null,
     {
       onReview: (rec) => enterReplayMode(rec),
@@ -687,10 +682,7 @@ async function startNewGame() {
   // Reset issue reporter for new game
   issueReporter.reset();
   // Stop post-game analysis engine if running
-  if (postGameAnalysisEngine) {
-    postGameAnalysisEngine.stop();
-  }
-
+  analysisCtrl.stopPostGameEngine();
 
   // Exit live review or replay mode if active
   if (isLiveReview) exitLiveReview();
@@ -1438,9 +1430,9 @@ if (evalBarToggle) {
 
     if (isReplayMode) {
       // In replay mode, show/hide based on toggle + analysis data
-      if (enabled && replayAnalysisData) {
+      if (enabled && analysisCtrl.data) {
         mainEvalBar.show();
-        updateMainEvalBar();
+        analysisCtrl.updateEvalBar(replayPly);
       } else {
         mainEvalBar.hide();
       }
@@ -2044,9 +2036,14 @@ async function enterReplayMode(gameRecord) {
   document.addEventListener('keydown', replayKeyHandler);
 
   // Auto-analyze if toggle is enabled
-  resetMainBoardAnalysis();
+  analysisCtrl.reset();
   if (replayAnalyzeCheckbox && replayAnalyzeCheckbox.checked) {
-    runMainBoardAnalysis(gameRecord);
+    analysisCtrl.runAnalysis(gameRecord, {
+      sharedReviewActive,
+      peerAnalysisRunning,
+      onShareResults: (result) => mp.sendReviewAnalysis(result),
+      onShareStarted: () => mp.sendReviewAnalysisStarted(),
+    });
   }
 
   // Update URL to reflect replay mode
@@ -2075,10 +2072,8 @@ function exitReplayMode(startNew = true) {
   stopReplayPlayback();
 
   // Stop analysis if running
-  if (replayAnalysisEngine) {
-    replayAnalysisEngine.stop();
-  }
-  resetMainBoardAnalysis();
+  analysisCtrl.stopEngine();
+  analysisCtrl.reset();
 
   isReplayMode = false;
   replayGame = null;
@@ -2133,11 +2128,11 @@ function replayGoToMove(plyIndex) {
   statusEl.className = 'status replay-mode';
 
   // Update analysis detail panel and engine arrows for current ply
-  if (replayAnalysisData) {
-    updateAnalysisDetail();
-    updateCriticalNav();
-    updateMainEvalBar();
-    updateEngineArrows();
+  if (analysisCtrl.data) {
+    analysisCtrl.updateAnalysisDetail(replayPly);
+    analysisCtrl.updateCriticalNav(replayPly);
+    analysisCtrl.updateEvalBar(replayPly);
+    analysisCtrl.updateEngineArrows(replayPly);
   } else {
     board.getArrowOverlay().clearEngineArrows();
   }
@@ -2208,6 +2203,9 @@ function stopReplayPlayback() {
     replayPlayBtn.classList.remove('playing');
   }
 }
+
+// Wire analysis controller navigation callbacks (defined after both functions exist)
+analysisCtrl.setNavigationCallbacks(stopReplayPlayback, replayGoToMove);
 
 function scheduleReplayNext() {
   if (!replayPlaying || !replayGame) return;
@@ -2447,351 +2445,6 @@ function formatReplayResult(gameRecord) {
   if (gameRecord.result === '1/2-1/2') return reason ? `Draw \u2014 ${reason}` : 'Draw';
   const winner = gameRecord.result === '1-0' ? 'White' : 'Black';
   return reason ? `${reason}! ${winner} wins` : `${winner} wins`;
-}
-
-// --- Main-Board Analysis ---
-
-function loadCachedAnalysis(serverId) {
-  if (!serverId) return null;
-  try {
-    const raw = localStorage.getItem(ANALYSIS_CACHE_KEY);
-    if (!raw) return null;
-    const cache = JSON.parse(raw);
-    const entry = cache.entries[serverId];
-    return entry ? entry.result : null;
-  } catch {
-    return null;
-  }
-}
-
-async function runMainBoardAnalysis(gameRecord) {
-  if (!gameRecord || !gameRecord.moves || gameRecord.moves.length === 0) return;
-
-  // If peer is already running analysis during shared review, skip
-  if (sharedReviewActive && peerAnalysisRunning) return;
-
-  // Check cache first
-  const serverId = gameRecord.serverId || null;
-  const cached = loadCachedAnalysis(serverId);
-  if (cached) {
-    setMainBoardAnalysis(cached);
-    // Share cached results with peer
-    if (sharedReviewActive) {
-      mp.sendReviewAnalysis(cached);
-    }
-    return;
-  }
-
-  // Notify peer that we're starting analysis
-  if (sharedReviewActive) {
-    mp.sendReviewAnalysisStarted();
-  }
-
-  // Lazily create engine
-  if (!replayAnalysisEngine) {
-    replayAnalysisEngine = new AnalysisEngine();
-  }
-
-  const totalPositions = gameRecord.moves.length + 1;
-  replayProgressEl.classList.remove('hidden');
-  replayProgressFillEl.style.width = '0%';
-
-  try {
-    const result = await replayAnalysisEngine.analyze(
-      gameRecord.moves,
-      gameRecord.startingFen,
-      {
-        depth: 18,
-        serverId: serverId,
-        onProgress: ({ current, total }) => {
-          const pct = total > 0 ? (current / total * 100) : 0;
-          replayProgressFillEl.style.width = `${pct}%`;
-        }
-      }
-    );
-    setMainBoardAnalysis(result);
-    // Share analysis results with peer
-    if (sharedReviewActive) {
-      mp.sendReviewAnalysis(result);
-    }
-  } catch (err) {
-    if (err !== 'stopped') {
-      console.warn('Analysis failed:', err);
-    }
-    replayProgressEl.classList.add('hidden');
-    replayProgressFillEl.style.width = '0%';
-  }
-}
-
-function setMainBoardAnalysis(result) {
-  replayAnalysisData = result;
-
-  // Hide progress bar
-  replayProgressEl.classList.add('hidden');
-  replayProgressFillEl.style.width = '0%';
-
-  // Add classification icons to move list
-  addClassificationIcons();
-
-  // Render accuracy summary
-  renderAccuracy();
-
-  // Update critical moment nav
-  updateCriticalNav();
-
-  // Show detail and engine arrows for current move
-  updateAnalysisDetail();
-  updateEngineArrows();
-
-  // Show and update eval bar (only if toggle is on)
-  if (evalBarToggle && evalBarToggle.checked) {
-    mainEvalBar.show();
-  }
-  updateMainEvalBar();
-
-  // Show summary button
-  if (replaySummaryBtn) replaySummaryBtn.classList.remove('hidden');
-}
-
-function addClassificationIcons() {
-  if (!replayAnalysisData) return;
-
-  const moveEls = replayMoveListEl.querySelectorAll('.strip-move[data-ply]');
-  const criticalSet = new Set(replayAnalysisData.criticalMoments);
-
-  moveEls.forEach(el => {
-    const ply = parseInt(el.dataset.ply, 10);
-    const posIdx = ply + 1; // positions[0] = starting, positions[ply+1] = after move
-    if (posIdx >= replayAnalysisData.positions.length) return;
-
-    const pos = replayAnalysisData.positions[posIdx];
-    if (!pos || !pos.classification) return;
-
-    const iconDef = CLASSIFICATION_ICONS[pos.classification];
-    if (!iconDef) return;
-
-    // Remove any existing icon
-    const existing = el.querySelector('.analysis-icon');
-    if (existing) existing.remove();
-
-    const icon = document.createElement('span');
-    icon.className = `analysis-icon ${iconDef.cls}`;
-    icon.textContent = iconDef.text;
-    el.prepend(icon);
-
-    // Mark critical moments
-    if (criticalSet.has(posIdx)) {
-      el.classList.add('analysis-critical');
-    }
-  });
-}
-
-function renderAccuracy() {
-  if (!replayAnalysisData || !replayAccuracyEl) return;
-
-  const summary = replayAnalysisData.summary;
-  replayAccuracyEl.innerHTML = '';
-  replayAccuracyEl.classList.remove('hidden');
-
-  for (const side of ['white', 'black']) {
-    const s = summary[side];
-    const div = document.createElement('div');
-    div.className = 'accuracy-side';
-
-    const header = document.createElement('div');
-    header.className = 'accuracy-header';
-
-    const label = document.createElement('span');
-    label.className = 'accuracy-label';
-    label.textContent = side === 'white' ? 'White' : 'Black';
-    header.appendChild(label);
-
-    const value = document.createElement('span');
-    value.className = 'accuracy-value';
-    value.textContent = `${s.accuracy}%`;
-    header.appendChild(value);
-
-    div.appendChild(header);
-
-    const barOuter = document.createElement('div');
-    barOuter.className = 'accuracy-bar';
-    const barFill = document.createElement('div');
-    barFill.className = 'accuracy-fill';
-    barFill.style.width = `${s.accuracy}%`;
-    barOuter.appendChild(barFill);
-    div.appendChild(barOuter);
-
-    const breakdown = document.createElement('div');
-    breakdown.className = 'accuracy-breakdown';
-    const bkParts = [];
-    if (s.brilliant) bkParts.push(`!!:${s.brilliant}`);
-    if (s.great) bkParts.push(`!:${s.great}`);
-    bkParts.push(`B:${s.best || 0}`);
-    if (s.excellent) bkParts.push(`E:${s.excellent}`);
-    bkParts.push(`G:${s.good || 0}`);
-    if (s.book) bkParts.push(`Bk:${s.book}`);
-    bkParts.push(`I:${s.inaccuracy || 0}`);
-    bkParts.push(`M:${s.mistake || 0}`);
-    if (s.miss) bkParts.push(`Ms:${s.miss}`);
-    bkParts.push(`BL:${s.blunder || 0}`);
-    breakdown.textContent = bkParts.join(' ');
-    div.appendChild(breakdown);
-
-    replayAccuracyEl.appendChild(div);
-  }
-}
-
-function updateAnalysisDetail() {
-  if (!replayAnalysisData || !replayDetailEl) {
-    if (replayDetailEl) replayDetailEl.classList.add('hidden');
-    return;
-  }
-
-  const posIdx = replayPly + 1;
-  if (posIdx < 0 || posIdx >= replayAnalysisData.positions.length) {
-    replayDetailEl.classList.add('hidden');
-    return;
-  }
-
-  const pos = replayAnalysisData.positions[posIdx];
-  replayDetailEl.classList.remove('hidden');
-
-  // Classification + cpLoss
-  if (pos.classification) {
-    const iconDef = CLASSIFICATION_ICONS[pos.classification] || {};
-    replayClassEl.innerHTML = '';
-    const icon = document.createElement('span');
-    icon.className = `analysis-icon ${iconDef.cls || ''}`;
-    icon.textContent = iconDef.text || '';
-    replayClassEl.appendChild(icon);
-    const label = document.createElement('span');
-    const classLabel = pos.classification.charAt(0).toUpperCase() + pos.classification.slice(1);
-    label.textContent = ` ${classLabel}${pos.cpLoss > 0 ? ` (${pos.cpLoss}cp)` : ''}`;
-    replayClassEl.appendChild(label);
-  } else {
-    replayClassEl.textContent = 'Starting position';
-  }
-
-  // Eval
-  const evalPawns = pos.eval / 100;
-  const evalSign = evalPawns >= 0 ? '+' : '';
-  const evalDisplay = Math.abs(pos.eval) >= 9900
-    ? (pos.eval > 0 ? '+M' : '-M')
-    : `${evalSign}${evalPawns.toFixed(2)}`;
-  replayEvalEl.textContent = `Eval: ${evalDisplay}`;
-
-  // Best move
-  if (pos.bestMoveUci) {
-    replayBestEl.textContent = `Best: ${pos.bestMoveUci}`;
-  } else {
-    replayBestEl.textContent = '';
-  }
-
-  // PV line (first 5 moves)
-  if (pos.bestLineUci && pos.bestLineUci.length > 0) {
-    const line = pos.bestLineUci.slice(0, 5).join(' ');
-    replayLineEl.textContent = `Line: ${line}`;
-  } else {
-    replayLineEl.textContent = '';
-  }
-}
-
-function updateEngineArrows() {
-  const overlay = board.getArrowOverlay();
-  overlay.clearEngineArrows();
-
-  if (!replayAnalysisData) return;
-  const posIdx = replayPly + 1;
-  if (posIdx < 0 || posIdx >= replayAnalysisData.positions.length) return;
-
-  const pos = replayAnalysisData.positions[posIdx];
-  if (pos.bestMoveUci) {
-    overlay.setEngineArrows(pos.bestMoveUci, pos.bestLineUci || []);
-  }
-}
-
-function updateCriticalNav() {
-  if (!replayAnalysisData || !replayAnalysisData.criticalMoments.length) {
-    if (replayCritPrevBtn) replayCritPrevBtn.classList.add('hidden');
-    if (replayCritNextBtn) replayCritNextBtn.classList.add('hidden');
-    return;
-  }
-
-  replayCritPrevBtn.classList.remove('hidden');
-  replayCritNextBtn.classList.remove('hidden');
-
-  const moments = replayAnalysisData.criticalMoments;
-  const curPos = replayPly + 1;
-
-  const prevCrit = moments.filter(m => m < curPos);
-  const nextCrit = moments.filter(m => m > curPos);
-
-  replayCritPrevBtn.disabled = prevCrit.length === 0;
-  replayCritNextBtn.disabled = nextCrit.length === 0;
-}
-
-function goToPrevCritical() {
-  if (!replayAnalysisData) return;
-  const moments = replayAnalysisData.criticalMoments;
-  const curPos = replayPly + 1;
-  const prev = moments.filter(m => m < curPos);
-  if (prev.length > 0) {
-    const targetPos = prev[prev.length - 1];
-    stopReplayPlayback();
-    replayGoToMove(targetPos - 1);
-  }
-}
-
-function goToNextCritical() {
-  if (!replayAnalysisData) return;
-  const moments = replayAnalysisData.criticalMoments;
-  const curPos = replayPly + 1;
-  const next = moments.filter(m => m > curPos);
-  if (next.length > 0) {
-    const targetPos = next[0];
-    stopReplayPlayback();
-    replayGoToMove(targetPos - 1);
-  }
-}
-
-function resetMainBoardAnalysis() {
-  replayAnalysisData = null;
-
-  // Hide progress
-  if (replayProgressEl) {
-    replayProgressEl.classList.add('hidden');
-    replayProgressFillEl.style.width = '0%';
-  }
-  // Hide detail panel
-  if (replayDetailEl) {
-    replayDetailEl.classList.add('hidden');
-  }
-  // Hide accuracy panel
-  if (replayAccuracyEl) {
-    replayAccuracyEl.classList.add('hidden');
-    replayAccuracyEl.innerHTML = '';
-  }
-  // Hide critical nav
-  if (replayCritPrevBtn) replayCritPrevBtn.classList.add('hidden');
-  if (replayCritNextBtn) replayCritNextBtn.classList.add('hidden');
-  // Hide eval bar
-  mainEvalBar.hide();
-  mainEvalBar.reset();
-  // Hide summary button
-  if (replaySummaryBtn) replaySummaryBtn.classList.add('hidden');
-
-  // Remove classification icons and critical markers
-  replayMoveListEl.querySelectorAll('.analysis-icon').forEach(el => el.remove());
-  replayMoveListEl.querySelectorAll('.analysis-critical').forEach(el => {
-    el.classList.remove('analysis-critical');
-  });
-}
-
-function updateMainEvalBar() {
-  if (!replayAnalysisData) return;
-  const posIdx = replayPly + 1;
-  if (posIdx < 0 || posIdx >= replayAnalysisData.positions.length) return;
-  mainEvalBar.update(replayAnalysisData.positions[posIdx].eval);
 }
 
 // --- Live Move Bar (persistent move list during live games) ---
@@ -3142,24 +2795,25 @@ if (replayAnalyzeCheckbox) {
     const enabled = replayAnalyzeCheckbox.checked;
     localStorage.setItem('chess-auto-analyze', enabled ? 'true' : 'false');
     if (enabled) {
-      if (isReplayMode && replayGame && !replayAnalysisData) {
-        runMainBoardAnalysis(replayGame);
+      if (isReplayMode && replayGame && !analysisCtrl.data) {
+        analysisCtrl.runAnalysis(replayGame, {
+          sharedReviewActive,
+          peerAnalysisRunning,
+          onShareResults: (result) => mp.sendReviewAnalysis(result),
+          onShareStarted: () => mp.sendReviewAnalysisStarted(),
+        });
       }
     } else {
-      if (replayAnalysisEngine) replayAnalysisEngine.stop();
-      resetMainBoardAnalysis();
+      analysisCtrl.stopEngine();
+      analysisCtrl.reset();
     }
   });
 }
-if (replayCritPrevBtn) replayCritPrevBtn.addEventListener('click', goToPrevCritical);
-if (replayCritNextBtn) replayCritNextBtn.addEventListener('click', goToNextCritical);
+if (replayCritPrevBtn) replayCritPrevBtn.addEventListener('click', () => analysisCtrl.goToPrevCritical(replayPly));
+if (replayCritNextBtn) replayCritNextBtn.addEventListener('click', () => analysisCtrl.goToNextCritical(replayPly));
 
 // Wire up post-game summary callback on the full-screen replay viewer
 replayViewer.setSummaryCallback((gameRecord, analysisData) => {
-  if (!postGameAnalysisEngine) {
-    postGameAnalysisEngine = new AnalysisEngine();
-  }
-
   const callbacks = {
     onReview: () => {},  // Already in replay, no action needed
     onNewGame: () => { replayViewer.close(); startNewGame(); },
@@ -3173,7 +2827,7 @@ replayViewer.setSummaryCallback((gameRecord, analysisData) => {
   } else {
     postGameSummary.showWithAnalysis(
       gameRecord,
-      postGameAnalysisEngine,
+      analysisCtrl.getPostGameEngine(),
       gameRecord.serverId || null,
       callbacks
     );
@@ -3185,10 +2839,6 @@ if (replaySummaryBtn) {
   replaySummaryBtn.addEventListener('click', () => {
     if (!isReplayMode || !replayGame) return;
 
-    if (!postGameAnalysisEngine) {
-      postGameAnalysisEngine = new AnalysisEngine();
-    }
-
     const callbacks = {
       onReview: () => {},  // Already in replay mode
       onNewGame: () => startNewGame(),
@@ -3197,12 +2847,12 @@ if (replaySummaryBtn) {
 
     postGameSummary.setCallbacks(callbacks);
 
-    if (replayAnalysisData) {
-      postGameSummary.show(replayGame, { summary: replayAnalysisData.summary });
+    if (analysisCtrl.data) {
+      postGameSummary.show(replayGame, { summary: analysisCtrl.data.summary });
     } else {
       postGameSummary.showWithAnalysis(
         replayGame,
-        postGameAnalysisEngine,
+        analysisCtrl.getPostGameEngine(),
         replayGame.serverId || null,
         callbacks
       );
@@ -3656,13 +3306,10 @@ mp.onGameEnd = (payload) => {
   }
   lastMultiplayerGameRecord = record;
   if (record) {
-    if (!postGameAnalysisEngine) {
-      postGameAnalysisEngine = new AnalysisEngine();
-    }
     postGameSummary.addActionButton(issueReporter.createPostGameFlagButton());
     postGameSummary.showWithAnalysis(
       record,
-      postGameAnalysisEngine,
+      analysisCtrl.getPostGameEngine(),
       null,
       {
         onReview: (rec) => enterReplayMode(rec),
@@ -4185,8 +3832,8 @@ mp.onReviewEntered = (payload) => {
   // Share any existing analysis with the newly joined peer.
   // Cached analysis runs synchronously before sharedReviewActive is set,
   // so it cannot be shared at analysis time — share it here instead.
-  if (sharedReviewActive && replayAnalysisData) {
-    mp.sendReviewAnalysis(replayAnalysisData);
+  if (sharedReviewActive && analysisCtrl.data) {
+    mp.sendReviewAnalysis(analysisCtrl.data);
   }
 };
 
@@ -4214,7 +3861,7 @@ mp.onReviewAnalysisStarted = (payload) => {
 mp.onReviewAnalysis = (payload) => {
   peerAnalysisRunning = false;
   if (isReplayMode && payload) {
-    setMainBoardAnalysis(payload);
+    analysisCtrl.setAnalysis(payload);
   }
 };
 
