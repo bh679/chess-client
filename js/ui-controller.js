@@ -17,8 +17,8 @@ const DEV_MODE_KEY = 'chess-dev-mode';
 export class UIController {
   // Internal state
   showingGameInfo = false;
-  customWhiteName = null;
-  customBlackName = null;
+  customWhiteName = localStorage.getItem('chess-player-name') || null;
+  customBlackName = localStorage.getItem('chess-player-name') || null;
   _publicLobbyPollTimer = null;
 
   constructor({
@@ -320,6 +320,11 @@ export class UIController {
         } else {
           this.customBlackName = newName === 'Human' ? null : newName;
         }
+        if (newName && newName !== 'Human') {
+          localStorage.setItem('chess-player-name', newName);
+        } else {
+          localStorage.removeItem('chess-player-name');
+        }
       }
 
       // Update local-first database
@@ -426,11 +431,13 @@ export class UIController {
     for (const room of rooms) {
       const tc = room.timeControl === 'none' ? 'No timer' : room.timeControl;
       const variant = room.chess960 ? ' · 960' : '';
+      const CAM_LABELS = { 'king-cam': 'King·Cam', 'split-cam': 'Side/Side', 'split-cam-h': 'Top/Bottom', 'none': 'No-Cam' };
+      const cam = (room.camMode && room.camMode !== 'board-face') ? ` · ${CAM_LABELS[room.camMode] ?? room.camMode}` : '';
       const row = document.createElement('div');
       row.className = 'public-lobby-row';
       const nameSpan = document.createElement('span');
       nameSpan.className = 'public-lobby-info';
-      nameSpan.textContent = `${room.hostName || 'Anonymous'} — ${tc}${variant}`;
+      nameSpan.textContent = `${room.hostName || 'Anonymous'} — ${tc}${variant}${cam}`;
       const joinBtn = document.createElement('button');
       joinBtn.className = 'public-lobby-join-btn';
       joinBtn.textContent = 'Join';
@@ -456,7 +463,7 @@ export class UIController {
   startPublicLobbyPolling() {
     if (this._publicLobbyPollTimer) return;
     this._fetchPublicLobbies();
-    this._publicLobbyPollTimer = setInterval(() => this._fetchPublicLobbies(), 15_000);
+    this._publicLobbyPollTimer = setInterval(() => this._fetchPublicLobbies(), 5_000);
   }
 
   stopPublicLobbyPolling() {
