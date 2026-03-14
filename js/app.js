@@ -1634,6 +1634,12 @@ mp.onOpponentReconnected = () => {
 mp.onConnected = (payload) => {
   diagnostics.record('network', 'ws_connected', { inRoom: payload?.inRoom });
   if (payload && payload.inRoom) {
+    if (!gameCtrl.multiplayerActive) {
+      // Server auto-reconnected us to a room we intentionally left — cancel it
+      mp.cancelPendingRoom();
+      mpUI.setConnectionStatus('connected');
+      return;
+    }
     mpUI.setConnectionStatus('connected');
   } else if (mp.isActive()) {
     if (mp.roomId) {
