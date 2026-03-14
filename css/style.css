@@ -3112,6 +3112,16 @@ button.replay-summary-btn {
   padding: 0 12px;
 }
 
+.pgs-timing-tappable {
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.1s;
+}
+
+.pgs-timing-tappable:active {
+  opacity: 0.6;
+}
+
 /* Classification breakdown grid */
 .pgs-classifications {
   display: flex;
