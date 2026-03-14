@@ -21,6 +21,7 @@ export class NewGameMenu {
     this._onOnline = null;   // (tc, name, videoEnabled, chess960) => void  — auto matchmaking
     this._onFriend = null;   // (action, code?) => void  — create or join
     this._onCustomTime = null; // () => void
+    this._onExit = null;      // () => void
     this._pendingCustomTime = false;
 
     this._initElements();
@@ -35,8 +36,10 @@ export class NewGameMenu {
   onOnline(cb) { this._onOnline = cb; }
   onFriend(cb) { this._onFriend = cb; }
   onCustomTime(cb) { this._onCustomTime = cb; }
+  onExit(cb) { this._onExit = cb; }
   /** Returns the current game mode ('bot' | 'local' | 'online' | 'friend' | null) */
   getMode() { return this._mode; }
+  showExitButton() { this.exitGameBtn.classList.remove('hidden'); }
   onRequestPublicRooms(cb) { this._onRequestPublicRooms = cb; }
 
   /** Update the public rooms list display */
@@ -74,6 +77,7 @@ export class NewGameMenu {
   close() {
     this.modal.classList.add('hidden');
     this.backdrop.classList.add('hidden');
+    this.exitGameBtn.classList.add('hidden');
   }
 
   isOpen() {
@@ -159,6 +163,7 @@ export class NewGameMenu {
     this.eloWrapper = document.getElementById('ng-elo-wrapper');
     this.colorBtns = this.stepSettings.querySelectorAll('.ng-color-btn');
     this.startBtn = document.getElementById('ng-start');
+    this.exitGameBtn = document.getElementById('ng-exit-game');
   }
 
   _populateEngines() {
@@ -176,6 +181,12 @@ export class NewGameMenu {
     // Close
     this.backdrop.addEventListener('click', () => this.close());
     this.closeBtn.addEventListener('click', () => this.close());
+
+    // Exit current game
+    this.exitGameBtn.addEventListener('click', () => {
+      this.close();
+      if (this._onExit) this._onExit();
+    });
 
     // Back
     this.backBtn.addEventListener('click', () => this._goBack());
