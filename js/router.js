@@ -51,9 +51,7 @@ class Router {
    */
   silentUpdate(path, queryParams = {}) {
     const hash = this._buildHash(path, queryParams);
-    this._navigating = true;
-    window.location.hash = hash;
-    this._navigating = false;
+    history.replaceState(null, '', hash);
   }
 
   /**
