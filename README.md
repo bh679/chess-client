@@ -63,7 +63,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Game history browser**](https://github.com/bh679/Chess/wiki/Feature:-Game-Browser) — browse past games with player info, results, and move counts
 - [**Replay viewer**](https://github.com/bh679/Chess/wiki/Feature:-Replay-Viewer) — step through any saved game move by move with:
   - Reconstructed board positions
-  - Horizontal move strip with scroll navigation
+  - Horizontal move strip with scroll navigation (consolidated into live-move-bar below board — no duplicate controls)
   - Reconstructed clock display from move timestamps
   - Playback controls (play/pause, step forward/back, jump to start/end)
   - Keyboard navigation (arrow keys, space for play/pause)
