@@ -83,7 +83,6 @@ const confirmModalTitle = document.getElementById('confirm-modal-title');
 const confirmModalMessage = document.getElementById('confirm-modal-message');
 const confirmModalOk = document.getElementById('confirm-modal-ok');
 const confirmModalCancel = document.getElementById('confirm-modal-cancel');
-const confirmModalExit = document.getElementById('confirm-modal-exit');
 
 // Replay-on-board DOM elements (reuse live-move-bar for replay mode)
 const replayControlsEl = document.getElementById('live-move-bar');
@@ -502,7 +501,7 @@ uiCtrl = new UIController({
     playerNameWhite, playerNameBlack,
     playerEloWhite, playerEloBlack,
     timeControlSelect, customYourLabel, customOpponentLabel, customTimeModal,
-    confirmModal, confirmModalTitle, confirmModalMessage, confirmModalOk, confirmModalCancel, confirmModalExit,
+    confirmModal, confirmModalTitle, confirmModalMessage, confirmModalOk, confirmModalCancel,
     devIndicator: document.getElementById('dev-indicator'),
     lobbyPanel, publicLobbiesPanel, publicLobbiesList,
   },

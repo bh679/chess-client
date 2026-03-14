@@ -63,7 +63,6 @@ export class UIController {
     this.confirmModalMessage = dom.confirmModalMessage;
     this.confirmModalOk = dom.confirmModalOk;
     this.confirmModalCancel = dom.confirmModalCancel;
-    this.confirmModalExit = dom.confirmModalExit;
     this.devIndicator = dom.devIndicator;
     this.lobbyPanel = dom.lobbyPanel;
     this.publicLobbiesPanel = dom.publicLobbiesPanel;
@@ -280,38 +279,6 @@ export class UIController {
 
       this.confirmModalOk.addEventListener('click', onOk);
       this.confirmModalCancel.addEventListener('click', onCancel);
-      this.confirmModal.addEventListener('click', onBackdrop);
-    });
-  }
-
-  // Shows the confirm modal with an additional red "Exit Current Game" button.
-  // Returns 'new-game' (OK), 'exit' (exit button), or null (cancel/backdrop).
-  showConfirmationWithExit(message, title) {
-    return new Promise((resolve) => {
-      this.confirmModalTitle.textContent = title || 'Confirm';
-      this.confirmModalMessage.textContent = message;
-      this.confirmModalExit.classList.remove('hidden');
-      this.confirmModal.classList.remove('hidden');
-
-      function cleanup() {
-        this.confirmModal.classList.add('hidden');
-        this.confirmModalExit.classList.add('hidden');
-        this.confirmModalOk.removeEventListener('click', onOk);
-        this.confirmModalCancel.removeEventListener('click', onCancel);
-        this.confirmModalExit.removeEventListener('click', onExit);
-        this.confirmModal.removeEventListener('click', onBackdrop);
-      }
-
-      const onOk = () => { cleanup.call(this); resolve('new-game'); };
-      const onCancel = () => { cleanup.call(this); resolve(null); };
-      const onExit = () => { cleanup.call(this); resolve('exit'); };
-      const onBackdrop = (e) => {
-        if (e.target === this.confirmModal) { cleanup.call(this); resolve(null); }
-      };
-
-      this.confirmModalOk.addEventListener('click', onOk);
-      this.confirmModalCancel.addEventListener('click', onCancel);
-      this.confirmModalExit.addEventListener('click', onExit);
       this.confirmModal.addEventListener('click', onBackdrop);
     });
   }
