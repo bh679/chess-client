@@ -20,6 +20,7 @@ export class MultiplayerUI {
     this._currentView = 'menu'; // 'menu' | 'waiting' | 'searching' | 'lobby' | 'ingame'
     this._lobbyState = null;
     this._myReady = false;
+    this._aiMode = false; // true when an AI game is starting (lobby Ready→Start)
     this._pendingLobbyCustomTc = false;
     // Settings tracked while in waiting state (host-only, before opponent joins)
     this._waitingSettings = { timeControl: '5+0', chess960: false, colorPreference: 'random' };
@@ -191,6 +192,11 @@ export class MultiplayerUI {
     return this._lobbyState?.isCreator ?? true;
   }
 
+  /** Mark that an AI game is being set up (replaces "Ready" with "Start" in lobby) */
+  setAIMode(enabled) {
+    this._aiMode = enabled;
+  }
+
   /** Hide the inline lobby panel — called when game starts */
   hideLobbyPanel() {
     this.lobbyPanel.classList.add('hidden');
@@ -257,7 +263,10 @@ export class MultiplayerUI {
     this.inlineReadyOpp.querySelector('.lobby-ready-name').textContent = oppReadyState ? `${oppName} is ready` : oppName;
 
     // Ready button state
-    if (this._myReady) {
+    if (this._aiMode) {
+      this.inlineReadyBtn.textContent = 'Start';
+      this.inlineReadyBtn.classList.remove('not-ready');
+    } else if (this._myReady) {
       this.inlineReadyBtn.textContent = 'Not Ready';
       this.inlineReadyBtn.classList.add('not-ready');
     } else {
