@@ -133,8 +133,7 @@ export class NewGameMenu {
     this.online960Btn = document.getElementById('ng-online-960-btn');
     this.findOpponentBtn = document.getElementById('ng-find-opponent');
 
-    // Friend step elements (simplified — no name/TC/cam/960)
-    this.createRoomBtn = document.getElementById('ng-create-room');
+    // Friend step elements (join only)
     this.joinCodeInput = document.getElementById('ng-join-code');
     this.joinRoomBtn = document.getElementById('ng-join-room');
     this.publicLobbiesSection = document.getElementById('ng-public-lobbies');
@@ -183,7 +182,8 @@ export class NewGameMenu {
         this._mode = btn.dataset.mode;
 
         if (this._mode === 'online') {
-          this._showStep('online');
+          this.close();
+          if (this._onFriend) this._onFriend('create');
           return;
         }
         if (this._mode === 'friend') {
@@ -216,12 +216,7 @@ export class NewGameMenu {
       if (this._onOnline) this._onOnline(tc, name, camMode, chess960);
     });
 
-    // --- Friend step: Create Room / Join Room ---
-    this.createRoomBtn.addEventListener('click', () => {
-      this.close();
-      if (this._onFriend) this._onFriend('create');
-    });
-
+    // --- Friend step: Join Room ---
     this.joinRoomBtn.addEventListener('click', () => {
       const code = this.joinCodeInput.value.trim().toUpperCase();
       if (!code || code.length < 4) return;
@@ -382,7 +377,7 @@ export class NewGameMenu {
     const titles = {
       opponent: 'New Game',
       online: 'Play Online',
-      friend: 'Play with Friend',
+      friend: 'Join A Game',
       time: 'Time Control',
       settings: 'Game Settings',
     };
