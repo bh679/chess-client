@@ -3115,6 +3115,7 @@ button.replay-summary-btn {
 .pgs-timing-tappable {
   cursor: pointer;
   user-select: none;
+  touch-action: manipulation;
   transition: opacity 0.1s;
 }
 
