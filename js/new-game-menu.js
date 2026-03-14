@@ -53,8 +53,10 @@ export class NewGameMenu {
       row.className = 'ng-btn ng-btn-block ng-public-room';
       const tc = room.timeControl || 'No Timer';
       const variant = room.chess960 ? ' 960' : '';
+      const CAM_LABELS = { 'king-cam': 'King·Cam', 'split-cam': 'Side/Side', 'split-cam-h': 'Top/Bottom', 'none': 'No-Cam' };
+      const cam = (room.camMode && room.camMode !== 'board-face') ? ` · ${CAM_LABELS[room.camMode] ?? room.camMode}` : '';
       const host = room.hostName || 'Anonymous';
-      row.textContent = `${host} — ${tc}${variant}`;
+      row.textContent = `${host} — ${tc}${variant}${cam}`;
       row.addEventListener('click', () => {
         this.close();
         if (this._onFriend) this._onFriend('join', room.roomId);
