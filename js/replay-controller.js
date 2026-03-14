@@ -482,7 +482,6 @@ export class ReplayController {
 
     dom.capturedByWhiteEl.innerHTML = '';
     dom.capturedByBlackEl.innerHTML = '';
-    dom.gameTypeLabel.textContent = gameRecord.gameType === 'chess960' ? 'Chess960' : 'Standard';
   }
 
   // --- Move List ---
