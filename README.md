@@ -111,6 +111,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Public lobby list below board**](https://github.com/bh679/chess-client/wiki/Feature:-Public-Lobby-List) — open public games appear in an "Open Games" panel directly below the board, auto-refreshing every 15 seconds; players can join with one click without opening the New Game wizard
 - [**Split Cam mode**](https://github.com/bh679/chess-client/wiki/Feature:-Split-Cam) — new camera mode where the left half of the board shows white player's camera and the right half shows black player's camera; board color tints indicate whose turn it is
 - [**Connection & video diagnostics**](https://github.com/bh679/chess-client/wiki/Feature:-Connection-and-Video-Logging) — 12 new diagnostic events covering WebSocket reconnect attempts, heartbeat timeouts, room-lost errors, camera acquisition/denial, video call start/fail, and ICE reconnect lifecycle; critical failure events flush immediately for maximum delivery reliability
+- [**Analysis Controller extraction**](https://github.com/bh679/chess-client/wiki/Feature:-Analysis-Controller) — refactored 12 analysis display functions and 3 state variables from `app.js` into a dedicated `AnalysisController` ES6 module; shared constants eliminate duplication between app.js and replay.js
 
 ## Roadmap
 
