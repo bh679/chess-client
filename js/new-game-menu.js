@@ -53,7 +53,7 @@ export class NewGameMenu {
       row.className = 'ng-btn ng-btn-block ng-public-room';
       const tc = room.timeControl || 'No Timer';
       const variant = room.chess960 ? ' 960' : '';
-      const host = room.hostName || 'Anonymous';
+      const host = room.hostName || 'Opponent';
       row.textContent = `${host} — ${tc}${variant}`;
       row.addEventListener('click', () => {
         this.close();
