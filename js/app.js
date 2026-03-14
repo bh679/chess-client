@@ -7,6 +7,7 @@ import { getAllEngines, getEngineInfo } from './engines/registry.js';
 import { GameDatabase } from './database.js?v=6';
 import { GameBrowser } from './browser.js?v=4';
 import { ReplayViewer } from './replay.js';
+import { ReplayController } from './replay-controller.js';
 import { AnalysisEngine } from './analysis.js';
 import { EvalBar } from './eval-bar.js';
 import { PostGameSummary } from './post-game-summary.js';
@@ -170,7 +171,54 @@ db.setAuth(auth);
 const replayViewer = new ReplayViewer();
 const postGameSummary = new PostGameSummary();
 const issueReporter = new IssueReporter();
-const gameBrowser = new GameBrowser(db, replayViewer, enterReplayMode);
+
+// Replay controller — manages replay-mode state and navigation
+const replayController = new ReplayController({
+  board,
+  game,
+  sound,
+  timer,
+  dom: {
+    statusEl, boardEl, timerWhiteEl, timerBlackEl,
+    replayControlsEl, replayMoveListEl,
+    replayStartBtn, replayPrevBtn, replayPlayBtn, replayNextBtn, replayEndBtn,
+    replayResultEl, playerNameWhite, playerNameBlack,
+    playerIconWhite, playerIconBlack, playerEloWhite, playerEloBlack,
+    capturedByWhiteEl, capturedByBlackEl, gameTypeLabel,
+    startGameBtn, appEl, newGameBtn,
+  },
+  callbacks: {
+    onExitReplay: (startNew) => { if (startNew) startNewGame(); },
+    resetAnalysis: () => { if (replayAnalysisEngine) replayAnalysisEngine.stop(); resetMainBoardAnalysis(); },
+    getAnalysisData: () => replayAnalysisData,
+    onAnalysisUpdate: () => { updateAnalysisDetail(); updateCriticalNav(); updateMainEvalBar(); updateEngineArrows(); },
+    onRunAnalysis: (rec) => runMainBoardAnalysis(rec),
+    onEnterSharedReview: () => { sharedReviewActive = true; mp.sendReviewEnter(); },
+    onExitSharedReview: () => {
+      if (sharedReviewActive) { mp.sendReviewExit(); sharedReviewActive = false; peerInReview = false; peerAnalysisRunning = false; }
+    },
+    onNavigate: (ply) => { if (sharedReviewActive && !isRemoteNavigation) mp.sendReviewNavigate(ply); },
+    shouldClearPeerArrows: () => sharedReviewActive,
+    closeAllPopups: () => closeAllPopups(),
+    fadeLiveMoveBar: () => fadeLiveMoveBar(),
+    exitLiveReview: () => exitLiveReview(),
+    isLiveReview: () => isLiveReview,
+    showConfirmation: (msg, title) => showConfirmation(msg, title),
+    getCurrentDbGameId: () => currentDbGameId,
+    endCurrentGame: (id) => db.endGame(id, 'abandoned', 'abandoned'),
+    resetMoveCount: () => { moveCount = 0; },
+    getMoveCount: () => moveCount,
+    isGameOver: () => game.isGameOver(),
+    getLastMultiplayerGameRecord: () => lastMultiplayerGameRecord,
+    stopAI: () => ai.stop(),
+    stopLiveEval: () => { if (liveEvalEngine) liveEvalEngine.stop(); },
+    getMpRoomId: () => mp.roomId,
+    getReplayAnalyzeEnabled: () => replayAnalyzeCheckbox && replayAnalyzeCheckbox.checked,
+    routerSilentUpdate: (path, params) => router.silentUpdate(path, params),
+  },
+});
+
+const gameBrowser = new GameBrowser(db, replayViewer, (rec) => replayController.enter(rec));
 const profile = new Profile(auth, { onGameClick: (id) => loadGameById(id) });
 const friends = new Friends(auth);
 const authUI = new AuthUI(auth, {
@@ -337,6 +385,7 @@ const kingCam = new KingCam();
 const splitCam = new SplitCam(boardEl);
 const splitCamH = new SplitCamH(boardEl);
 window.kingCam = kingCam;
+window.replayController = replayController;
 let videoActive = false;
 let activeCamMode = 'none'; // set by onGameStart, read by onVideoStart
 let _userStoppedCamera = false; // set before videoChat.stop() to tag track ended reason as "user"
@@ -358,17 +407,10 @@ let currentDbGameId = null;
 let customWhiteName = null;
 let customBlackName = null;
 
-// Replay-on-board state
-let isReplayMode = false;
+// Replay state managed by ReplayController (instantiated after DOM elements)
 let multiplayerActive = false;
 let multiplayerGameStartTime = null;
 let multiplayerMoveTimes = [];
-let replayGame = null;
-let replayPly = -1;
-let replayPlaying = false;
-let replayTimer = null;
-let replayMoveDetails = [];
-let replayClockSnapshots = [];
 
 // Live review state (review past moves during an active game)
 let isLiveReview = false;
@@ -398,7 +440,7 @@ let postGameAnalysisEngine = null;
  * with the game AI or the replay analysis engine.
  */
 async function liveEval() {
-  if (isReplayMode || game.isGameOver()) return;
+  if (replayController.isActive || game.isGameOver()) return;
 
   if (!liveEvalEngine) {
     liveEvalEngine = new AnalysisEngine();
@@ -407,7 +449,7 @@ async function liveEval() {
   try {
     const cp = await liveEvalEngine.quickEval(game.chess.fen());
     // cp is null if a full analysis is running on this engine
-    if (cp != null && !isReplayMode) {
+    if (cp != null && !replayController.isActive) {
       mainEvalBar.update(cp);
     }
   } catch {
@@ -608,7 +650,7 @@ function triggerPostGameSummary() {
   }
 
   postGameSummary.setCallbacks({
-    onReview: (rec) => enterReplayMode(rec),
+    onReview: (rec) => replayController.enter(rec),
     onNewGame: () => startNewGame(),
     onClose: () => {},
   });
@@ -620,7 +662,7 @@ function triggerPostGameSummary() {
     postGameAnalysisEngine,
     record.serverId || null,
     {
-      onReview: (rec) => enterReplayMode(rec),
+      onReview: (rec) => replayController.enter(rec),
       onNewGame: () => startNewGame(),
       onClose: () => {},
     }
@@ -694,8 +736,8 @@ async function startNewGame() {
 
   // Exit live review or replay mode if active
   if (isLiveReview) exitLiveReview();
-  if (isReplayMode) {
-    exitReplayMode(false);
+  if (replayController.isActive) {
+    replayController.exit(false);
   }
 
   // End the current game as abandoned if moves were made and game isn't over
@@ -864,7 +906,7 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960, i
   // Close any open panels/overlays
   if (postGameSummary.isOpen()) postGameSummary.close();
   if (isLiveReview) exitLiveReview();
-  if (isReplayMode) exitReplayMode(false);
+  if (replayController.isActive) replayController.exit(false);
 
   // End current local game if in progress
   if (currentDbGameId && moveCount > 0 && !game.isGameOver()) {
@@ -987,7 +1029,7 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960, i
 }
 
 board.onMove((result) => {
-  if (isReplayMode || isLiveReview) return;
+  if (replayController.isActive || isLiveReview) return;
   moveCount++;
   showingGameInfo = false;
 
@@ -1194,7 +1236,7 @@ startGameBtn.addEventListener('click', () => {
 // --- Editable Player Names ---
 
 function startNameEdit(nameEl, side) {
-  if (isReplayMode || isLiveReview) return;
+  if (replayController.isActive || isLiveReview) return;
   // Prevent double-editing
   if (nameEl.querySelector('.player-name-input')) return;
 
@@ -1257,7 +1299,7 @@ function startNameEdit(nameEl, side) {
 }
 
 function startEngineSwitch(nameEl, side) {
-  if (isReplayMode || multiplayerActive) return;
+  if (replayController.isActive || multiplayerActive) return;
   if (nameEl.querySelector('.engine-switch-select')) return;
 
   const isWhite = side === 'white';
@@ -1436,7 +1478,7 @@ if (evalBarToggle) {
       return;
     }
 
-    if (isReplayMode) {
+    if (replayController.isActive) {
       // In replay mode, show/hide based on toggle + analysis data
       if (enabled && replayAnalysisData) {
         mainEvalBar.show();
@@ -1736,14 +1778,14 @@ function closeAllPopups() {
 
 // Click player icon to toggle Human ↔ AI (only before first move)
 playerIconWhite.addEventListener('click', () => {
-  if (isReplayMode || multiplayerActive || moveCount > 0) return;
+  if (replayController.isActive || multiplayerActive || moveCount > 0) return;
   aiWhiteToggle.checked = !aiWhiteToggle.checked;
   aiWhiteToggle.dispatchEvent(new Event('change'));
   startNewGame();
 });
 
 playerIconBlack.addEventListener('click', () => {
-  if (isReplayMode || multiplayerActive || moveCount > 0) return;
+  if (replayController.isActive || multiplayerActive || moveCount > 0) return;
   aiBlackToggle.checked = !aiBlackToggle.checked;
   aiBlackToggle.dispatchEvent(new Event('change'));
   startNewGame();
@@ -1751,14 +1793,14 @@ playerIconBlack.addEventListener('click', () => {
 
 // Click game type label to toggle Chess960 ↔ Standard (only before first move)
 gameTypeLabel.addEventListener('click', () => {
-  if (isReplayMode || moveCount > 0) return;
+  if (replayController.isActive || moveCount > 0) return;
   chess960Toggle.checked = !chess960Toggle.checked;
   startNewGame();
 });
 
 // Click timer for time control dropdown (only before first move)
 function showTimerDropdown(timerEl) {
-  if (isReplayMode || moveCount > 0) return;
+  if (replayController.isActive || moveCount > 0) return;
   closeAllPopups();
 
   const dropdown = document.createElement('div');
@@ -1820,7 +1862,7 @@ timerBlackEl.addEventListener('click', (e) => {
 
 // Click ELO label for inline slider popup (only before first move, only for AI)
 function showEloPopup(eloEl, side) {
-  if (isReplayMode || moveCount > 0) return;
+  if (replayController.isActive || moveCount > 0) return;
   closeAllPopups();
 
   const isWhite = side === 'w';
@@ -1946,507 +1988,6 @@ function showConfirmation(message, title) {
     confirmModalCancel.addEventListener('click', onCancel);
     confirmModal.addEventListener('click', onBackdrop);
   });
-}
-
-// --- Replay on Main Board ---
-
-async function enterReplayMode(gameRecord) {
-  // Confirm if there's an active live game (not if already in replay mode)
-  // Skip confirmation for post-multiplayer review (game already ended)
-  if (!isReplayMode && moveCount > 0 && !game.isGameOver() && !lastMultiplayerGameRecord) {
-    const confirmed = await showConfirmation(
-      'You have a game in progress. Abandon it to review this game?',
-      'Abandon Game?'
-    );
-    if (!confirmed) {
-      return;
-    }
-    // End the current game as abandoned
-    if (currentDbGameId) {
-      db.endGame(currentDbGameId, 'abandoned', 'abandoned');
-    }
-    moveCount = 0;
-  }
-
-  if (isReplayMode) exitReplayMode(false);
-  if (isLiveReview) exitLiveReview();
-  fadeLiveMoveBar();
-
-  ai.stop();
-  timer.stop();
-
-  // Stop live eval — replay mode uses its own analysis engine
-  if (liveEvalEngine) {
-    liveEvalEngine.stop();
-  }
-
-  isReplayMode = true;
-  replayGame = gameRecord;
-  replayPly = -1;
-  replayPlaying = false;
-
-  // Precompute move details (from/to for highlighting)
-  replayMoveDetails = [];
-  const scratch = new Chess(gameRecord.startingFen);
-  for (const move of gameRecord.moves) {
-    const result = scratch.move(move.san);
-    if (result) {
-      replayMoveDetails.push({
-        fen: move.fen,
-        from: result.from,
-        to: result.to,
-        san: move.san,
-        side: move.side,
-      });
-    }
-  }
-
-  // Reconstruct clocks
-  replayClockSnapshots = reconstructClocks(gameRecord);
-
-  // Disable board input and show replay border
-  board.setInteractive(false);
-  boardEl.classList.add('replay-mode-border');
-
-  // Update player bars
-  updatePlayerBarsForReplay(gameRecord);
-
-  // Update status
-  statusEl.textContent = 'Replay Mode';
-  statusEl.className = 'status replay-mode';
-
-  // Hide normal game controls that don't apply
-  startGameBtn.classList.add('hidden');
-  appEl.classList.remove('pre-game');
-  closeAllPopups();
-
-  // Build move list
-  buildReplayMoveList(gameRecord);
-
-  // Show replay controls
-  replayControlsEl.classList.remove('hidden');
-
-  // Show result
-  if (gameRecord.result) {
-    replayResultEl.textContent = formatReplayResult(gameRecord);
-    replayResultEl.style.display = '';
-  } else {
-    replayResultEl.style.display = 'none';
-  }
-
-  // Render starting position
-  replayGoToMove(-1);
-
-  // Highlight New Game button to indicate how to exit
-  newGameBtn.classList.add('game-ended');
-
-  // Set up keyboard handler
-  document.addEventListener('keydown', replayKeyHandler);
-
-  // Auto-analyze if toggle is enabled
-  resetMainBoardAnalysis();
-  if (replayAnalyzeCheckbox && replayAnalyzeCheckbox.checked) {
-    runMainBoardAnalysis(gameRecord);
-  }
-
-  // Update URL to reflect replay mode
-  if (gameRecord.id) {
-    router.silentUpdate('/replay', { gameid: gameRecord.id });
-  }
-
-  // Enter shared review if this is a post-multiplayer game
-  if (mp.roomId) {
-    sharedReviewActive = true;
-    mp.sendReviewEnter();
-  }
-}
-
-function exitReplayMode(startNew = true) {
-  if (!isReplayMode) return;
-
-  // Exit shared review if active
-  if (sharedReviewActive) {
-    mp.sendReviewExit();
-    sharedReviewActive = false;
-    peerInReview = false;
-    peerAnalysisRunning = false;
-  }
-
-  stopReplayPlayback();
-
-  // Stop analysis if running
-  if (replayAnalysisEngine) {
-    replayAnalysisEngine.stop();
-  }
-  resetMainBoardAnalysis();
-
-  isReplayMode = false;
-  replayGame = null;
-  replayPly = -1;
-  replayMoveDetails = [];
-  replayClockSnapshots = [];
-
-  // Clear all arrows
-  board.getArrowOverlay().clear();
-
-  // Re-enable board input and remove replay border
-  board.setInteractive(true);
-  boardEl.classList.remove('replay-mode-border');
-
-  // Hide replay controls
-  replayControlsEl.classList.add('hidden');
-
-  // Remove keyboard handler
-  document.removeEventListener('keydown', replayKeyHandler);
-
-  if (startNew) startNewGame();
-}
-
-// --- Replay Navigation ---
-
-function replayGoToMove(plyIndex) {
-  if (!replayGame) return;
-  const maxPly = replayGame.moves.length - 1;
-  replayPly = Math.max(-1, Math.min(plyIndex, maxPly));
-
-  if (replayPly === -1) {
-    game.chess.load(replayGame.startingFen);
-    game._lastMove = null;
-  } else {
-    const detail = replayMoveDetails[replayPly];
-    game.chess.load(detail.fen);
-    game._lastMove = { from: detail.from, to: detail.to };
-  }
-
-  board.render();
-  highlightReplayMove();
-  updateReplayButtons();
-  updateReplayTimers();
-
-  if (replayPly === -1) {
-    statusEl.textContent = 'Replay Mode \u2014 Starting Position';
-  } else {
-    const moveNum = Math.floor(replayPly / 2) + 1;
-    const side = replayMoveDetails[replayPly].side === 'w' ? '' : '...';
-    statusEl.textContent = `Replay Mode \u2014 ${moveNum}${side} ${replayMoveDetails[replayPly].san}`;
-  }
-  statusEl.className = 'status replay-mode';
-
-  // Update analysis detail panel and engine arrows for current ply
-  if (replayAnalysisData) {
-    updateAnalysisDetail();
-    updateCriticalNav();
-    updateMainEvalBar();
-    updateEngineArrows();
-  } else {
-    board.getArrowOverlay().clearEngineArrows();
-  }
-
-  // Clear peer arrows on navigation (arrows are position-specific)
-  board.getArrowOverlay().clearPeerAnnotations();
-
-  // Sync navigation to peer in shared review
-  if (sharedReviewActive && !isRemoteNavigation) {
-    mp.sendReviewNavigate(replayPly);
-  }
-}
-
-function replayNext() {
-  if (!replayGame) return;
-  if (replayPly >= replayGame.moves.length - 1) {
-    stopReplayPlayback();
-    return;
-  }
-  replayGoToMove(replayPly + 1);
-}
-
-function replayPrev() {
-  replayGoToMove(replayPly - 1);
-}
-
-function replayGoToStart() {
-  stopReplayPlayback();
-  replayGoToMove(-1);
-}
-
-function replayGoToEnd() {
-  stopReplayPlayback();
-  if (replayGame) {
-    replayGoToMove(replayGame.moves.length - 1);
-  }
-}
-
-// --- Replay Playback ---
-
-function toggleReplayPlayback() {
-  if (replayPlaying) {
-    stopReplayPlayback();
-  } else {
-    startReplayPlayback();
-  }
-}
-
-function startReplayPlayback() {
-  if (!replayGame) return;
-  if (replayPly >= replayGame.moves.length - 1) {
-    replayGoToMove(-1);
-  }
-  replayPlaying = true;
-  replayPlayBtn.textContent = '\u23F8';
-  replayPlayBtn.classList.add('playing');
-  scheduleReplayNext();
-}
-
-function stopReplayPlayback() {
-  replayPlaying = false;
-  if (replayTimer) {
-    clearTimeout(replayTimer);
-    replayTimer = null;
-  }
-  if (replayPlayBtn) {
-    replayPlayBtn.textContent = '\u25B6';
-    replayPlayBtn.classList.remove('playing');
-  }
-}
-
-function scheduleReplayNext() {
-  if (!replayPlaying || !replayGame) return;
-  if (replayPly >= replayGame.moves.length - 1) {
-    stopReplayPlayback();
-    return;
-  }
-
-  const nextPly = replayPly + 1;
-  const nextMove = replayGame.moves[nextPly];
-  let delay;
-
-  if (replayPly === -1) {
-    delay = nextMove.timestamp - replayGame.startTime;
-  } else {
-    delay = nextMove.timestamp - replayGame.moves[replayPly].timestamp;
-  }
-
-  delay = Math.max(200, Math.min(delay, 5000));
-
-  replayTimer = setTimeout(() => {
-    replayNext();
-    if (replayPlaying) scheduleReplayNext();
-  }, delay);
-}
-
-// --- Replay Clock Reconstruction ---
-
-function parseReplayTimeControl(tc) {
-  if (!tc || tc === 'none' || tc === 'No Timer') return null;
-  // Odds format: "Custom 10/5+2" or raw "10/5+3" or legacy "Custom W10 / B5 +2"
-  const oddsMatch = tc.match(/(\d+)\/(\d+)\+(\d+)/);
-  if (oddsMatch) {
-    return {
-      baseSec: parseInt(oddsMatch[1], 10) * 60,
-      secondPlayerBaseSec: parseInt(oddsMatch[2], 10) * 60,
-      increment: parseInt(oddsMatch[3], 10),
-    };
-  }
-  const legacyOddsMatch = tc.match(/W(\d+)\s*\/\s*B(\d+)\s*\+(\d+)/);
-  if (legacyOddsMatch) {
-    return {
-      baseSec: parseInt(legacyOddsMatch[1], 10) * 60,
-      secondPlayerBaseSec: parseInt(legacyOddsMatch[2], 10) * 60,
-      increment: parseInt(legacyOddsMatch[3], 10),
-    };
-  }
-  const match = tc.match(/(\d+)\+(\d+)/);
-  if (!match) return null;
-  return { baseSec: parseInt(match[1], 10) * 60, increment: parseInt(match[2], 10) };
-}
-
-function reconstructClocks(gameRecord) {
-  const snapshots = [];
-  const tc = parseReplayTimeControl(gameRecord.timeControl);
-  if (!tc) {
-    for (let i = 0; i < gameRecord.moves.length; i++) snapshots.push(null);
-    return snapshots;
-  }
-
-  let whiteTime = tc.baseSec;
-  let blackTime = tc.secondPlayerBaseSec || tc.baseSec;
-  let prevTimestamp = gameRecord.startTime;
-
-  for (const move of gameRecord.moves) {
-    const spent = (move.timestamp - prevTimestamp) / 1000;
-    if (move.side === 'w') {
-      whiteTime = Math.max(0, whiteTime - spent) + tc.increment;
-    } else {
-      blackTime = Math.max(0, blackTime - spent) + tc.increment;
-    }
-    snapshots.push({ w: whiteTime, b: blackTime });
-    prevTimestamp = move.timestamp;
-  }
-  return snapshots;
-}
-
-function formatClockTime(seconds) {
-  if (seconds == null) return '--:--';
-  const s = Math.max(0, Math.floor(seconds));
-  const m = Math.floor(s / 60);
-  const sec = s % 60;
-  if (m >= 60) {
-    const h = Math.floor(m / 60);
-    const min = m % 60;
-    return `${h}:${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-  }
-  return `${m}:${String(sec).padStart(2, '0')}`;
-}
-
-function updateReplayTimers() {
-  if (!replayGame) return;
-
-  if (replayPly === -1) {
-    const tc = parseReplayTimeControl(replayGame.timeControl);
-    if (tc) {
-      timerWhiteEl.textContent = formatClockTime(tc.baseSec);
-      timerBlackEl.textContent = formatClockTime(tc.secondPlayerBaseSec || tc.baseSec);
-    } else {
-      timerWhiteEl.textContent = '--:--';
-      timerBlackEl.textContent = '--:--';
-    }
-    timerWhiteEl.classList.remove('timer-active', 'timer-low');
-    timerBlackEl.classList.remove('timer-active', 'timer-low');
-    return;
-  }
-
-  const snapshot = replayClockSnapshots[replayPly];
-  if (!snapshot) {
-    timerWhiteEl.textContent = '--:--';
-    timerBlackEl.textContent = '--:--';
-    timerWhiteEl.classList.remove('timer-active', 'timer-low');
-    timerBlackEl.classList.remove('timer-active', 'timer-low');
-    return;
-  }
-
-  timerWhiteEl.textContent = formatClockTime(snapshot.w);
-  timerBlackEl.textContent = formatClockTime(snapshot.b);
-
-  const nextPly = replayPly + 1;
-  if (nextPly < replayGame.moves.length) {
-    const nextSide = replayGame.moves[nextPly].side;
-    timerWhiteEl.classList.toggle('timer-active', nextSide === 'w');
-    timerBlackEl.classList.toggle('timer-active', nextSide === 'b');
-  } else {
-    timerWhiteEl.classList.remove('timer-active');
-    timerBlackEl.classList.remove('timer-active');
-  }
-}
-
-// --- Replay Player Bars ---
-
-function updatePlayerBarsForReplay(gameRecord) {
-  const w = gameRecord.white;
-  const b = gameRecord.black;
-
-  playerNameWhite.textContent = w.name || 'White';
-  playerNameBlack.textContent = b.name || 'Black';
-  const wEngInfo = w.engineId ? getEngineInfo(w.engineId) : null;
-  const bEngInfo = b.engineId ? getEngineInfo(b.engineId) : null;
-  playerIconWhite.textContent = w.isAI ? (wEngInfo?.icon || '\uD83E\uDD16') : '\uD83D\uDC64';
-  playerIconBlack.textContent = b.isAI ? (bEngInfo?.icon || '\uD83E\uDD16') : '\uD83D\uDC64';
-
-  if (w.elo) {
-    playerEloWhite.textContent = w.elo;
-    playerEloWhite.classList.remove('hidden');
-  } else {
-    playerEloWhite.classList.add('hidden');
-  }
-
-  if (b.elo) {
-    playerEloBlack.textContent = b.elo;
-    playerEloBlack.classList.remove('hidden');
-  } else {
-    playerEloBlack.classList.add('hidden');
-  }
-
-  capturedByWhiteEl.innerHTML = '';
-  capturedByBlackEl.innerHTML = '';
-
-  gameTypeLabel.textContent = gameRecord.gameType === 'chess960' ? 'Chess960' : 'Standard';
-}
-
-// --- Replay Move List ---
-
-function buildReplayMoveList(gameRecord) {
-  replayMoveListEl.innerHTML = '';
-
-  for (let i = 0; i < gameRecord.moves.length; i++) {
-    const move = gameRecord.moves[i];
-    const moveNum = Math.floor(i / 2) + 1;
-    const isWhite = move.side === 'w';
-
-    if (isWhite) {
-      const numEl = document.createElement('span');
-      numEl.className = 'strip-move-num';
-      numEl.textContent = `${moveNum}.`;
-      replayMoveListEl.appendChild(numEl);
-    }
-
-    const moveEl = document.createElement('span');
-    moveEl.className = 'strip-move';
-    moveEl.textContent = move.san;
-    moveEl.dataset.ply = i;
-    moveEl.addEventListener('click', () => {
-      stopReplayPlayback();
-      replayGoToMove(parseInt(moveEl.dataset.ply, 10));
-    });
-    replayMoveListEl.appendChild(moveEl);
-  }
-}
-
-function highlightReplayMove() {
-  replayMoveListEl.querySelectorAll('.strip-move-active').forEach(el => {
-    el.classList.remove('strip-move-active');
-  });
-
-  if (replayPly >= 0) {
-    const el = replayMoveListEl.querySelector(`.strip-move[data-ply="${replayPly}"]`);
-    if (el) {
-      el.classList.add('strip-move-active');
-      el.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
-    }
-  } else {
-    replayMoveListEl.scrollLeft = 0;
-  }
-}
-
-// --- Replay Button State ---
-
-function updateReplayButtons() {
-  if (!replayGame) return;
-  const atStart = replayPly === -1;
-  const atEnd = replayPly >= replayGame.moves.length - 1;
-
-  replayStartBtn.disabled = atStart;
-  replayPrevBtn.disabled = atStart;
-  replayNextBtn.disabled = atEnd;
-  replayEndBtn.disabled = atEnd;
-}
-
-function formatReplayResult(gameRecord) {
-  if (!gameRecord.result) return '';
-  if (gameRecord.result === 'abandoned') return 'Abandoned';
-
-  const reasons = {
-    checkmate: 'Checkmate',
-    stalemate: 'Stalemate',
-    timeout: 'Time out',
-    insufficient: 'Insufficient material',
-    threefold: 'Threefold repetition',
-    '50-move': 'Fifty-move rule',
-    draw: 'Draw',
-  };
-
-  const reason = reasons[gameRecord.resultReason] || '';
-  if (gameRecord.result === '1/2-1/2') return reason ? `Draw \u2014 ${reason}` : 'Draw';
-  const winner = gameRecord.result === '1-0' ? 'White' : 'Black';
-  return reason ? `${reason}! ${winner} wins` : `${winner} wins`;
 }
 
 // --- Main-Board Analysis ---
@@ -2647,7 +2188,7 @@ function updateAnalysisDetail() {
     return;
   }
 
-  const posIdx = replayPly + 1;
+  const posIdx = replayController.getPly() + 1;
   if (posIdx < 0 || posIdx >= replayAnalysisData.positions.length) {
     replayDetailEl.classList.add('hidden');
     return;
@@ -2701,7 +2242,7 @@ function updateEngineArrows() {
   overlay.clearEngineArrows();
 
   if (!replayAnalysisData) return;
-  const posIdx = replayPly + 1;
+  const posIdx = replayController.getPly() + 1;
   if (posIdx < 0 || posIdx >= replayAnalysisData.positions.length) return;
 
   const pos = replayAnalysisData.positions[posIdx];
@@ -2721,7 +2262,7 @@ function updateCriticalNav() {
   replayCritNextBtn.classList.remove('hidden');
 
   const moments = replayAnalysisData.criticalMoments;
-  const curPos = replayPly + 1;
+  const curPos = replayController.getPly() + 1;
 
   const prevCrit = moments.filter(m => m < curPos);
   const nextCrit = moments.filter(m => m > curPos);
@@ -2733,24 +2274,24 @@ function updateCriticalNav() {
 function goToPrevCritical() {
   if (!replayAnalysisData) return;
   const moments = replayAnalysisData.criticalMoments;
-  const curPos = replayPly + 1;
+  const curPos = replayController.getPly() + 1;
   const prev = moments.filter(m => m < curPos);
   if (prev.length > 0) {
     const targetPos = prev[prev.length - 1];
-    stopReplayPlayback();
-    replayGoToMove(targetPos - 1);
+    replayController.stopPlayback();
+    replayController.goToMove(targetPos - 1);
   }
 }
 
 function goToNextCritical() {
   if (!replayAnalysisData) return;
   const moments = replayAnalysisData.criticalMoments;
-  const curPos = replayPly + 1;
+  const curPos = replayController.getPly() + 1;
   const next = moments.filter(m => m > curPos);
   if (next.length > 0) {
     const targetPos = next[0];
-    stopReplayPlayback();
-    replayGoToMove(targetPos - 1);
+    replayController.stopPlayback();
+    replayController.goToMove(targetPos - 1);
   }
 }
 
@@ -2789,7 +2330,7 @@ function resetMainBoardAnalysis() {
 
 function updateMainEvalBar() {
   if (!replayAnalysisData) return;
-  const posIdx = replayPly + 1;
+  const posIdx = replayController.getPly() + 1;
   if (posIdx < 0 || posIdx >= replayAnalysisData.positions.length) return;
   mainEvalBar.update(replayAnalysisData.positions[posIdx].eval);
 }
@@ -2881,7 +2422,7 @@ function highlightLiveMoveBarPly(plyIndex) {
 // --- Live Review (review past moves during a live game) ---
 
 function enterLiveReview(targetPly) {
-  if (isLiveReview || isReplayMode || moveCount === 0 || game.isGameOver()) return;
+  if (isLiveReview || replayController.isActive || moveCount === 0 || game.isGameOver()) return;
 
   isLiveReview = true;
   liveReviewPendingMoves = [];
@@ -3077,48 +2618,19 @@ function liveReviewKeyHandler(e) {
 
 // Global keydown listener for entering live review via arrow key
 document.addEventListener('keydown', (e) => {
-  if (isLiveReview || isReplayMode) return;
+  if (isLiveReview || replayController.isActive) return;
   if (e.key === 'ArrowLeft' && moveCount > 0 && !game.isGameOver()) {
     e.preventDefault();
     enterLiveReview();
   }
 });
 
-// --- Replay Keyboard Handler ---
-
-function replayKeyHandler(e) {
-  if (!isReplayMode) return;
-
-  switch (e.key) {
-    case 'ArrowLeft':
-      e.preventDefault();
-      replayPrev();
-      break;
-    case 'ArrowRight':
-      e.preventDefault();
-      replayNext();
-      break;
-    case ' ':
-      e.preventDefault();
-      toggleReplayPlayback();
-      break;
-    case 'Home':
-      e.preventDefault();
-      replayGoToStart();
-      break;
-    case 'End':
-      e.preventDefault();
-      replayGoToEnd();
-      break;
-  }
-}
-
-// Wire up replay/live-review control buttons (dispatch based on active mode)
-replayStartBtn.addEventListener('click', replayGoToStart);
-replayPrevBtn.addEventListener('click', replayPrev);
-replayPlayBtn.addEventListener('click', toggleReplayPlayback);
-replayNextBtn.addEventListener('click', replayNext);
-replayEndBtn.addEventListener('click', replayGoToEnd);
+// Wire up replay/live-review control buttons (dispatch to ReplayController)
+replayStartBtn.addEventListener('click', () => replayController.goToStart());
+replayPrevBtn.addEventListener('click', () => replayController.prev());
+replayPlayBtn.addEventListener('click', () => replayController.togglePlayback());
+replayNextBtn.addEventListener('click', () => replayController.next());
+replayEndBtn.addEventListener('click', () => replayController.goToEnd());
 
 // Wire up live move bar buttons (persistent bar during live games)
 if (liveStartBtn) liveStartBtn.addEventListener('click', () => {
@@ -3142,8 +2654,8 @@ if (replayAnalyzeCheckbox) {
     const enabled = replayAnalyzeCheckbox.checked;
     localStorage.setItem('chess-auto-analyze', enabled ? 'true' : 'false');
     if (enabled) {
-      if (isReplayMode && replayGame && !replayAnalysisData) {
-        runMainBoardAnalysis(replayGame);
+      if (replayController.isActive && replayController.getGame() && !replayAnalysisData) {
+        runMainBoardAnalysis(replayController.getGame());
       }
     } else {
       if (replayAnalysisEngine) replayAnalysisEngine.stop();
@@ -3183,7 +2695,7 @@ replayViewer.setSummaryCallback((gameRecord, analysisData) => {
 // Wire up main-board replay summary button
 if (replaySummaryBtn) {
   replaySummaryBtn.addEventListener('click', () => {
-    if (!isReplayMode || !replayGame) return;
+    if (!replayController.isActive || !replayController.getGame()) return;
 
     if (!postGameAnalysisEngine) {
       postGameAnalysisEngine = new AnalysisEngine();
@@ -3198,12 +2710,12 @@ if (replaySummaryBtn) {
     postGameSummary.setCallbacks(callbacks);
 
     if (replayAnalysisData) {
-      postGameSummary.show(replayGame, { summary: replayAnalysisData.summary });
+      postGameSummary.show(replayController.getGame(), { summary: replayAnalysisData.summary });
     } else {
       postGameSummary.showWithAnalysis(
-        replayGame,
+        replayController.getGame(),
         postGameAnalysisEngine,
-        replayGame.serverId || null,
+        replayController.getGame().serverId || null,
         callbacks
       );
     }
@@ -3665,7 +3177,7 @@ mp.onGameEnd = (payload) => {
       postGameAnalysisEngine,
       null,
       {
-        onReview: (rec) => enterReplayMode(rec),
+        onReview: (rec) => replayController.enter(rec),
         onNewGame: () => { multiplayerActive = false; startNewGame(); },
         onClose: () => {},
       }
@@ -4179,8 +3691,8 @@ mp.onReviewClearArrows = (payload) => {
 mp.onReviewEntered = (payload) => {
   peerInReview = true;
   // Auto-enter review if peer started it and we're not already in replay
-  if (!isReplayMode && lastMultiplayerGameRecord) {
-    enterReplayMode(lastMultiplayerGameRecord);
+  if (!replayController.isActive && lastMultiplayerGameRecord) {
+    replayController.enter(lastMultiplayerGameRecord);
   }
   // Share any existing analysis with the newly joined peer.
   // Cached analysis runs synchronously before sharedReviewActive is set,
@@ -4199,9 +3711,9 @@ mp.onReviewExited = (payload) => {
 
 // Navigation sync
 mp.onReviewNavigate = (payload) => {
-  if (!isReplayMode) return;
+  if (!replayController.isActive) return;
   isRemoteNavigation = true;
-  replayGoToMove(payload.ply);
+  replayController.goToMove(payload.ply);
   isRemoteNavigation = false;
 };
 
@@ -4213,7 +3725,7 @@ mp.onReviewAnalysisStarted = (payload) => {
 
 mp.onReviewAnalysis = (payload) => {
   peerAnalysisRunning = false;
-  if (isReplayMode && payload) {
+  if (replayController.isActive && payload) {
     setMainBoardAnalysis(payload);
   }
 };
@@ -4513,7 +4025,7 @@ async function loadGameById(gameId) {
   }
   const rec = await db.getGame(id);
   if (rec && rec.moves && rec.moves.length > 0) {
-    enterReplayMode(rec);
+    replayController.enter(rec);
   } else {
     console.warn(`Game ${id} not found or has no moves`);
     router.navigate('/');
@@ -4524,7 +4036,7 @@ router.on('/', ({ params }) => {
   const gameId = params.get('gameid');
   if (gameId) { loadGameById(gameId); return; }
   gameBrowser.close();
-  if (isReplayMode) exitReplayMode(true);
+  if (replayController.isActive) replayController.exit(true);
   else if (moveCount === 0) startNewGame();
 });
 

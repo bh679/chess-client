@@ -171,6 +171,7 @@ js/auth-ui.js           Sign-in/register modals, user badge with dropdown
 js/profile.js           Profile modal with ratings and filtered game list
 js/friends.js           Friends modal (add, accept, reject, remove)
 js/replay.js            Replay viewer with board, move strip, and clock reconstruction
+js/replay-controller.js Replay mode controller (navigation, playback, clock reconstruction)
 js/face-tracker.js      Face detection (MediaPipe) for video board centering
 js/video-board.js       Video board mode (camera feeds as board mosaic)
 js/split-cam.js         Split Cam mode (left half = white player, right half = black player)
