@@ -830,6 +830,9 @@ async function startNewGame() {
 
   // Update URL to home
   router.silentUpdate('/');
+
+  // Resume public lobby polling (may have been stopped during multiplayer transition)
+  startPublicLobbyPolling();
 }
 
 /** Configure timer display for lobby preview without starting it */
@@ -1134,8 +1137,26 @@ timer.onTimeout((loser) => {
 });
 
 newGameBtn.addEventListener('click', async () => {
-  // If multiplayer game active, don't interfere
-  if (multiplayerActive) return;
+  // If multiplayer game active, prompt to resign first
+  if (multiplayerActive) {
+    const confirmed = await showConfirmation(
+      'Resign the current game and start a new one?',
+      'Resign Game?'
+    );
+    if (!confirmed) return;
+    stopPublicLobbyPolling();  // Prevent poll timer from auto-reconnecting during transition
+    if (moveCount > 0 && !game.isGameOver()) {
+      mp.resign();
+    } else {
+      mp.cancelPendingRoom();  // Waiting room / lobby — cancel rather than resign
+    }
+    mp.disconnect();
+    multiplayerActive = false;
+    timer.stop();
+    mpUI.hideGameControls();
+    newGameMenu.open();
+    return;
+  }
 
   // If a game is in progress, confirm abandonment first
   if (moveCount > 0 && !game.isGameOver()) {
