@@ -32,6 +32,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Click ELO to adjust**](https://github.com/bh679/Chess/wiki/Feature:-Player-Configuration) — click the ELO label (pre-game) to open an inline slider popup
 - [**Click timer to change time**](https://github.com/bh679/Chess/wiki/Feature:-Player-Configuration) — click either timer (pre-game) for a time control dropdown
 - [**Editable player names**](https://github.com/bh679/Chess/wiki/Feature:-Player-Configuration) — click any player name to rename it (works anytime, persists to database)
+- [**Persistent player name**](https://github.com/bh679/Chess/wiki/Feature:-Player-Name-Cache) — name is cached in localStorage and pre-filled automatically in future sessions
 
 ### [Timers](https://github.com/bh679/Chess/wiki/Feature:-Time-Controls)
 - [**Preset time controls**](https://github.com/bh679/Chess/wiki/Feature:-Time-Controls) — Bullet 1+0, Blitz 3+2, Rapid 5+0, Rapid 10+0, Classical 30+0
