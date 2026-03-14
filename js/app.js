@@ -385,6 +385,7 @@ const kingCam = new KingCam();
 const splitCam = new SplitCam(boardEl);
 const splitCamH = new SplitCamH(boardEl);
 window.kingCam = kingCam;
+window.replayController = replayController;
 let videoActive = false;
 let activeCamMode = 'none'; // set by onGameStart, read by onVideoStart
 let _userStoppedCamera = false; // set before videoChat.stop() to tag track ended reason as "user"
