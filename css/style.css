@@ -51,6 +51,7 @@ body {
   height: 100dvh;
   overflow: hidden;
   width: 100%;
+  touch-action: manipulation;
 }
 
 body {
