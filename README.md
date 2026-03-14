@@ -112,6 +112,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Split Cam mode**](https://github.com/bh679/chess-client/wiki/Feature:-Split-Cam) — new camera mode where the left half of the board shows white player's camera and the right half shows black player's camera; board color tints indicate whose turn it is
 - [**Connection & video diagnostics**](https://github.com/bh679/chess-client/wiki/Feature:-Connection-and-Video-Logging) — 12 new diagnostic events covering WebSocket reconnect attempts, heartbeat timeouts, room-lost errors, camera acquisition/denial, video call start/fail, and ICE reconnect lifecycle; critical failure events flush immediately for maximum delivery reliability
 - [**Analysis Controller extraction**](https://github.com/bh679/chess-client/wiki/Feature:-Analysis-Controller) — refactored 12 analysis display functions and 3 state variables from `app.js` into a dedicated `AnalysisController` ES6 module; shared constants eliminate duplication between app.js and replay.js
+- **Audio/video issue checkbox** — the "Audio / video issue" category is now shown in the issue reporter for all games, not only King-Cam video games
 
 ## Roadmap
 
