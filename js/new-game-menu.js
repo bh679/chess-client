@@ -128,6 +128,8 @@ export class NewGameMenu {
 
     // Online step elements
     this.onlineNameInput = document.getElementById('ng-online-name');
+    const savedPlayerName = localStorage.getItem('chess-player-name');
+    if (savedPlayerName) this.onlineNameInput.value = savedPlayerName;
     this.onlineTcSelect = document.getElementById('ng-online-tc');
     this.onlineCamBtn = document.getElementById('ng-online-cam-btn');
     this.online960Btn = document.getElementById('ng-online-960-btn');
@@ -210,6 +212,7 @@ export class NewGameMenu {
     this.findOpponentBtn.addEventListener('click', () => {
       const tc = this.onlineTcSelect.value;
       const name = this.onlineNameInput.value.trim() || null;
+      if (name) localStorage.setItem('chess-player-name', name);
       const camMode = this._getCamMode(this.onlineCamBtn);
       const chess960 = this.online960Btn?.classList.contains('active') || false;
       this.close();
