@@ -128,28 +128,18 @@
     </div>
 
     <div id="live-move-bar" class="live-move-bar faded">
-      <div id="live-move-list" class="live-move-list"></div>
-      <div class="live-move-buttons">
-        <button id="live-start-btn" class="live-move-btn" title="Start (Home)">|&#9664;</button>
-        <button id="live-prev-btn" class="live-move-btn" title="Previous (&#8592;)">&#9664;</button>
-        <button id="live-next-btn" class="live-move-btn" title="Next (&#8594;)">&#9654;</button>
-        <button id="live-end-btn" class="live-move-btn" title="Latest (End)">&#9654;|</button>
-      </div>
-    </div>
-
-    <div id="replay-controls" class="replay-main-controls hidden">
-      <div id="replay-move-list" class="replay-main-move-list"></div>
-      <div class="replay-nav-row">
-        <div class="replay-main-buttons">
-          <button id="replay-crit-prev" class="replay-main-btn replay-crit-btn hidden" title="Previous Critical Moment">&#9664; Crit</button>
-          <button id="replay-main-start" class="replay-main-btn" title="Start (Home)">|&#9664;</button>
-          <button id="replay-main-prev" class="replay-main-btn" title="Previous (&#8592;)">&#9664;</button>
-          <button id="replay-main-play" class="replay-main-btn replay-main-btn-play" title="Play/Pause (Space)">&#9654;</button>
-          <button id="replay-main-next" class="replay-main-btn" title="Next (&#8594;)">&#9654;</button>
-          <button id="replay-main-end" class="replay-main-btn" title="End (End)">&#9654;|</button>
-          <button id="replay-crit-next" class="replay-main-btn replay-crit-btn hidden" title="Next Critical Moment">Crit &#9654;</button>
+      <div class="live-move-bar-row">
+        <div id="live-move-list" class="live-move-list"></div>
+        <div class="live-move-buttons">
+          <button id="replay-crit-prev" class="live-move-btn replay-crit-btn hidden" title="Previous Critical Moment">&#9664; Crit</button>
+          <button id="live-start-btn" class="live-move-btn" title="Start (Home)">|&#9664;</button>
+          <button id="live-prev-btn" class="live-move-btn" title="Previous (&#8592;)">&#9664;</button>
+          <button id="replay-main-play" class="live-move-btn live-move-btn-play hidden" title="Play/Pause (Space)">&#9654;</button>
+          <button id="live-next-btn" class="live-move-btn" title="Next (&#8594;)">&#9654;</button>
+          <button id="live-end-btn" class="live-move-btn" title="Latest (End)">&#9654;|</button>
+          <button id="replay-crit-next" class="live-move-btn replay-crit-btn hidden" title="Next Critical Moment">Crit &#9654;</button>
         </div>
-        <label class="auto-analyze-toggle" id="replay-analyze-toggle">
+        <label class="auto-analyze-toggle hidden" id="replay-analyze-toggle">
           <span>Analyze</span>
           <span class="auto-analyze-switch">
             <input type="checkbox" id="replay-auto-analyze">
@@ -157,18 +147,20 @@
           </span>
         </label>
       </div>
-      <div id="replay-analysis-progress" class="analysis-progress hidden">
-        <div id="replay-analysis-progress-fill" class="analysis-progress-fill"></div>
+      <div id="replay-extras" class="replay-extras hidden">
+        <div id="replay-analysis-progress" class="analysis-progress hidden">
+          <div id="replay-analysis-progress-fill" class="analysis-progress-fill"></div>
+        </div>
+        <div id="replay-main-result" class="replay-main-result"></div>
+        <div id="replay-analysis-detail" class="analysis-detail hidden">
+          <span id="replay-analysis-classification" class="analysis-detail-classification"></span>
+          <span id="replay-analysis-eval" class="analysis-detail-eval"></span>
+          <span id="replay-analysis-best" class="analysis-detail-best"></span>
+          <span id="replay-analysis-line" class="analysis-detail-line"></span>
+        </div>
+        <div id="replay-analysis-accuracy" class="analysis-accuracy hidden"></div>
+        <button id="replay-summary-btn" class="replay-summary-btn hidden">Game Summary</button>
       </div>
-      <div id="replay-main-result" class="replay-main-result"></div>
-      <div id="replay-analysis-detail" class="analysis-detail hidden">
-        <span id="replay-analysis-classification" class="analysis-detail-classification"></span>
-        <span id="replay-analysis-eval" class="analysis-detail-eval"></span>
-        <span id="replay-analysis-best" class="analysis-detail-best"></span>
-        <span id="replay-analysis-line" class="analysis-detail-line"></span>
-      </div>
-      <div id="replay-analysis-accuracy" class="analysis-accuracy hidden"></div>
-      <button id="replay-summary-btn" class="replay-summary-btn hidden">Game Summary</button>
     </div>
 
   </div>
