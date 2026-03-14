@@ -661,11 +661,11 @@ timer.onTimeout((loser) => {
 newGameBtn.addEventListener('click', async () => {
   // If multiplayer game active, prompt to resign first
   if (gameCtrl.multiplayerActive) {
-    const result = await uiCtrl.showConfirmationWithExit(
+    const confirmed = await uiCtrl.showConfirmation(
       'Resign the current game and start a new one?',
       'Resign Game?'
     );
-    if (!result) return;
+    if (!confirmed) return;
     uiCtrl.stopPublicLobbyPolling();  // Prevent poll timer from auto-reconnecting during transition
     if (gameCtrl.moveCount > 0 && !game.isGameOver()) {
       mp.resign();
@@ -676,7 +676,8 @@ newGameBtn.addEventListener('click', async () => {
     gameCtrl.multiplayerActive = false;
     timer.stop();
     mpUI.hideGameControls();
-    if (result === 'new-game') newGameMenu.open();
+    newGameMenu.showExitButton();
+    newGameMenu.open();
     return;
   }
 
@@ -690,6 +691,7 @@ newGameBtn.addEventListener('click', async () => {
     if (gameCtrl.currentDbGameId) {
       db.endGame(gameCtrl.currentDbGameId, 'abandoned', 'abandoned');
     }
+    newGameMenu.showExitButton();
   }
 
   newGameMenu.open();
@@ -2134,6 +2136,10 @@ mp.onPublicRoomsList = (rooms) => {
   newGameMenu.setPublicRooms(rooms);
   uiCtrl.renderPublicLobbies(rooms);
 };
+
+newGameMenu.onExit(() => {
+  startNewGame();
+});
 
 newGameMenu.onCustomTime(() => {
   // Set context-dependent labels based on game mode

@@ -4371,6 +4371,14 @@ button.replay-summary-btn {
   background: rgba(66, 133, 200, 0.25);
   border-color: rgba(66, 133, 200, 0.6);
 }
+.ng-opponent-btn-red {
+  background: rgba(200, 60, 60, 0.15);
+  border-color: rgba(200, 60, 60, 0.4);
+}
+.ng-opponent-btn-red:hover {
+  background: rgba(200, 60, 60, 0.25);
+  border-color: rgba(200, 60, 60, 0.6);
+}
 .ng-opponent-icon {
   font-size: 1.5rem;
   flex-shrink: 0;
