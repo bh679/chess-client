@@ -3,7 +3,7 @@
   "version": "1.86.0001",
   "requiredApiVersion": "1.03",
   "private": true,
-  "description": "Chess client — static site with vanilla JavaScript",
+  "description": "Chess client \u2014 static site with vanilla JavaScript",
   "dependencies": {
     "playwright": "^1.58.2"
   }
