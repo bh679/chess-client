@@ -91,7 +91,11 @@ export class MultiplayerClient {
         } catch (e) {
           return;
         }
-        this._handleMessage(msg, resolve);
+        try {
+          this._handleMessage(msg, resolve);
+        } catch (e) {
+          console.error('[MP] Message handler error:', msg?.type, e);
+        }
       };
 
       this.ws.onclose = () => {
