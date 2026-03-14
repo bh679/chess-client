@@ -25,6 +25,8 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**ELO-based difficulty**](https://github.com/bh679/Chess/wiki/Feature:-AI-Opponents) — adjustable from 100 to 3200 ELO per side using Skill Level (low ELO) and UCI_LimitStrength (high ELO)
 - [**AI vs AI mode**](https://github.com/bh679/Chess/wiki/Feature:-AI-vs-AI) — watch two engines play against each other at different strengths
 - [**Deferred start**](https://github.com/bh679/Chess/wiki/Feature:-AI-Opponents) — when AI plays white, a Start button appears so you can configure settings first
+- [**Board orientation for AI games**](https://github.com/bh679/Chess/wiki/Feature:-AI-Opponents) — board automatically flips when playing as Black against AI, matching multiplayer behaviour
+- [**Correct player names on game start**](https://github.com/bh679/Chess/wiki/Feature:-AI-Opponents) — engine name and Human label appear immediately when starting an AI game, even after leaving a multiplayer session
 
 ### [Interactive Player Bars](https://github.com/bh679/Chess/wiki/Feature:-Player-Configuration)
 - [**Player info display**](https://github.com/bh679/Chess/wiki/Feature:-Player-Configuration) — shows player name, ELO (for AI), type icon, and timer for each side
