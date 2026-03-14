@@ -3,7 +3,7 @@ import { Game } from './game.js';
 import { Board } from './board.js';
 import { Timer } from './timer.js?v=2';
 import { AI } from './ai.js?v=3';
-import { getAllEngines, getEngineInfo } from './engines/registry.js';
+import { getEngineInfo } from './engines/registry.js';
 import { GameDatabase } from './database.js?v=6';
 import { GameBrowser } from './browser.js?v=4';
 import { ReplayViewer } from './replay.js';
@@ -32,12 +32,9 @@ import { Sound } from './sound.js';
 import { LiveMoveBar } from './live-move-bar.js';
 import { SettingsController } from './settings-controller.js';
 import { GameController } from './game-controller.js';
+import { UIController } from './ui-controller.js';
 
 const sound = new Sound();
-
-const PIECE_ORDER = { q: 0, r: 1, b: 2, n: 3, p: 4 };
-const PIECE_VALUES = { q: 9, r: 5, b: 3, n: 3, p: 1 };
-const PIECE_DISPLAY = { k: 'K', q: 'Q', r: 'R', b: 'B', n: 'N', p: 'P' };
 
 // Default art style path (SettingsController manages art style selection)
 window.chessPiecePath = 'img/pieces';
@@ -155,11 +152,11 @@ const replayController = new ReplayController({
     },
     onNavigate: (ply) => { if (sharedReviewActive && !isRemoteNavigation) mp.sendReviewNavigate(ply); },
     shouldClearPeerArrows: () => sharedReviewActive,
-    closeAllPopups: () => closeAllPopups(),
+    closeAllPopups: () => uiCtrl.closeAllPopups(),
     fadeLiveMoveBar: () => liveMoveBar.fade(),
     exitLiveReview: () => liveMoveBar.exit(),
     isLiveReview: () => liveMoveBar.isReviewing,
-    showConfirmation: (msg, title) => showConfirmation(msg, title),
+    showConfirmation: (msg, title) => uiCtrl.showConfirmation(msg, title),
     getCurrentDbGameId: () => gameCtrl.currentDbGameId,
     endCurrentGame: (id) => db.endGame(id, 'abandoned', 'abandoned'),
     resetMoveCount: () => { gameCtrl.moveCount = 0; },
@@ -323,8 +320,8 @@ if (!VideoChat.isSupported()) {
 // New Game Wizard
 const newGameMenu = new NewGameMenu();
 
-let customWhiteName = null;
-let customBlackName = null;
+// uiCtrl is assigned after gameCtrl is constructed; callbacks below capture it by reference.
+let uiCtrl;
 
 // Game state is now owned by gameCtrl (GameController) — declared below.
 // These module-level aliases provide backward-compatible access for the
@@ -352,22 +349,22 @@ liveMoveBar.onNeedEval = () => {
 
 // Exit-review callback — app.js handles post-review rendering/logic
 liveMoveBar.onExitReview = () => {
-  renderCaptured();
-  updateStatus();
+  uiCtrl.renderCaptured();
+  uiCtrl.updateStatus();
   if (settingsCtrl.isEvalBarEnabled()) liveEval();
 
   if (mp.isActive()) {
     const isMyTurn = game.getTurn() === mp.color;
     board.setInteractive(isMyTurn);
     if (isMyTurn) {
-      updateStatus('Your turn');
+      uiCtrl.updateStatus('Your turn');
     } else {
-      updateStatus("Opponent's turn");
+      uiCtrl.updateStatus("Opponent's turn");
     }
     if (game.isGameOver()) {
       board.setInteractive(false);
       newGameBtn.classList.add('game-ended');
-      updateStatus();
+      uiCtrl.updateStatus();
     }
   } else {
     triggerAIMove();
@@ -432,61 +429,6 @@ if (replayAnalyzeCheckbox) {
   replayAnalyzeCheckbox.checked = localStorage.getItem('chess-auto-analyze') !== 'false';
 }
 
-function renderCaptured() {
-  const captured = game.getCaptured();
-
-  for (const [color, el] of [['w', capturedByWhiteEl], ['b', capturedByBlackEl]]) {
-    const pieces = [...captured[color]].sort((a, b) => PIECE_ORDER[a] - PIECE_ORDER[b]);
-    el.innerHTML = '';
-
-    for (const p of pieces) {
-      const img = document.createElement('img');
-      img.className = 'captured-piece';
-      // White captured these pieces, so they are black pieces (opponent's color)
-      const victimColor = color === 'w' ? 'b' : 'w';
-      img.src = `${window.chessPiecePath}/${victimColor}${PIECE_DISPLAY[p]}.svg`;
-      img.alt = p;
-      el.appendChild(img);
-    }
-
-    // Material advantage
-    const myTotal = captured[color].reduce((s, p) => s + PIECE_VALUES[p], 0);
-    const oppColor = color === 'w' ? 'b' : 'w';
-    const oppTotal = captured[oppColor].reduce((s, p) => s + PIECE_VALUES[p], 0);
-    const diff = myTotal - oppTotal;
-    if (diff > 0) {
-      const badge = document.createElement('span');
-      badge.className = 'material-advantage';
-      badge.textContent = `+${diff}`;
-      el.appendChild(badge);
-    }
-  }
-}
-
-let showingGameInfo = false;
-
-function updateStatus(msg, isGameInfo) {
-  if (isGameInfo) {
-    showingGameInfo = true;
-    statusEl.textContent = msg;
-    statusEl.className = 'status new-game-info';
-    return;
-  }
-  // Keep showing game info until first move or AI thinking
-  if (showingGameInfo && !msg) return;
-  showingGameInfo = false;
-
-  statusEl.textContent = msg || game.getGameStatus();
-  statusEl.className = 'status';
-  if (msg && msg.includes('thinking')) {
-    statusEl.classList.add('ai-thinking');
-  } else if (game.isGameOver() || msg) {
-    statusEl.classList.add('game-over');
-  } else if (game.getGameStatus().startsWith('Check')) {
-    statusEl.classList.add('in-check');
-  }
-}
-
 // ─── GameController ─────────────────────────────────────────────
 const gameCtrl = new GameController({
   game, board, timer, ai, sound, db, postGameSummary,
@@ -495,9 +437,9 @@ const gameCtrl = new GameController({
 });
 
 gameCtrl.setCallbacks({
-  updateStatus,
-  renderCaptured,
-  closeAllPopups: () => closeAllPopups(),
+  updateStatus: (msg, isGameInfo) => uiCtrl.updateStatus(msg, isGameInfo),
+  renderCaptured: () => uiCtrl.renderCaptured(),
+  closeAllPopups: () => uiCtrl.closeAllPopups(),
   liveEval,
   getTimeConfig: () => {
     const val = timeControlSelect.value;
@@ -515,10 +457,10 @@ gameCtrl.setCallbacks({
     const selectedOption = timeControlSelect.selectedOptions[0];
     return selectedOption ? selectedOption.textContent : 'none';
   },
-  getCustomWhiteName: () => customWhiteName,
-  getCustomBlackName: () => customBlackName,
-  startPublicLobbyPolling: () => startPublicLobbyPolling(),
-  stopPublicLobbyPolling: () => stopPublicLobbyPolling(),
+  getCustomWhiteName: () => uiCtrl?.customWhiteName ?? null,
+  getCustomBlackName: () => uiCtrl?.customBlackName ?? null,
+  startPublicLobbyPolling: () => uiCtrl.startPublicLobbyPolling(),
+  stopPublicLobbyPolling: () => uiCtrl.stopPublicLobbyPolling(),
   routerSilentUpdate: (path) => router.silentUpdate(path),
   issueReporter,
   videoBoard,
@@ -546,23 +488,37 @@ function startMultiplayerGame(color, fen, tc, oppName, chess960, isCreator) {
   gameCtrl.startMultiplayerGame(color, fen, tc, oppName, chess960, isCreator);
 }
 
-// Expose gameCtrl state aliases for existing references in app.js
-// (these are accessed by multiplayer handlers, board.onMove, etc.)
-
+// ─── UIController ────────────────────────────────────────────────
+uiCtrl = new UIController({
+  game, board, db, mp, gameCtrl, settingsCtrl, replayController, liveMoveBar,
+  diagnostics, videoChat, videoBoard, splitCam, splitCamH, kingCam,
+  getVideoActive: () => videoActive,
+  callbacks: { startNewGame },
+  dom: {
+    statusEl,
+    capturedByWhiteEl, capturedByBlackEl,
+    playerNameWhite, playerNameBlack,
+    playerEloWhite, playerEloBlack,
+    timeControlSelect, customYourLabel, customOpponentLabel, customTimeModal,
+    confirmModal, confirmModalTitle, confirmModalMessage, confirmModalOk, confirmModalCancel,
+    devIndicator: document.getElementById('dev-indicator'),
+    lobbyPanel, publicLobbiesPanel, publicLobbiesList,
+  },
+});
 
 board.onMove((result) => {
   if (replayController.isActive || liveMoveBar.isReviewing) return;
   gameCtrl.moveCount++;
-  showingGameInfo = false;
+  uiCtrl.showingGameInfo = false;
 
   // Disable pre-game interactive controls after first move
   if (gameCtrl.moveCount === 1) {
     appEl.classList.remove('pre-game');
-    closeAllPopups();
+    uiCtrl.closeAllPopups();
     startGameBtn.classList.add('hidden');
   }
 
-  renderCaptured();
+  uiCtrl.renderCaptured();
 
   // Update the persistent live move bar
   const moveSide = game.getTurn() === 'w' ? 'b' : 'w'; // side that just moved
@@ -585,7 +541,7 @@ board.onMove((result) => {
     if (splitCamH.isActive()) {
       splitCamH.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
     }
-    updateStatus("Opponent's turn");
+    uiCtrl.updateStatus("Opponent's turn");
 
     // Start/switch timer locally for visual feedback (server will sync)
     if (timer.isEnabled()) {
@@ -617,7 +573,7 @@ board.onMove((result) => {
       board.clearPremove();
       liveMoveBar.fade();
       newGameBtn.classList.add('game-ended');
-      updateStatus();
+      uiCtrl.updateStatus();
     }
     return;
   }
@@ -652,7 +608,7 @@ board.onMove((result) => {
     board.clearPremove();
     liveMoveBar.fade();
     newGameBtn.classList.add('game-ended');
-    updateStatus();
+    uiCtrl.updateStatus();
 
     // Save game result to local-first database
     const { result: dbResult, reason } = getGameResult();
@@ -663,7 +619,7 @@ board.onMove((result) => {
     return;
   }
 
-  updateStatus();
+  uiCtrl.updateStatus();
 
   // Check for queued premove before triggering AI
   const turn = game.getTurn();
@@ -690,7 +646,7 @@ timer.onTimeout((loser) => {
   board.setInteractive(false);
   newGameBtn.classList.add('game-ended');
   const winner = loser === 'White' ? 'Black' : 'White';
-  updateStatus(`Time out! ${winner} wins`);
+  uiCtrl.updateStatus(`Time out! ${winner} wins`);
 
   // Save timeout result to local-first database
   const dbResult = loser === 'White' ? '0-1' : '1-0';
@@ -703,12 +659,12 @@ timer.onTimeout((loser) => {
 newGameBtn.addEventListener('click', async () => {
   // If multiplayer game active, prompt to resign first
   if (gameCtrl.multiplayerActive) {
-    const confirmed = await showConfirmation(
+    const confirmed = await uiCtrl.showConfirmation(
       'Resign the current game and start a new one?',
       'Resign Game?'
     );
     if (!confirmed) return;
-    stopPublicLobbyPolling();  // Prevent poll timer from auto-reconnecting during transition
+    uiCtrl.stopPublicLobbyPolling();  // Prevent poll timer from auto-reconnecting during transition
     if (gameCtrl.moveCount > 0 && !game.isGameOver()) {
       mp.resign();
     } else {
@@ -724,7 +680,7 @@ newGameBtn.addEventListener('click', async () => {
 
   // If a game is in progress, confirm abandonment first
   if (gameCtrl.moveCount > 0 && !game.isGameOver()) {
-    const confirmed = await showConfirmation(
+    const confirmed = await uiCtrl.showConfirmation(
       'You have a game in progress. Abandon it and start a new one?',
       'Abandon Game?'
     );
@@ -751,143 +707,25 @@ boardEl.addEventListener('pointerdown', () => {
 startGameBtn.addEventListener('click', () => {
   startGameBtn.classList.add('hidden');
   appEl.classList.remove('pre-game');
-  closeAllPopups();
+  uiCtrl.closeAllPopups();
   triggerAIMove();
 });
 
 // --- Editable Player Names ---
-
-function startNameEdit(nameEl, side) {
-  if (replayController.isActive || liveMoveBar.isReviewing) return;
-  // Prevent double-editing
-  if (nameEl.querySelector('.player-name-input')) return;
-
-  const currentName = nameEl.textContent;
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'player-name-input';
-  input.value = currentName;
-  input.maxLength = 20;
-
-  nameEl.textContent = '';
-  nameEl.appendChild(input);
-  input.focus();
-  input.select();
-
-  function commitName() {
-    const newName = input.value.trim() || (side === 'white' ? 'Human' : 'Human');
-    nameEl.textContent = newName;
-
-    // In multiplayer, broadcast name change to opponent
-    if (gameCtrl.multiplayerActive) {
-      mp.changeName(newName);
-      return;
-    }
-
-    // Only save custom name for human players
-    const isAI = settingsCtrl.isAIEnabled(side === 'white' ? 'w' : 'b');
-    if (!isAI) {
-      if (side === 'white') {
-        customWhiteName = newName === 'Human' ? null : newName;
-      } else {
-        customBlackName = newName === 'Human' ? null : newName;
-      }
-    }
-
-    // Update local-first database
-    db.updatePlayerName(gameCtrl.currentDbGameId, side, newName);
-  }
-
-  function cancelEdit() {
-    nameEl.textContent = currentName;
-  }
-
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      commitName();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      cancelEdit();
-    }
-  });
-
-  input.addEventListener('blur', () => {
-    // Only commit if input is still in DOM (wasn't cancelled by Escape)
-    if (nameEl.contains(input)) {
-      commitName();
-    }
-  });
-}
-
-function startEngineSwitch(nameEl, side) {
-  if (replayController.isActive || gameCtrl.multiplayerActive) return;
-  if (nameEl.querySelector('.engine-switch-select')) return;
-
-  const isWhite = side === 'white';
-  const settingsSelect = settingsCtrl.getEngineSelect(isWhite ? 'w' : 'b');
-  const currentEngineId = settingsSelect.value;
-  const currentName = nameEl.textContent;
-
-  const select = document.createElement('select');
-  select.className = 'engine-switch-select';
-  const engines = getAllEngines();
-  for (const eng of engines) {
-    const opt = document.createElement('option');
-    opt.value = eng.id;
-    opt.textContent = `${eng.icon} ${eng.name}`;
-    if (eng.id === currentEngineId) opt.selected = true;
-    select.appendChild(opt);
-  }
-
-  nameEl.textContent = '';
-  nameEl.appendChild(select);
-  select.focus();
-  // Open the dropdown immediately so the user doesn't have to click twice
-  try { select.showPicker(); } catch { /* older browsers */ }
-
-
-  let committed = false;
-
-  function commit() {
-    if (committed) return;
-    committed = true;
-    const newId = select.value;
-    // Remove select safely
-    if (select.parentNode) {
-      select.parentNode.removeChild(select);
-    }
-    if (newId !== currentEngineId) {
-      settingsSelect.value = newId;
-      settingsSelect.dispatchEvent(new Event('change'));
-      startNewGame();
-    } else {
-      nameEl.textContent = currentName;
-    }
-  }
-
-  select.addEventListener('change', commit);
-  select.addEventListener('blur', () => {
-    if (!committed && select.parentNode) {
-      select.parentNode.removeChild(select);
-      nameEl.textContent = currentName;
-    }
-  });
-}
 
 playerNameWhite.addEventListener('click', (e) => {
   e.stopPropagation();
   if (gameCtrl.multiplayerActive) {
     // In multiplayer: only allow editing own name, not opponent's
     if (mp.color === 'w') {
-      startNameEdit(playerNameWhite, 'white');
+      uiCtrl.startNameEdit(playerNameWhite, 'white');
     }
     return;
   }
   if (settingsCtrl.isAIEnabled('w')) {
-    startEngineSwitch(playerNameWhite, 'white');
+    uiCtrl.startEngineSwitch(playerNameWhite, 'white');
   } else {
-    startNameEdit(playerNameWhite, 'white');
+    uiCtrl.startNameEdit(playerNameWhite, 'white');
   }
 });
 
@@ -896,14 +734,14 @@ playerNameBlack.addEventListener('click', (e) => {
   if (gameCtrl.multiplayerActive) {
     // In multiplayer: only allow editing own name, not opponent's
     if (mp.color === 'b') {
-      startNameEdit(playerNameBlack, 'black');
+      uiCtrl.startNameEdit(playerNameBlack, 'black');
     }
     return;
   }
   if (settingsCtrl.isAIEnabled('b')) {
-    startEngineSwitch(playerNameBlack, 'black');
+    uiCtrl.startEngineSwitch(playerNameBlack, 'black');
   } else {
-    startNameEdit(playerNameBlack, 'black');
+    uiCtrl.startNameEdit(playerNameBlack, 'black');
   }
 });
 
@@ -1090,10 +928,6 @@ document.addEventListener('click', (e) => {
 
 // --- Pre-game Inline Controls ---
 
-function closeAllPopups() {
-  document.querySelectorAll('.timer-dropdown, .elo-popup').forEach(el => el.remove());
-}
-
 // Click player icon to toggle Human ↔ AI (only before first move)
 playerIconWhite.addEventListener('click', () => {
   if (replayController.isActive || gameCtrl.multiplayerActive || gameCtrl.moveCount > 0) return;
@@ -1115,140 +949,31 @@ gameTypeLabel.addEventListener('click', () => {
 });
 
 // Click timer for time control dropdown (only before first move)
-function showTimerDropdown(timerEl) {
-  if (replayController.isActive || gameCtrl.moveCount > 0) return;
-  closeAllPopups();
-
-  const dropdown = document.createElement('div');
-  dropdown.className = 'timer-dropdown';
-
-  // Gather options from the time control select
-  const options = timeControlSelect.querySelectorAll('option');
-  options.forEach(opt => {
-    const item = document.createElement('div');
-    item.className = 'timer-dropdown-option';
-    if (opt.value === timeControlSelect.value) {
-      item.classList.add('selected');
-    }
-    item.textContent = opt.textContent;
-    item.dataset.value = opt.value;
-    item.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (opt.value === 'custom') {
-        closeAllPopups();
-        customYourLabel.textContent = 'Your time (min):';
-        customOpponentLabel.textContent = "Opponent's time (min):";
-        customTimeModal.classList.remove('hidden');
-        return;
-      }
-      timeControlSelect.value = opt.value;
-      closeAllPopups();
-      startNewGame();
-    });
-    dropdown.appendChild(item);
-  });
-
-  // Position near the timer
-  const rect = timerEl.getBoundingClientRect();
-  dropdown.style.position = 'fixed';
-  dropdown.style.left = `${rect.left}px`;
-  dropdown.style.top = `${rect.bottom + 4}px`;
-
-  // Prevent dropdown from going off-screen right
-  document.body.appendChild(dropdown);
-  const dropRect = dropdown.getBoundingClientRect();
-  if (dropRect.right > window.innerWidth) {
-    dropdown.style.left = `${window.innerWidth - dropRect.width - 8}px`;
-  }
-  // Prevent going off-screen bottom — show above instead
-  if (dropRect.bottom > window.innerHeight) {
-    dropdown.style.top = `${rect.top - dropRect.height - 4}px`;
-  }
-}
-
 timerWhiteEl.addEventListener('click', (e) => {
   e.stopPropagation();
-  showTimerDropdown(timerWhiteEl);
+  uiCtrl.showTimerDropdown(timerWhiteEl);
 });
 
 timerBlackEl.addEventListener('click', (e) => {
   e.stopPropagation();
-  showTimerDropdown(timerBlackEl);
+  uiCtrl.showTimerDropdown(timerBlackEl);
 });
 
 // Click ELO label for inline slider popup (only before first move, only for AI)
-function showEloPopup(eloEl, side) {
-  if (replayController.isActive || gameCtrl.moveCount > 0) return;
-  closeAllPopups();
-
-  const slider = settingsCtrl.getEloSlider(side);
-  const settingsValue = settingsCtrl.getEloValueEl(side);
-
-  // Don't show popup for engines with no ELO range (e.g. Random)
-  if (slider.min === slider.max) return;
-
-  const popup = document.createElement('div');
-  popup.className = 'elo-popup';
-
-  const rangeInput = document.createElement('input');
-  rangeInput.type = 'range';
-  rangeInput.min = slider.min;
-  rangeInput.max = slider.max;
-  rangeInput.step = slider.step;
-  rangeInput.value = slider.value;
-  rangeInput.className = 'elo-slider';
-
-  const valueDisplay = document.createElement('span');
-  valueDisplay.className = 'elo-value';
-  valueDisplay.textContent = slider.value;
-
-  rangeInput.addEventListener('input', () => {
-    valueDisplay.textContent = rangeInput.value;
-    // Sync with settings panel slider
-    slider.value = rangeInput.value;
-    settingsValue.textContent = rangeInput.value;
-    // Update the player bar elo display
-    eloEl.textContent = rangeInput.value;
-  });
-
-  popup.appendChild(rangeInput);
-  popup.appendChild(valueDisplay);
-
-  // Position near the elo label
-  const rect = eloEl.getBoundingClientRect();
-  popup.style.position = 'fixed';
-  popup.style.left = `${rect.left}px`;
-  popup.style.top = `${rect.bottom + 4}px`;
-
-  document.body.appendChild(popup);
-
-  // Adjust if off-screen
-  const popRect = popup.getBoundingClientRect();
-  if (popRect.right > window.innerWidth) {
-    popup.style.left = `${window.innerWidth - popRect.width - 8}px`;
-  }
-  if (popRect.bottom > window.innerHeight) {
-    popup.style.top = `${rect.top - popRect.height - 4}px`;
-  }
-
-  // Stop click propagation so it doesn't immediately close
-  popup.addEventListener('click', (e) => e.stopPropagation());
-}
-
 playerEloWhite.addEventListener('click', (e) => {
   e.stopPropagation();
-  showEloPopup(playerEloWhite, 'w');
+  uiCtrl.showEloPopup(playerEloWhite, 'w');
 });
 
 playerEloBlack.addEventListener('click', (e) => {
   e.stopPropagation();
-  showEloPopup(playerEloBlack, 'b');
+  uiCtrl.showEloPopup(playerEloBlack, 'b');
 });
 
 // Close popups on outside click
 document.addEventListener('click', () => {
   const hadPopup = document.querySelector('.elo-popup');
-  closeAllPopups();
+  uiCtrl.closeAllPopups();
   // If an elo popup was open and just closed, restart game to apply ELO change
   if (hadPopup && gameCtrl.moveCount === 0) {
     startNewGame();
@@ -1260,50 +985,12 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     board.clearPremove();
     const hadPopup = document.querySelector('.elo-popup');
-    closeAllPopups();
+    uiCtrl.closeAllPopups();
     if (hadPopup && gameCtrl.moveCount === 0) {
       startNewGame();
     }
   }
 });
-
-// --- Confirmation Modal ---
-
-function showConfirmation(message, title) {
-  return new Promise((resolve) => {
-    confirmModalTitle.textContent = title || 'Confirm';
-    confirmModalMessage.textContent = message;
-    confirmModal.classList.remove('hidden');
-
-    function cleanup() {
-      confirmModal.classList.add('hidden');
-      confirmModalOk.removeEventListener('click', onOk);
-      confirmModalCancel.removeEventListener('click', onCancel);
-      confirmModal.removeEventListener('click', onBackdrop);
-    }
-
-    function onOk() {
-      cleanup();
-      resolve(true);
-    }
-
-    function onCancel() {
-      cleanup();
-      resolve(false);
-    }
-
-    function onBackdrop(e) {
-      if (e.target === confirmModal) {
-        cleanup();
-        resolve(false);
-      }
-    }
-
-    confirmModalOk.addEventListener('click', onOk);
-    confirmModalCancel.addEventListener('click', onCancel);
-    confirmModal.addEventListener('click', onBackdrop);
-  });
-}
 
 // (Analysis functions extracted to AnalysisController)
 
@@ -1392,25 +1079,6 @@ if (replaySummaryBtn) {
     }
   });
 }
-
-// Dev indicator management
-const devIndicator = document.getElementById('dev-indicator');
-const DEV_MODE_KEY = 'chess-dev-mode';
-
-function checkDevMode() {
-  const devMode = localStorage.getItem(DEV_MODE_KEY);
-  if (devMode === 'true') {
-    devIndicator.classList.remove('hidden');
-  } else {
-    devIndicator.classList.add('hidden');
-  }
-}
-
-// Check on load
-checkDevMode();
-
-// Poll for changes every 500ms
-setInterval(checkDevMode, 500);
 
 // --- Multiplayer wiring ---
 
@@ -1526,7 +1194,7 @@ mp.onLobbyJoined = async (payload) => {
   }
 
   gameCtrl.multiplayerActive = true;
-  stopPublicLobbyPolling();
+  uiCtrl.stopPublicLobbyPolling();
   issueReporter.hideWaitingButton();
   mpUI.showLobby(payload);
   issueReporter.setGameContext(null, mp.sessionId, false, payload.roomId);
@@ -1597,7 +1265,7 @@ mp.onSettingChanged = (payload) => {
   if (payload.field === 'camMode' && payload.settings?.camMode !== undefined) {
     activeCamMode = payload.settings.camMode;
     mpUI.syncCamMode(payload.settings.camMode);
-    applyCamMode(payload.settings.camMode);
+    uiCtrl.applyCamMode(payload.settings.camMode);
   }
 };
 
@@ -1663,7 +1331,7 @@ mp.onOpponentMove = (payload) => {
   const oppMoveResult = game.makeMoveSan(san);
   gameCtrl.moveCount++;
   board.render();
-  renderCaptured();
+  uiCtrl.renderCaptured();
   sound.onMove(oppMoveResult);
 
   // Update the persistent live move bar
@@ -1686,7 +1354,7 @@ mp.onOpponentMove = (payload) => {
   // Disable pre-game state
   if (gameCtrl.moveCount === 1) {
     appEl.classList.remove('pre-game');
-    closeAllPopups();
+    uiCtrl.closeAllPopups();
   }
 
   // Sync clocks from server
@@ -1710,7 +1378,7 @@ mp.onOpponentMove = (payload) => {
     liveMoveBar.fade();
     newGameBtn.classList.add('game-ended');
     board.setInteractive(false);
-    updateStatus();
+    uiCtrl.updateStatus();
     return;
   }
 
@@ -1725,7 +1393,7 @@ mp.onOpponentMove = (payload) => {
   if (splitCamH.isActive()) {
     splitCamH.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
   }
-  updateStatus('Your turn');
+  uiCtrl.updateStatus('Your turn');
 
   // Execute premove if queued
   if (board.getPremove()) {
@@ -1758,7 +1426,7 @@ mp.onGameEnd = (payload) => {
   liveMoveBar.fade();
   sound.gameOver();
   gameCtrl.multiplayerActive = false;
-  startPublicLobbyPolling();
+  uiCtrl.startPublicLobbyPolling();
   playerNameWhite.classList.remove('multiplayer-opponent');
   playerNameBlack.classList.remove('multiplayer-opponent');
   timer.stop();
@@ -1781,7 +1449,7 @@ mp.onGameEnd = (payload) => {
     const iWin = mp.color === winnerSide;
     statusText = iWin ? `You win! (${reason})` : `You lose (${reason})`;
   }
-  updateStatus(statusText);
+  uiCtrl.updateStatus(statusText);
   mpUI.hideGameControls();
   mpUI.showRematchControls();
 
@@ -1819,7 +1487,7 @@ mp.onDrawOffered = () => {
 // Draw declined
 mp.onDrawDeclined = () => {
   mpUI.hideDrawOffer();
-  updateStatus("Draw declined — your turn");
+  uiCtrl.updateStatus("Draw declined — your turn");
 };
 
 // Rematch offered
@@ -1907,7 +1575,7 @@ mp.onReconnect = async (payload) => {
     appEl.classList.remove('pre-game');
   }
   board.render();
-  renderCaptured();
+  uiCtrl.renderCaptured();
 
   // Sync clocks
   if (payload.clocks && timer.isEnabled()) {
@@ -1927,7 +1595,7 @@ mp.onReconnect = async (payload) => {
   if (splitCamH.isActive()) {
     splitCamH.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
   }
-  updateStatus(isMyTurn ? 'Your turn (reconnected)' : "Opponent's turn (reconnected)");
+  uiCtrl.updateStatus(isMyTurn ? 'Your turn (reconnected)' : "Opponent's turn (reconnected)");
   mpUI.setConnectionStatus('connected');
 
   // Re-establish video if it was a video game
@@ -1946,7 +1614,7 @@ mp.onReconnect = async (payload) => {
 mp.onOpponentDisconnected = (payload) => {
   diagnostics.record('lifecycle', 'opponent_disconnected', { timeout: payload.timeout });
   mpUI.setConnectionStatus('opponent-disconnected');
-  updateStatus(`Opponent disconnected — ${payload.timeout}s to reconnect`);
+  uiCtrl.updateStatus(`Opponent disconnected — ${payload.timeout}s to reconnect`);
 };
 
 // Opponent reconnected
@@ -1963,7 +1631,7 @@ mp.onOpponentReconnected = () => {
   if (splitCamH.isActive()) {
     splitCamH.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
   }
-  updateStatus(isMyTurn ? 'Your turn' : "Opponent's turn");
+  uiCtrl.updateStatus(isMyTurn ? 'Your turn' : "Opponent's turn");
 };
 
 // Connection status
@@ -1982,7 +1650,7 @@ mp.onConnected = (payload) => {
       mpUI.setConnectionStatus('connection-lost');
       gameCtrl.multiplayerActive = false;
       mp.active = false;
-      updateStatus('Game ended — connection to room was lost');
+      uiCtrl.updateStatus('Game ended — connection to room was lost');
     }
   } else {
     mpUI.setConnectionStatus('connected');
@@ -2006,9 +1674,9 @@ mp.onConnectionLost = () => {
   diagnostics.flush();
   mpUI.setConnectionStatus('connection-lost');
   gameCtrl.multiplayerActive = false;
-  startPublicLobbyPolling();
+  uiCtrl.startPublicLobbyPolling();
   issueReporter.recordError();
-  updateStatus('Connection lost — game may have ended');
+  uiCtrl.updateStatus('Connection lost — game may have ended');
 };
 
 mp.onHeartbeatTimeout = () => {
@@ -2329,7 +1997,7 @@ mp.onReviewExited = (payload) => {
   peerInReview = false;
   peerAnalysisRunning = false;
   board.getArrowOverlay().clearPeerAnnotations(payload.side);
-  updateStatus('Opponent left review');
+  uiCtrl.updateStatus('Opponent left review');
 };
 
 // Navigation sync
@@ -2343,7 +2011,7 @@ mp.onReviewNavigate = (payload) => {
 // Analysis sharing
 mp.onReviewAnalysisStarted = (payload) => {
   peerAnalysisRunning = true;
-  updateStatus('Opponent is analyzing...');
+  uiCtrl.updateStatus('Opponent is analyzing...');
 };
 
 mp.onReviewAnalysis = (payload) => {
@@ -2462,62 +2130,8 @@ newGameMenu.onRequestPublicRooms(async () => {
 
 mp.onPublicRoomsList = (rooms) => {
   newGameMenu.setPublicRooms(rooms);
-  renderPublicLobbies(rooms);
+  uiCtrl.renderPublicLobbies(rooms);
 };
-
-// ── Public lobbies below-board panel ─────────────────────────────────
-let _publicLobbyPollTimer = null;
-
-function renderPublicLobbies(rooms) {
-  // Hide if in a game, in pre-game lobby, or no rooms available
-  if (gameCtrl.multiplayerActive || !lobbyPanel.classList.contains('hidden') || !rooms || rooms.length === 0) {
-    publicLobbiesPanel.classList.add('hidden');
-    return;
-  }
-  publicLobbiesPanel.classList.remove('hidden');
-  publicLobbiesList.innerHTML = '';
-  for (const room of rooms) {
-    const tc = room.timeControl === 'none' ? 'No timer' : room.timeControl;
-    const variant = room.chess960 ? ' · 960' : '';
-    const row = document.createElement('div');
-    row.className = 'public-lobby-row';
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'public-lobby-info';
-    nameSpan.textContent = `${room.hostName || 'Anonymous'} — ${tc}${variant}`;
-    const joinBtn = document.createElement('button');
-    joinBtn.className = 'public-lobby-join-btn';
-    joinBtn.textContent = 'Join';
-    joinBtn.addEventListener('click', () => {
-      stopPublicLobbyPolling();
-      gameCtrl.multiplayerActive = true;
-      mp.joinRoom(room.roomId, null);
-    });
-    row.appendChild(nameSpan);
-    row.appendChild(joinBtn);
-    publicLobbiesList.appendChild(row);
-  }
-}
-
-async function fetchPublicLobbies() {
-  if (gameCtrl.multiplayerActive) return;
-  if (!mp.ws || mp.ws.readyState !== WebSocket.OPEN) {
-    try { await mp.connect(); } catch { return; }
-  }
-  mp.requestPublicRooms();
-}
-
-function startPublicLobbyPolling() {
-  if (_publicLobbyPollTimer) return;
-  fetchPublicLobbies();
-  _publicLobbyPollTimer = setInterval(fetchPublicLobbies, 15_000);
-}
-
-function stopPublicLobbyPolling() {
-  clearInterval(_publicLobbyPollTimer);
-  _publicLobbyPollTimer = null;
-  publicLobbiesPanel.classList.add('hidden');
-}
-// ─────────────────────────────────────────────────────────────────────
 
 newGameMenu.onCustomTime(() => {
   // Set context-dependent labels based on game mode
@@ -2531,69 +2145,11 @@ newGameMenu.onCustomTime(() => {
   customTimeModal.classList.remove('hidden');
 });
 
-// Switch live video display to match a cam mode (used by both local button clicks and remote setting changes)
-function applyCamMode(mode) {
-  if (!videoActive) return;
-  diagnostics.camModeChanged(mode);
-  if (mode === 'king-cam') {
-    videoBoard.disable();
-    splitCam.disable();
-    splitCamH.disable();
-    // Restore raw camera track — videoBoard replaced it with a cropped canvas stream that is now stopped
-    const rawVideoTrack = videoChat._localStream?.getVideoTracks()[0];
-    if (rawVideoTrack) videoChat.replaceVideoTrack(rawVideoTrack);
-    kingCam.enable(videoChat._localStream, mp.color, null);
-    if (videoChat._remoteStream) {
-      kingCam.updateRemoteStream(videoChat._remoteStream, mp.color === 'w' ? 'b' : 'w');
-    }
-    board.render();
-  } else if (mode === 'board-face') {
-    kingCam.disable();
-    splitCam.disable();
-    splitCamH.disable();
-    board.render();
-    videoBoard.enable(videoChat._localStream, null, mp.color);
-    // videoBoard replaces the WebRTC track via onCroppedStreamReady when face tracking is ready
-    if (videoChat._remoteStream) {
-      videoBoard.updateRemoteStream(videoChat._remoteStream, mp.color);
-    }
-  } else if (mode === 'split-cam') {
-    kingCam.disable();
-    videoBoard.disable();
-    splitCamH.disable();
-    board.render();
-    // Restore raw camera track — videoBoard may have replaced it
-    const rawVideoTrack = videoChat._localStream?.getVideoTracks()[0];
-    if (rawVideoTrack) videoChat.replaceVideoTrack(rawVideoTrack);
-    splitCam.enable(videoChat._localStream, videoChat._remoteStream, mp.color);
-    splitCam.setTintEnabled(true);
-  } else if (mode === 'split-cam-h') {
-    kingCam.disable();
-    videoBoard.disable();
-    splitCam.disable();
-    board.render();
-    // Restore raw camera track — videoBoard may have replaced it
-    const rawVideoTrack = videoChat._localStream?.getVideoTracks()[0];
-    if (rawVideoTrack) videoChat.replaceVideoTrack(rawVideoTrack);
-    splitCamH.enable(videoChat._localStream, videoChat._remoteStream, mp.color);
-    splitCamH.setTintEnabled(true);
-  } else {
-    kingCam.disable();
-    videoBoard.disable();
-    splitCam.disable();
-    splitCamH.disable();
-    // Restore raw camera track when disabling all video modes
-    const rawVideoTrack = videoChat._localStream?.getVideoTracks()[0];
-    if (rawVideoTrack) videoChat.replaceVideoTrack(rawVideoTrack);
-    board.render();
-  }
-}
-
 // Lobby cam mode change — update activeCamMode, notify opponent, and switch live video
 mpUI.onCamChange((mode) => {
   activeCamMode = mode;
   mp.proposeSetting('camMode', mode);
-  applyCamMode(mode);
+  uiCtrl.applyCamMode(mode);
 });
 
 // Waiting room color preference — flip board to preview selected color
@@ -2686,5 +2242,5 @@ Promise.all([
   router.start();
   checkRoomCodeInUrl();
   // Start polling for public lobbies (only runs while not in a game)
-  if (!gameCtrl.multiplayerActive) startPublicLobbyPolling();
+  if (!gameCtrl.multiplayerActive) uiCtrl.startPublicLobbyPolling();
 });
