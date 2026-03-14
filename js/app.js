@@ -1519,7 +1519,7 @@ mp.onLobbyJoined = async (payload) => {
   // Guard: don't reset board if a game is actively in progress
   if (mp.isActive() && gameCtrl.moveCount > 0 && !game.isGameOver()) {
     diagnostics.record('lifecycle', 'lobby_joined_rejected', {
-      reason: 'game_in_progress', gameCtrl.moveCount, roomId: payload.roomId
+      reason: 'game_in_progress', moveCount: gameCtrl.moveCount, roomId: payload.roomId
     });
     console.warn('[MP] Ignoring lobby_joined — game in progress with', gameCtrl.moveCount, 'moves');
     return;
