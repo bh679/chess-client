@@ -2130,6 +2130,18 @@ mp.onPublicRoomsList = (rooms) => {
 };
 
 newGameMenu.onExit(() => {
+  if (gameCtrl.multiplayerActive) {
+    uiCtrl.stopPublicLobbyPolling();
+    if (gameCtrl.moveCount > 0 && !game.isGameOver()) {
+      mp.resign();
+    } else {
+      mp.cancelPendingRoom();
+    }
+    mp.disconnect();
+    gameCtrl.multiplayerActive = false;
+    timer.stop();
+    mpUI.hideGameControls();
+  }
   startNewGame();
 });
 
