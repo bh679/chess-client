@@ -3112,6 +3112,16 @@ button.replay-summary-btn {
   padding: 0 12px;
 }
 
+.pgs-timing-tappable {
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.1s;
+}
+
+.pgs-timing-tappable:active {
+  opacity: 0.6;
+}
+
 /* Classification breakdown grid */
 .pgs-classifications {
   display: flex;
@@ -3576,9 +3586,10 @@ button.replay-summary-btn {
 }
 .lobby-waiting-copy-btn {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
+  gap: 8px;
   flex: 1;
   background: #2e7d32;
   border: 1px solid #43a047;

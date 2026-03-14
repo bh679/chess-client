@@ -10,6 +10,14 @@
  *   summary.showWithAnalysis(record, engine, serverId, callbacks);  // runs analysis first
  */
 
+const MOVE_STAT_DEFS = [
+  { key: 'avg',    label: 'Avg Move Time',    format: 'time' },
+  { key: 'median', label: 'Median Move Time', format: 'time' },
+  { key: 'max',    label: 'Longest Move',     format: 'time' },
+  { key: 'min',    label: 'Shortest Move',    format: 'time' },
+  { key: 'count',  label: 'Total Moves',      format: 'count' },
+];
+
 const CLASSIFICATION_ORDER = [
   'brilliant', 'great', 'best', 'excellent', 'good',
   'book', 'inaccuracy', 'mistake', 'miss', 'blunder'
@@ -48,6 +56,12 @@ class PostGameSummary {
     this._wAccuracyFillEl = null;
     this._bAccuracyFillEl = null;
     this._classCountEls = {};
+    // Cycling move-time stat refs
+    this._timingStatIndex = 0;
+    this._timingStats = null;
+    this._timingWhiteEl = null;
+    this._timingBlackEl = null;
+    this._timingLabelEl = null;
     this._buildDOM();
   }
 
@@ -243,34 +257,47 @@ class PostGameSummary {
     this._headerEl.textContent = text;
   }
 
-  _computeAvgMoveTime(gameRecord) {
+  _computeMoveTimeStats(gameRecord) {
     const moves = gameRecord.moves || [];
     if (moves.length === 0 || !gameRecord.startTime) {
       return { white: null, black: null };
     }
 
-    let whiteTotal = 0;
-    let whiteCount = 0;
-    let blackTotal = 0;
-    let blackCount = 0;
+    const whiteTimes = [];
+    const blackTimes = [];
     let prevTimestamp = gameRecord.startTime;
 
     for (const move of moves) {
       if (!move.timestamp) continue;
       const spent = (move.timestamp - prevTimestamp) / 1000;
       if (move.side === 'w') {
-        whiteTotal += spent;
-        whiteCount++;
+        whiteTimes.push(spent);
       } else {
-        blackTotal += spent;
-        blackCount++;
+        blackTimes.push(spent);
       }
       prevTimestamp = move.timestamp;
     }
 
+    const calcStats = (times) => {
+      if (times.length === 0) return null;
+      const sorted = [...times].sort((a, b) => a - b);
+      const sum = times.reduce((a, b) => a + b, 0);
+      const mid = Math.floor(sorted.length / 2);
+      const median = sorted.length % 2 === 0
+        ? (sorted[mid - 1] + sorted[mid]) / 2
+        : sorted[mid];
+      return {
+        avg: sum / times.length,
+        median,
+        max: sorted[sorted.length - 1],
+        min: sorted[0],
+        count: times.length,
+      };
+    };
+
     return {
-      white: whiteCount > 0 ? whiteTotal / whiteCount : null,
-      black: blackCount > 0 ? blackTotal / blackCount : null,
+      white: calcStats(whiteTimes),
+      black: calcStats(blackTimes),
     };
   }
 
@@ -282,6 +309,74 @@ class PostGameSummary {
     const m = Math.floor(seconds / 60);
     const s = Math.round(seconds % 60);
     return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  _formatStatValue(value, format) {
+    if (value == null) return '--';
+    if (format === 'count') return String(value);
+    return this._formatMoveTime(value);
+  }
+
+  /**
+   * Build the tappable timing row and wire up cycling behaviour.
+   * Returns the row element, or null if no timing data is available.
+   */
+  _buildTimingRow(gameRecord) {
+    const stats = this._computeMoveTimeStats(gameRecord);
+    if (stats.white === null && stats.black === null) return null;
+
+    this._timingStats = stats;
+    this._timingStatIndex = 0;
+
+    const row = document.createElement('div');
+    row.className = 'pgs-timing pgs-timing-tappable';
+    row.title = 'Tap to see more stats';
+
+    const wEl = document.createElement('span');
+    wEl.className = 'pgs-timing-value pgs-timing-value-white';
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'pgs-timing-label';
+
+    const bEl = document.createElement('span');
+    bEl.className = 'pgs-timing-value pgs-timing-value-black';
+
+    row.appendChild(wEl);
+    row.appendChild(labelEl);
+    row.appendChild(bEl);
+
+    this._timingWhiteEl = wEl;
+    this._timingBlackEl = bEl;
+    this._timingLabelEl = labelEl;
+
+    this._applyTimingStat();
+
+    row.addEventListener('click', () => this._cycleTimingStat());
+
+    return row;
+  }
+
+  /**
+   * Advance to the next stat and update the timing row display.
+   */
+  _cycleTimingStat() {
+    this._timingStatIndex = (this._timingStatIndex + 1) % MOVE_STAT_DEFS.length;
+    this._applyTimingStat();
+  }
+
+  /**
+   * Update the timing row elements to reflect the current stat index.
+   */
+  _applyTimingStat() {
+    const def = MOVE_STAT_DEFS[this._timingStatIndex];
+    const ws = this._timingStats ? this._timingStats.white : null;
+    const bs = this._timingStats ? this._timingStats.black : null;
+    const wVal = ws ? ws[def.key] : null;
+    const bVal = bs ? bs[def.key] : null;
+
+    if (this._timingWhiteEl) this._timingWhiteEl.textContent = this._formatStatValue(wVal, def.format);
+    if (this._timingBlackEl) this._timingBlackEl.textContent = this._formatStatValue(bVal, def.format);
+    if (this._timingLabelEl) this._timingLabelEl.textContent = def.label;
   }
 
   /**
@@ -333,29 +428,9 @@ class PostGameSummary {
 
     this._bodyEl.appendChild(playersRow);
 
-    // Average move time section (computed from timestamps, available immediately)
-    const avgTimes = this._computeAvgMoveTime(gameRecord);
-    if (avgTimes.white != null || avgTimes.black != null) {
-      const timingRow = document.createElement('div');
-      timingRow.className = 'pgs-timing';
-
-      const wTimeEl = document.createElement('span');
-      wTimeEl.className = 'pgs-timing-value pgs-timing-value-white';
-      wTimeEl.textContent = this._formatMoveTime(avgTimes.white);
-
-      const labelEl = document.createElement('span');
-      labelEl.className = 'pgs-timing-label';
-      labelEl.textContent = 'Avg Move Time';
-
-      const bTimeEl = document.createElement('span');
-      bTimeEl.className = 'pgs-timing-value pgs-timing-value-black';
-      bTimeEl.textContent = this._formatMoveTime(avgTimes.black);
-
-      timingRow.appendChild(wTimeEl);
-      timingRow.appendChild(labelEl);
-      timingRow.appendChild(bTimeEl);
-      this._bodyEl.appendChild(timingRow);
-    }
+    // Move time stats row (tappable, computed from timestamps immediately)
+    const timingRow = this._buildTimingRow(gameRecord);
+    if (timingRow) this._bodyEl.appendChild(timingRow);
 
     // Classification breakdown grid — all 10 rows shown during analysis
     const grid = document.createElement('div');
@@ -467,29 +542,9 @@ class PostGameSummary {
 
     this._bodyEl.appendChild(playersRow);
 
-    // Average move time section
-    const avgTimes = this._computeAvgMoveTime(gameRecord);
-    if (avgTimes.white != null || avgTimes.black != null) {
-      const timingRow = document.createElement('div');
-      timingRow.className = 'pgs-timing';
-
-      const wTimeEl = document.createElement('span');
-      wTimeEl.className = 'pgs-timing-value pgs-timing-value-white';
-      wTimeEl.textContent = this._formatMoveTime(avgTimes.white);
-
-      const labelEl = document.createElement('span');
-      labelEl.className = 'pgs-timing-label';
-      labelEl.textContent = 'Avg Move Time';
-
-      const bTimeEl = document.createElement('span');
-      bTimeEl.className = 'pgs-timing-value pgs-timing-value-black';
-      bTimeEl.textContent = this._formatMoveTime(avgTimes.black);
-
-      timingRow.appendChild(wTimeEl);
-      timingRow.appendChild(labelEl);
-      timingRow.appendChild(bTimeEl);
-      this._bodyEl.appendChild(timingRow);
-    }
+    // Move time stats row (tappable)
+    const timingRow = this._buildTimingRow(gameRecord);
+    if (timingRow) this._bodyEl.appendChild(timingRow);
 
     // Classification breakdown grid
     const grid = document.createElement('div');
