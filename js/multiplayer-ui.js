@@ -169,6 +169,7 @@ export class MultiplayerUI {
    */
   showLobby(payload) {
     this._lobbyState = { ...payload };
+    this._aiMode = false;
     this._myReady = false;
     // Initialize cam button from lobby settings (creator's chosen mode)
     if (this.inlineCamBtn) {
