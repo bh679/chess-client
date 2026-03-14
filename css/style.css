@@ -3586,9 +3586,10 @@ button.replay-summary-btn {
 }
 .lobby-waiting-copy-btn {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
+  gap: 8px;
   flex: 1;
   background: #2e7d32;
   border: 1px solid #43a047;
