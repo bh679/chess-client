@@ -83,6 +83,7 @@ const confirmModalTitle = document.getElementById('confirm-modal-title');
 const confirmModalMessage = document.getElementById('confirm-modal-message');
 const confirmModalOk = document.getElementById('confirm-modal-ok');
 const confirmModalCancel = document.getElementById('confirm-modal-cancel');
+const confirmModalExit = document.getElementById('confirm-modal-exit');
 
 // Replay-on-board DOM elements (reuse live-move-bar for replay mode)
 const replayControlsEl = document.getElementById('live-move-bar');
@@ -501,7 +502,7 @@ uiCtrl = new UIController({
     playerNameWhite, playerNameBlack,
     playerEloWhite, playerEloBlack,
     timeControlSelect, customYourLabel, customOpponentLabel, customTimeModal,
-    confirmModal, confirmModalTitle, confirmModalMessage, confirmModalOk, confirmModalCancel,
+    confirmModal, confirmModalTitle, confirmModalMessage, confirmModalOk, confirmModalCancel, confirmModalExit,
     devIndicator: document.getElementById('dev-indicator'),
     lobbyPanel, publicLobbiesPanel, publicLobbiesList,
   },
@@ -660,11 +661,11 @@ timer.onTimeout((loser) => {
 newGameBtn.addEventListener('click', async () => {
   // If multiplayer game active, prompt to resign first
   if (gameCtrl.multiplayerActive) {
-    const confirmed = await uiCtrl.showConfirmation(
+    const result = await uiCtrl.showConfirmationWithExit(
       'Resign the current game and start a new one?',
       'Resign Game?'
     );
-    if (!confirmed) return;
+    if (!result) return;
     uiCtrl.stopPublicLobbyPolling();  // Prevent poll timer from auto-reconnecting during transition
     if (gameCtrl.moveCount > 0 && !game.isGameOver()) {
       mp.resign();
@@ -675,7 +676,7 @@ newGameBtn.addEventListener('click', async () => {
     gameCtrl.multiplayerActive = false;
     timer.stop();
     mpUI.hideGameControls();
-    newGameMenu.open();
+    if (result === 'new-game') newGameMenu.open();
     return;
   }
 
