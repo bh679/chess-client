@@ -25,6 +25,8 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**ELO-based difficulty**](https://github.com/bh679/Chess/wiki/Feature:-AI-Opponents) — adjustable from 100 to 3200 ELO per side using Skill Level (low ELO) and UCI_LimitStrength (high ELO)
 - [**AI vs AI mode**](https://github.com/bh679/Chess/wiki/Feature:-AI-vs-AI) — watch two engines play against each other at different strengths
 - [**Deferred start**](https://github.com/bh679/Chess/wiki/Feature:-AI-Opponents) — when AI plays white, a Start button appears so you can configure settings first
+- [**Board orientation for AI games**](https://github.com/bh679/Chess/wiki/Feature:-AI-Opponents) — board automatically flips when playing as Black against AI, matching multiplayer behaviour
+- [**Correct player names on game start**](https://github.com/bh679/Chess/wiki/Feature:-AI-Opponents) — engine name and Human label appear immediately when starting an AI game, even after leaving a multiplayer session
 
 ### [Interactive Player Bars](https://github.com/bh679/Chess/wiki/Feature:-Player-Configuration)
 - [**Player info display**](https://github.com/bh679/Chess/wiki/Feature:-Player-Configuration) — shows player name, ELO (for AI), type icon, and timer for each side
@@ -32,6 +34,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Click ELO to adjust**](https://github.com/bh679/Chess/wiki/Feature:-Player-Configuration) — click the ELO label (pre-game) to open an inline slider popup
 - [**Click timer to change time**](https://github.com/bh679/Chess/wiki/Feature:-Player-Configuration) — click either timer (pre-game) for a time control dropdown
 - [**Editable player names**](https://github.com/bh679/Chess/wiki/Feature:-Player-Configuration) — click any player name to rename it (works anytime, persists to database)
+- [**Persistent player name**](https://github.com/bh679/Chess/wiki/Feature:-Player-Name-Cache) — name is cached in localStorage and pre-filled automatically in future sessions
 
 ### [Timers](https://github.com/bh679/Chess/wiki/Feature:-Time-Controls)
 - [**Preset time controls**](https://github.com/bh679/Chess/wiki/Feature:-Time-Controls) — Bullet 1+0, Blitz 3+2, Rapid 5+0, Rapid 10+0, Classical 30+0
@@ -107,8 +110,9 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Waiting room settings**](https://github.com/bh679/chess-client/wiki/Feature:-Waiting-Lobby-Settings) — when a host creates a Friend game, the inline lobby panel opens immediately below the board; TC and Variant (Chess960) are configurable while waiting for the opponent; settings persist when the opponent joins
 - [**Submit issue flag in lobby**](https://github.com/bh679/chess-client/wiki/Feature:-Lobby-Issue-Flag) — the ⚑ issue report button now appears in the waiting room (while waiting for opponent) and in the lobby panel (once both players connect), not just during active games
 - [**Resign on New Game**](https://github.com/bh679/chess-client/wiki/Feature:-Resign-on-New-Game) — clicking New Game during an active multiplayer game shows a "Resign Game?" confirmation; confirming resigns the current game, disconnects, and opens the new game menu
+- [**Exit Current Game**](https://github.com/bh679/chess-client/wiki/Feature:-Exit-Current-Game) — after confirming resignation/abandonment, the new game menu shows a red "Exit Current Game" button at the bottom; clicking it resets the board to a fresh start state without starting a new game
 - [**Public lobbies**](https://github.com/bh679/chess-client/wiki/Feature:-Public-Lobbies) — hosts can toggle a globe button in the waiting room to make their lobby discoverable; other players see public rooms listed in the Play with Friend menu and can join with one click
-- [**Public lobby list below board**](https://github.com/bh679/chess-client/wiki/Feature:-Public-Lobby-List) — open public games appear in an "Open Games" panel directly below the board, auto-refreshing every 15 seconds; players can join with one click without opening the New Game wizard
+- [**Public lobby list below board**](https://github.com/bh679/chess-client/wiki/Feature:-Public-Lobby-List) — open public games appear in an "Open Games" panel directly below the board, auto-refreshing every 5 seconds; each listing shows the host name, time control, variant, and camera mode (e.g. `Alice — 5+0 · King·Cam`); players can join with one click without opening the New Game wizard
 - [**Split Cam mode**](https://github.com/bh679/chess-client/wiki/Feature:-Split-Cam) — new camera mode where the left half of the board shows white player's camera and the right half shows black player's camera; board color tints indicate whose turn it is
 - [**Connection & video diagnostics**](https://github.com/bh679/chess-client/wiki/Feature:-Connection-and-Video-Logging) — 12 new diagnostic events covering WebSocket reconnect attempts, heartbeat timeouts, room-lost errors, camera acquisition/denial, video call start/fail, and ICE reconnect lifecycle; critical failure events flush immediately for maximum delivery reliability
 - [**Analysis Controller extraction**](https://github.com/bh679/chess-client/wiki/Feature:-Analysis-Controller) — refactored 12 analysis display functions and 3 state variables from `app.js` into a dedicated `AnalysisController` ES6 module; shared constants eliminate duplication between app.js and replay.js

@@ -674,6 +674,7 @@ newGameBtn.addEventListener('click', async () => {
     gameCtrl.multiplayerActive = false;
     timer.stop();
     mpUI.hideGameControls();
+    newGameMenu.showExitButton();
     newGameMenu.open();
     return;
   }
@@ -688,6 +689,7 @@ newGameBtn.addEventListener('click', async () => {
     if (gameCtrl.currentDbGameId) {
       db.endGame(gameCtrl.currentDbGameId, 'abandoned', 'abandoned');
     }
+    newGameMenu.showExitButton();
   }
 
   newGameMenu.open();
@@ -2126,6 +2128,10 @@ mp.onPublicRoomsList = (rooms) => {
   newGameMenu.setPublicRooms(rooms);
   uiCtrl.renderPublicLobbies(rooms);
 };
+
+newGameMenu.onExit(() => {
+  startNewGame();
+});
 
 newGameMenu.onCustomTime(() => {
   // Set context-dependent labels based on game mode
