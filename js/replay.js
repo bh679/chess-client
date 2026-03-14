@@ -1,4 +1,5 @@
 import { EvalBar } from './eval-bar.js';
+import { CLASSIFICATION_ICONS } from './constants.js';
 
 /**
  * ReplayViewer — Full-screen overlay for replaying saved chess games.
@@ -14,19 +15,6 @@ const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const PIECE_MAP = {
   K: 'wK', Q: 'wQ', R: 'wR', B: 'wB', N: 'wN', P: 'wP',
   k: 'bK', q: 'bQ', r: 'bR', b: 'bB', n: 'bN', p: 'bP',
-};
-
-const CLASSIFICATION_ICONS = {
-  brilliant:  { text: '!!',    cls: 'analysis-brilliant' },
-  great:      { text: '!',     cls: 'analysis-great' },
-  best:       { text: '\u2713', cls: 'analysis-best' },
-  excellent:  { text: '\u25CF', cls: 'analysis-excellent' },
-  good:       { text: '\u25CF', cls: 'analysis-good' },
-  book:       { text: '\u2261', cls: 'analysis-book' },
-  inaccuracy: { text: '?!',    cls: 'analysis-inaccuracy' },
-  mistake:    { text: '?',     cls: 'analysis-mistake' },
-  miss:       { text: '\u00D7', cls: 'analysis-miss' },
-  blunder:    { text: '??',    cls: 'analysis-blunder' },
 };
 
 class ReplayViewer {
