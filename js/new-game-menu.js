@@ -96,8 +96,8 @@ export class NewGameMenu {
 
   _bindCamCycle(btn) {
     if (!btn) return;
-    const MODES = ['board-face', 'king-cam', 'split-cam', 'split-cam-h', 'none'];
-    const LABELS = { 'board-face': 'Board - Face', 'king-cam': 'King - Cam', 'split-cam': 'Side / Side', 'split-cam-h': 'Top / Bottom', 'none': 'No-Cam' };
+    const MODES = ['board-face', 'tile-cam', 'king-cam', 'split-cam', 'split-cam-h', 'none'];
+    const LABELS = { 'board-face': 'Board - Face', 'tile-cam': 'Tile - Face', 'king-cam': 'King - Cam', 'split-cam': 'Side / Side', 'split-cam-h': 'Top / Bottom', 'none': 'No-Cam' };
     btn.addEventListener('click', () => {
       const next = MODES[(MODES.indexOf(btn.dataset.mode) + 1) % MODES.length];
       btn.dataset.mode = next;

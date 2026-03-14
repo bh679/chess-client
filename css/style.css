@@ -391,6 +391,92 @@ body {
   opacity: 0.8;
 }
 
+/* Tiled Cam — repeated small camera thumbnails on each square */
+.tiled-cam-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.tiled-cam-light-mask,
+.tiled-cam-dark-mask {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.tiled-cam-light-mask {
+  -webkit-mask: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 25% 25%;
+  mask: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 25% 25%;
+}
+
+.tiled-cam-dark-mask {
+  -webkit-mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 25% 25%;
+  mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 25% 25%;
+}
+
+.tiled-cam-light-canvas,
+.tiled-cam-dark-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.tiled-cam-light-tint {
+  position: absolute;
+  inset: 0;
+  background-color: var(--board-light);
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  -webkit-mask: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 25% 25%;
+  mask: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 25% 25%;
+}
+
+.tiled-cam-dark-tint {
+  position: absolute;
+  inset: 0;
+  background-color: var(--board-dark);
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  -webkit-mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 25% 25%;
+  mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 25% 25%;
+}
+
+.board.tiled-cam-active .square.light {
+  background-color: transparent;
+}
+
+.board.tiled-cam-active .square.dark {
+  background-color: transparent;
+}
+
+.board.tiled-cam-active .square {
+  z-index: 1;
+}
+
+.board.tiled-cam-active .square.selected {
+  background-color: rgba(247, 236, 90, 0.5) !important;
+}
+
+.board.tiled-cam-active .square.last-move {
+  background-color: rgba(255, 255, 0, 0.25) !important;
+}
+
+.board.tiled-cam-active .square.check {
+  background-color: rgba(255, 0, 0, 0.4) !important;
+}
+
+.board.tiled-cam-active .square.legal-move::after,
+.board.tiled-cam-active .square.legal-capture::after {
+  opacity: 0.8;
+}
+
 /* Split Cam — left half (white player) / right half (black player) */
 .split-cam-layer {
   position: absolute;
@@ -3880,7 +3966,9 @@ button.replay-summary-btn {
 .board.lobby-active .split-cam-left-tint,
 .board.lobby-active .split-cam-right-tint,
 .board.lobby-active .split-cam-h-top-tint,
-.board.lobby-active .split-cam-h-bottom-tint {
+.board.lobby-active .split-cam-h-bottom-tint,
+.board.lobby-active .tiled-cam-light-tint,
+.board.lobby-active .tiled-cam-dark-tint {
   opacity: 0 !important;
   transition: opacity 0.4s ease;
 }
