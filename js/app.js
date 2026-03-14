@@ -30,6 +30,7 @@ import { Diagnostics } from './diagnostics.js?v=2';
 import { IssueReporter } from './issue-reporter.js';
 import { Sound } from './sound.js';
 import { LiveMoveBar } from './live-move-bar.js';
+import { SettingsController } from './settings-controller.js';
 
 const sound = new Sound();
 
@@ -37,18 +38,8 @@ const PIECE_ORDER = { q: 0, r: 1, b: 2, n: 3, p: 4 };
 const PIECE_VALUES = { q: 9, r: 5, b: 3, n: 3, p: 1 };
 const PIECE_DISPLAY = { k: 'K', q: 'Q', r: 'R', b: 'B', n: 'N', p: 'P' };
 
-// Art style configuration
-const STYLE_PATHS = {
-  classic: 'img/pieces',
-  sovereign: 'img/pieces-sovereign',
-  staunton: 'img/pieces-staunton',
-  gothic: 'img/pieces-gothic',
-  kawaii: 'img/pieces-kawaii',
-  pixel: 'img/pieces-pixel',
-  neo: 'img/pieces-neo',
-  fish: 'img/pieces-fish',
-};
-window.chessPiecePath = STYLE_PATHS.classic;
+// Default art style path (SettingsController manages art style selection)
+window.chessPiecePath = 'img/pieces';
 
 const game = new Game();
 const statusEl = document.getElementById('status');
@@ -72,27 +63,6 @@ const customTimeOk = document.getElementById('custom-time-ok');
 const customTimeCancel = document.getElementById('custom-time-cancel');
 const customYourLabel = document.getElementById('custom-your-label');
 const customOpponentLabel = document.getElementById('custom-opponent-label');
-const chess960Toggle = document.getElementById('chess960-toggle');
-const animationsToggle = document.getElementById('animations-toggle');
-const evalBarToggle = document.getElementById('eval-bar-toggle');
-const premovesToggle = document.getElementById('premoves-toggle');
-const soundToggle = document.getElementById('sound-toggle');
-const settingsToggle = document.getElementById('settings-toggle');
-const settingsPanel = document.getElementById('settings-panel');
-const settingsBackdrop = document.getElementById('settings-backdrop');
-const artStylePicker = document.getElementById('art-style-picker');
-const boardTintSlider = document.getElementById('board-tint-slider');
-const boardTintValue = document.getElementById('board-tint-value');
-const aiWhiteToggle = document.getElementById('ai-white-toggle');
-const aiWhiteEngineSelect = document.getElementById('ai-white-engine');
-const aiWhiteEloSlider = document.getElementById('ai-white-elo');
-const aiWhiteEloValue = document.getElementById('ai-white-elo-value');
-const aiWhiteEloWrapper = document.getElementById('ai-white-elo-wrapper');
-const aiBlackToggle = document.getElementById('ai-black-toggle');
-const aiBlackEngineSelect = document.getElementById('ai-black-engine');
-const aiBlackEloSlider = document.getElementById('ai-black-elo');
-const aiBlackEloValue = document.getElementById('ai-black-elo-value');
-const aiBlackEloWrapper = document.getElementById('ai-black-elo-wrapper');
 const archiveToggleBtn = document.getElementById('archive-toggle');
 const archiveMenu = document.getElementById('archive-menu');
 const playerIconWhite = document.getElementById('player-icon-white');
@@ -212,41 +182,32 @@ const authUI = new AuthUI(auth, {
 });
 const router = new Router();
 
-// Auth state change handler — sync settings and offer game claiming on login
+// Settings controller — owns all settings-panel DOM, persistence, and server sync
+const settingsCtrl = new SettingsController({ auth, board, sound });
+
+// React to eval bar and board tint changes (requires app-level state)
+settingsCtrl.onSettingChanged = (name, value) => {
+  if (name === 'evalBar') {
+    if (multiplayerActive) { settingsCtrl.setEvalBarEnabled(false); return; }
+    if (replayController.isActive) {
+      if (value && analysisCtrl.data) { mainEvalBar.show(); analysisCtrl.updateEvalBar(replayController.getPly()); }
+      else { mainEvalBar.hide(); }
+      return;
+    }
+    if (value) { mainEvalBar.show(); mainEvalBar.reset(); liveEval(); }
+    else { mainEvalBar.hide(); mainEvalBar.reset(); if (liveEvalEngine) liveEvalEngine.stop(); }
+  } else if (name === 'boardTint' && mp && mp.color) {
+    const tint = value / 100;
+    if (videoBoard.isActive()) videoBoard.updateTurnTint(game.getTurn(), mp.color, tint);
+    if (splitCam.isActive()) splitCam.updateTurnTint(game.getTurn(), mp.color, tint);
+    if (splitCamH.isActive()) splitCamH.updateTurnTint(game.getTurn(), mp.color, tint);
+  }
+};
+
+// Auth state change handler — offer game claiming and update player names on login
+// (settings sync is handled inside SettingsController._listenForAuthSettingsSync)
 auth.onAuthChange(async (user) => {
   if (user) {
-    // Sync settings from server on login
-    try {
-      const res = await fetch('/api/chess/settings', { headers: auth.getAuthHeaders() });
-      if (res.ok) {
-        const { settings } = await res.json();
-        if (settings) {
-          // Apply server settings to UI
-          if (settings.evalBar !== undefined) {
-            evalBarToggle.checked = settings.evalBar;
-            evalBarToggle.dispatchEvent(new Event('change'));
-          }
-          if (settings.premoves !== undefined) {
-            premovesToggle.checked = settings.premoves;
-            premovesToggle.dispatchEvent(new Event('change'));
-          }
-          if (settings.pieceStyle && STYLE_PATHS[settings.pieceStyle]) {
-            window.chessPiecePath = STYLE_PATHS[settings.pieceStyle];
-            const btn = artStylePicker.querySelector(`[data-style="${settings.pieceStyle}"]`);
-            if (btn) {
-              artStylePicker.querySelector('.selected')?.classList.remove('selected');
-              btn.classList.add('selected');
-            }
-            board.redraw();
-          }
-          if (settings.boardTint !== undefined) {
-            boardTintSlider.value = settings.boardTint;
-            boardTintValue.textContent = settings.boardTint + '%';
-          }
-        }
-      }
-    } catch (e) { /* offline — skip */ }
-
     // Offer to claim existing anonymous games
     const allGames = db.getAllGames();
     const claimableIds = [];
@@ -286,31 +247,6 @@ auth.onAuthChange(async (user) => {
     }
   }
 });
-
-// Save settings to server when they change (debounced)
-let settingsSaveTimer = null;
-function saveSettingsToServer() {
-  if (!auth.isLoggedIn) return;
-  clearTimeout(settingsSaveTimer);
-  settingsSaveTimer = setTimeout(async () => {
-    const selectedStyle = artStylePicker.querySelector('.selected')?.dataset.style || 'classic';
-    const settings = {
-      evalBar: evalBarToggle.checked,
-      premoves: premovesToggle.checked,
-      pieceStyle: selectedStyle,
-      animations: animationsToggle.checked,
-      chess960: chess960Toggle.checked,
-      boardTint: parseInt(boardTintSlider.value, 10)
-    };
-    try {
-      await fetch('/api/chess/settings', {
-        method: 'PUT',
-        headers: auth.getAuthHeaders(),
-        body: JSON.stringify({ settings })
-      });
-    } catch (e) { /* offline — skip */ }
-  }, 1000);
-}
 
 // Wire browser close callback to update URL
 gameBrowser.setOnClose(() => {
@@ -413,14 +349,14 @@ const liveMoveBar = new LiveMoveBar({
 
 // Eval callback — refresh the eval bar whenever live review navigates
 liveMoveBar.onNeedEval = () => {
-  if (evalBarToggle && evalBarToggle.checked) liveEval();
+  if (settingsCtrl.isEvalBarEnabled()) liveEval();
 };
 
 // Exit-review callback — app.js handles post-review rendering/logic
 liveMoveBar.onExitReview = () => {
   renderCaptured();
   updateStatus();
-  if (evalBarToggle && evalBarToggle.checked) liveEval();
+  if (settingsCtrl.isEvalBarEnabled()) liveEval();
 
   if (mp.isActive()) {
     const isMyTurn = game.getTurn() === mp.color;
@@ -448,7 +384,7 @@ document.getElementById('main-eval-bar').appendChild(mainEvalBar.el);
 const analysisCtrl = new AnalysisController({
   board,
   evalBar: mainEvalBar,
-  evalBarToggle,
+  evalBarToggle: settingsCtrl.getEvalBarToggle(),
   moveListEl: replayMoveListEl,
   progressEl: replayProgressEl,
   progressFillEl: replayProgressFillEl,
@@ -496,17 +432,6 @@ async function liveEval() {
 // Initialise analysis toggle from localStorage
 if (replayAnalyzeCheckbox) {
   replayAnalyzeCheckbox.checked = localStorage.getItem('chess-auto-analyze') !== 'false';
-}
-
-// Initialise eval bar toggle from localStorage (default: off for live play)
-if (evalBarToggle) {
-  evalBarToggle.checked = localStorage.getItem('chess-eval-bar') === 'true';
-}
-
-// Initialise sound toggle from localStorage (default: on)
-if (soundToggle) {
-  soundToggle.checked = sound.isEnabled();
-  soundToggle.addEventListener('change', () => sound.setEnabled(soundToggle.checked));
 }
 
 function renderCaptured() {
@@ -783,15 +708,16 @@ async function startNewGame() {
   newGameBtn.classList.remove('game-ended');
   liveMoveBar.reset();
 
-  const chess960 = chess960Toggle.checked;
+  const chess960 = settingsCtrl.isChess960();
   game.newGame(chess960);
   board.getArrowOverlay().clear();
   board.render();
   moveCount = 0;
   sound.start();
 
-  const wIsAI = aiWhiteToggle.checked;
-  const bIsAI = aiBlackToggle.checked;
+  const aiCfg = settingsCtrl.getAIConfig();
+  const wIsAI = aiCfg.whiteEnabled;
+  const bIsAI = aiCfg.blackEnabled;
 
   // Show loading status while engines initialise
   if (wIsAI || bIsAI) {
@@ -799,14 +725,7 @@ async function startNewGame() {
   }
 
   // Configure AI (per-side) — async: loads engine WASM on first use
-  await ai.configure({
-    whiteEnabled: wIsAI,
-    whiteElo: parseInt(aiWhiteEloSlider.value, 10),
-    whiteEngineId: aiWhiteEngineSelect.value,
-    blackEnabled: bIsAI,
-    blackElo: parseInt(aiBlackEloSlider.value, 10),
-    blackEngineId: aiBlackEngineSelect.value,
-  });
+  await ai.configure(aiCfg);
   board.setAI(ai);
   ai.newGame();
 
@@ -814,12 +733,11 @@ async function startNewGame() {
   if (config) {
     timer.configure(config.whiteSec, config.increment, config.blackSec);
     // Auto-disable animations for timed games to reduce per-move overhead
-    board.setAnimationsEnabled(false);
-    animationsToggle.checked = false;
+    settingsCtrl.setAnimationsEnabled(false);
   } else {
     timer.configure(0, 0);
     // Restore user's animation preference for untimed games
-    board.setAnimationsEnabled(animationsToggle.checked);
+    board.setAnimationsEnabled(settingsCtrl.isAnimationsEnabled());
   }
 
   // Update game type label
@@ -828,27 +746,27 @@ async function startNewGame() {
   // Show matchup info in status briefly
   let matchup;
   if (wIsAI && bIsAI) {
-    const wElo = aiWhiteEloSlider.value;
-    const bElo = aiBlackEloSlider.value;
+    const wElo = aiCfg.whiteElo;
+    const bElo = aiCfg.blackElo;
     const wEng = ai.getEngineName('w');
     const bEng = ai.getEngineName('b');
     matchup = `${wEng} (${wElo}) vs ${bEng} (${bElo})`;
   } else if (wIsAI) {
-    matchup = `${ai.getEngineName('w')} (${aiWhiteEloSlider.value}) vs Human`;
+    matchup = `${ai.getEngineName('w')} (${aiCfg.whiteElo}) vs Human`;
   } else if (bIsAI) {
-    matchup = `Human vs ${ai.getEngineName('b')} (${aiBlackEloSlider.value})`;
+    matchup = `Human vs ${ai.getEngineName('b')} (${aiCfg.blackElo})`;
   } else {
     matchup = 'Human vs Human';
   }
   updateStatus(matchup, true);
 
   // Update player type icons and info — use engine-specific icons
-  const wInfo = getEngineInfo(aiWhiteEngineSelect.value);
-  const bInfo = getEngineInfo(aiBlackEngineSelect.value);
+  const wInfo = getEngineInfo(aiCfg.whiteEngineId);
+  const bInfo = getEngineInfo(aiCfg.blackEngineId);
   playerIconWhite.textContent = wIsAI ? (wInfo?.icon || '\uD83E\uDD16') : '\uD83D\uDC64';
   playerIconBlack.textContent = bIsAI ? (bInfo?.icon || '\uD83E\uDD16') : '\uD83D\uDC64';
-  const wEloVal = parseInt(aiWhiteEloSlider.value, 10);
-  const bEloVal = parseInt(aiBlackEloSlider.value, 10);
+  const wEloVal = aiCfg.whiteElo;
+  const bEloVal = aiCfg.blackElo;
   const wName = wIsAI ? ai.getEngineName('w') : (customWhiteName || 'Human');
   const bName = bIsAI ? ai.getEngineName('b') : (customBlackName || 'Human');
   playerNameWhite.textContent = wName;
@@ -873,18 +791,18 @@ async function startNewGame() {
       name: wIsAI ? `${ai.getEngineName('w')} ${wEloVal}` : wName,
       isAI: wIsAI,
       elo: wIsAI ? wEloVal : null,
-      engineId: wIsAI ? aiWhiteEngineSelect.value : null,
+      engineId: wIsAI ? aiCfg.whiteEngineId : null,
     },
     black: {
       name: bIsAI ? `${ai.getEngineName('b')} ${bEloVal}` : bName,
       isAI: bIsAI,
       elo: bIsAI ? bEloVal : null,
-      engineId: bIsAI ? aiBlackEngineSelect.value : null,
+      engineId: bIsAI ? aiCfg.blackEngineId : null,
     },
   });
 
   // Show eval bar if the toggle is enabled, and run initial evaluation
-  if (evalBarToggle && evalBarToggle.checked) {
+  if (settingsCtrl.isEvalBarEnabled()) {
     mainEvalBar.show();
     mainEvalBar.reset();
     liveEval();
@@ -975,8 +893,7 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960, i
     const increment = parseInt(tcMatch[2], 10);
     timer.configure(minutes * 60, increment);
     timer.setServerAuthoritative(true);
-    board.setAnimationsEnabled(false);
-    animationsToggle.checked = false;
+    settingsCtrl.setAnimationsEnabled(false);
   } else if (tcOddsMatch) {
     const creatorMin = parseInt(tcOddsMatch[1], 10);
     const opponentMin = parseInt(tcOddsMatch[2], 10);
@@ -986,8 +903,7 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960, i
     const bMin = (isCreator && color === 'b') || (!isCreator && color === 'w') ? creatorMin : opponentMin;
     timer.configure(wMin * 60, increment, bMin * 60);
     timer.setServerAuthoritative(true);
-    board.setAnimationsEnabled(false);
-    animationsToggle.checked = false;
+    settingsCtrl.setAnimationsEnabled(false);
   } else {
     timer.configure(0, 0);
     timer.setServerAuthoritative(false);
@@ -1030,7 +946,7 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960, i
   });
 
   // Disable eval bar during multiplayer (no engine assistance in online play)
-  if (evalBarToggle) evalBarToggle.checked = false;
+  settingsCtrl.setEvalBarEnabled(false);
   mainEvalBar.hide();
   mainEvalBar.reset();
   if (liveEvalEngine) liveEvalEngine.stop();
@@ -1041,13 +957,13 @@ function startMultiplayerGame(color, fen, timeControl, opponentName, chess960, i
 
   // Update video feed tint for turn indication
   if (videoBoard.isActive()) {
-    videoBoard.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+    videoBoard.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
   }
   if (splitCam.isActive()) {
-    splitCam.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+    splitCam.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
   }
   if (splitCamH.isActive()) {
-    splitCamH.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+    splitCamH.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
   }
 
   // Show multiplayer in-game controls
@@ -1085,13 +1001,13 @@ board.onMove((result) => {
     diagnostics.flush();
     board.setInteractive(false);
     if (videoBoard.isActive()) {
-      videoBoard.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+      videoBoard.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
     }
     if (splitCam.isActive()) {
-      splitCam.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+      splitCam.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
     }
     if (splitCamH.isActive()) {
-      splitCamH.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+      splitCamH.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
     }
     updateStatus("Opponent's turn");
 
@@ -1106,7 +1022,7 @@ board.onMove((result) => {
     }
 
     // Update live eval bar
-    if (evalBarToggle && evalBarToggle.checked) liveEval();
+    if (settingsCtrl.isEvalBarEnabled()) liveEval();
 
     // Save move to local database
     if (currentDbGameId) {
@@ -1151,7 +1067,7 @@ board.onMove((result) => {
   }
 
   // Update live eval bar after every move (if toggle is on)
-  if (evalBarToggle && evalBarToggle.checked) {
+  if (settingsCtrl.isEvalBarEnabled()) {
     liveEval();
   }
 
@@ -1293,7 +1209,7 @@ function startNameEdit(nameEl, side) {
     }
 
     // Only save custom name for human players
-    const isAI = side === 'white' ? aiWhiteToggle.checked : aiBlackToggle.checked;
+    const isAI = settingsCtrl.isAIEnabled(side === 'white' ? 'w' : 'b');
     if (!isAI) {
       if (side === 'white') {
         customWhiteName = newName === 'Human' ? null : newName;
@@ -1333,7 +1249,7 @@ function startEngineSwitch(nameEl, side) {
   if (nameEl.querySelector('.engine-switch-select')) return;
 
   const isWhite = side === 'white';
-  const settingsSelect = isWhite ? aiWhiteEngineSelect : aiBlackEngineSelect;
+  const settingsSelect = settingsCtrl.getEngineSelect(isWhite ? 'w' : 'b');
   const currentEngineId = settingsSelect.value;
   const currentName = nameEl.textContent;
 
@@ -1392,7 +1308,7 @@ playerNameWhite.addEventListener('click', (e) => {
     }
     return;
   }
-  if (aiWhiteToggle.checked) {
+  if (settingsCtrl.isAIEnabled('w')) {
     startEngineSwitch(playerNameWhite, 'white');
   } else {
     startNameEdit(playerNameWhite, 'white');
@@ -1408,7 +1324,7 @@ playerNameBlack.addEventListener('click', (e) => {
     }
     return;
   }
-  if (aiBlackToggle.checked) {
+  if (settingsCtrl.isAIEnabled('b')) {
     startEngineSwitch(playerNameBlack, 'black');
   } else {
     startNameEdit(playerNameBlack, 'black');
@@ -1489,210 +1405,6 @@ customTimeCancel.addEventListener('click', () => {
     return;
   }
   timeControlSelect.value = '600|0'; // fallback to Rapid 10+0
-});
-
-// Animations toggle
-animationsToggle.addEventListener('change', () => {
-  board.setAnimationsEnabled(animationsToggle.checked);
-});
-
-// Eval bar toggle — persists preference and shows/hides bar during live play
-if (evalBarToggle) {
-  evalBarToggle.addEventListener('change', () => {
-    const enabled = evalBarToggle.checked;
-    localStorage.setItem('chess-eval-bar', enabled ? 'true' : 'false');
-
-    // Prevent eval bar during multiplayer games
-    if (multiplayerActive) {
-      evalBarToggle.checked = false;
-      return;
-    }
-
-    if (replayController.isActive) {
-      // In replay mode, show/hide based on toggle + analysis data
-      if (enabled && analysisCtrl.data) {
-        mainEvalBar.show();
-        analysisCtrl.updateEvalBar(replayController.getPly());
-      } else {
-        mainEvalBar.hide();
-      }
-      return;
-    }
-
-    if (enabled) {
-      mainEvalBar.show();
-      mainEvalBar.reset();
-      liveEval();
-    } else {
-      mainEvalBar.hide();
-      mainEvalBar.reset();
-      if (liveEvalEngine) liveEvalEngine.stop();
-    }
-    saveSettingsToServer();
-  });
-}
-
-// Premoves toggle
-premovesToggle.checked = localStorage.getItem('chess-premoves') === 'true';
-board.setPremovesEnabled(premovesToggle.checked);
-premovesToggle.addEventListener('change', () => {
-  localStorage.setItem('chess-premoves', premovesToggle.checked ? 'true' : 'false');
-  board.setPremovesEnabled(premovesToggle.checked);
-  if (!premovesToggle.checked) board.clearPremove();
-  saveSettingsToServer();
-});
-
-// Settings panel toggle (bottom sheet)
-function openSettings() {
-  settingsPanel.classList.add('open');
-  settingsBackdrop.classList.add('visible');
-  settingsToggle.classList.add('active');
-  settingsToggle.setAttribute('aria-expanded', 'true');
-}
-
-function closeSettings() {
-  settingsPanel.classList.remove('open');
-  settingsBackdrop.classList.remove('visible');
-  settingsToggle.classList.remove('active');
-  settingsToggle.setAttribute('aria-expanded', 'false');
-}
-
-settingsToggle.addEventListener('click', () => {
-  if (settingsPanel.classList.contains('open')) {
-    closeSettings();
-  } else {
-    openSettings();
-  }
-});
-
-settingsBackdrop.addEventListener('click', closeSettings);
-
-// Art style picker
-artStylePicker.addEventListener('click', (e) => {
-  const btn = e.target.closest('.art-style-option');
-  if (!btn) return;
-
-  const style = btn.dataset.style;
-  if (!STYLE_PATHS[style]) return;
-
-  window.chessPiecePath = STYLE_PATHS[style];
-
-  artStylePicker.querySelectorAll('.art-style-option').forEach(el => {
-    el.classList.toggle('selected', el === btn);
-  });
-
-  board.render();
-  renderCaptured();
-  saveSettingsToServer();
-});
-
-// Board tint slider
-boardTintSlider.addEventListener('input', () => {
-  const val = parseInt(boardTintSlider.value, 10);
-  boardTintValue.textContent = val + '%';
-  if (videoBoard.isActive() && mp) {
-    videoBoard.updateTurnTint(game.getTurn(), mp.color, val / 100);
-  }
-  if (splitCam.isActive() && mp) {
-    splitCam.updateTurnTint(game.getTurn(), mp.color, val / 100);
-  }
-  if (splitCamH.isActive() && mp) {
-    splitCamH.updateTurnTint(game.getTurn(), mp.color, val / 100);
-  }
-});
-boardTintSlider.addEventListener('change', () => {
-  saveSettingsToServer();
-});
-
-// AI per-side toggles - show/hide engine select + ELO sliders
-aiWhiteToggle.addEventListener('change', () => {
-  const on = aiWhiteToggle.checked;
-  aiWhiteEngineSelect.classList.toggle('hidden', !on);
-  updateEloSliderRange('w');
-});
-
-aiBlackToggle.addEventListener('change', () => {
-  const on = aiBlackToggle.checked;
-  aiBlackEngineSelect.classList.toggle('hidden', !on);
-  updateEloSliderRange('b');
-});
-
-// Engine selector change — update ELO slider range and player bar
-aiWhiteEngineSelect.addEventListener('change', () => {
-  updateEloSliderRange('w');
-  saveEngineSelection();
-  if (aiWhiteToggle.checked) {
-    const info = getEngineInfo(aiWhiteEngineSelect.value);
-    if (info) {
-      playerNameWhite.textContent = info.name;
-      playerIconWhite.textContent = info.icon || '\uD83E\uDD16';
-      playerEloWhite.textContent = aiWhiteEloSlider.value;
-    }
-  }
-});
-
-aiBlackEngineSelect.addEventListener('change', () => {
-  updateEloSliderRange('b');
-  saveEngineSelection();
-  if (aiBlackToggle.checked) {
-    const info = getEngineInfo(aiBlackEngineSelect.value);
-    if (info) {
-      playerNameBlack.textContent = info.name;
-      playerIconBlack.textContent = info.icon || '\uD83E\uDD16';
-      playerEloBlack.textContent = aiBlackEloSlider.value;
-    }
-  }
-});
-
-/**
- * Update ELO slider min/max/step based on selected engine.
- * Hides slider entirely for engines with no ELO range (e.g. Random).
- */
-function updateEloSliderRange(side) {
-  const isWhite = side === 'w';
-  const toggle = isWhite ? aiWhiteToggle : aiBlackToggle;
-  const select = isWhite ? aiWhiteEngineSelect : aiBlackEngineSelect;
-  const slider = isWhite ? aiWhiteEloSlider : aiBlackEloSlider;
-  const valueEl = isWhite ? aiWhiteEloValue : aiBlackEloValue;
-  const wrapper = isWhite ? aiWhiteEloWrapper : aiBlackEloWrapper;
-
-  if (!toggle.checked) {
-    wrapper.classList.add('hidden');
-    return;
-  }
-
-  const info = getEngineInfo(select.value);
-  if (!info) return;
-
-  const { min, max, step, default: defaultElo } = info.eloRange;
-
-  if (min === max) {
-    slider.min = min;
-    slider.max = max;
-    slider.value = defaultElo;
-    valueEl.textContent = defaultElo;
-    wrapper.classList.add('hidden');
-    return;
-  }
-
-  slider.min = min;
-  slider.max = max;
-  slider.step = step;
-  const current = parseInt(slider.value, 10);
-  if (current < min || current > max) {
-    slider.value = defaultElo;
-  }
-  valueEl.textContent = slider.value;
-  wrapper.classList.remove('hidden');
-}
-
-// ELO slider live value display
-aiWhiteEloSlider.addEventListener('input', () => {
-  aiWhiteEloValue.textContent = aiWhiteEloSlider.value;
-});
-
-aiBlackEloSlider.addEventListener('input', () => {
-  aiBlackEloValue.textContent = aiBlackEloSlider.value;
 });
 
 // Archive menu — dynamically discover archive location
@@ -1809,22 +1521,20 @@ function closeAllPopups() {
 // Click player icon to toggle Human ↔ AI (only before first move)
 playerIconWhite.addEventListener('click', () => {
   if (replayController.isActive || multiplayerActive || moveCount > 0) return;
-  aiWhiteToggle.checked = !aiWhiteToggle.checked;
-  aiWhiteToggle.dispatchEvent(new Event('change'));
+  settingsCtrl.toggleAI('w');
   startNewGame();
 });
 
 playerIconBlack.addEventListener('click', () => {
   if (replayController.isActive || multiplayerActive || moveCount > 0) return;
-  aiBlackToggle.checked = !aiBlackToggle.checked;
-  aiBlackToggle.dispatchEvent(new Event('change'));
+  settingsCtrl.toggleAI('b');
   startNewGame();
 });
 
 // Click game type label to toggle Chess960 ↔ Standard (only before first move)
 gameTypeLabel.addEventListener('click', () => {
   if (replayController.isActive || moveCount > 0) return;
-  chess960Toggle.checked = !chess960Toggle.checked;
+  settingsCtrl.setChess960(!settingsCtrl.isChess960());
   startNewGame();
 });
 
@@ -1895,9 +1605,8 @@ function showEloPopup(eloEl, side) {
   if (replayController.isActive || moveCount > 0) return;
   closeAllPopups();
 
-  const isWhite = side === 'w';
-  const slider = isWhite ? aiWhiteEloSlider : aiBlackEloSlider;
-  const settingsValue = isWhite ? aiWhiteEloValue : aiBlackEloValue;
+  const slider = settingsCtrl.getEloSlider(side);
+  const settingsValue = settingsCtrl.getEloValueEl(side);
 
   // Don't show popup for engines with no ELO range (e.g. Random)
   if (slider.min === slider.max) return;
@@ -2126,48 +1835,6 @@ checkDevMode();
 
 // Poll for changes every 500ms
 setInterval(checkDevMode, 500);
-
-// --- Engine Selection Persistence ---
-
-const LS_ENGINE_KEY = 'chess-engine-selection';
-
-/** Populate engine dropdowns from the registry. */
-function populateEngineDropdowns() {
-  const engines = getAllEngines();
-  for (const select of [aiWhiteEngineSelect, aiBlackEngineSelect]) {
-    select.innerHTML = '';
-    for (const eng of engines) {
-      const opt = document.createElement('option');
-      opt.value = eng.id;
-      opt.textContent = `${eng.icon} ${eng.name}`;
-      select.appendChild(opt);
-    }
-  }
-}
-
-function saveEngineSelection() {
-  localStorage.setItem(LS_ENGINE_KEY, JSON.stringify({
-    white: aiWhiteEngineSelect.value,
-    black: aiBlackEngineSelect.value,
-  }));
-}
-
-function loadEngineSelection() {
-  try {
-    const raw = localStorage.getItem(LS_ENGINE_KEY);
-    if (raw) {
-      const { white, black } = JSON.parse(raw);
-      if (white && getEngineInfo(white)) aiWhiteEngineSelect.value = white;
-      if (black && getEngineInfo(black)) aiBlackEngineSelect.value = black;
-    }
-  } catch { /* ignore */ }
-}
-
-// Populate dropdowns, restore saved selection, sync ELO ranges
-populateEngineDropdowns();
-loadEngineSelection();
-updateEloSliderRange('w');
-updateEloSliderRange('b');
 
 // --- Multiplayer wiring ---
 
@@ -2459,7 +2126,7 @@ mp.onOpponentMove = (payload) => {
   }
 
   // Update eval bar
-  if (evalBarToggle && evalBarToggle.checked) liveEval();
+  if (settingsCtrl.isEvalBarEnabled()) liveEval();
 
   // Check for game over
   if (game.isGameOver()) {
@@ -2474,13 +2141,13 @@ mp.onOpponentMove = (payload) => {
   // Enable board for our turn
   board.setInteractive(true);
   if (videoBoard.isActive()) {
-    videoBoard.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+    videoBoard.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
   }
   if (splitCam.isActive()) {
-    splitCam.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+    splitCam.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
   }
   if (splitCamH.isActive()) {
-    splitCamH.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+    splitCamH.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
   }
   updateStatus('Your turn');
 
@@ -2676,13 +2343,13 @@ mp.onReconnect = async (payload) => {
   const isMyTurn = mp.isMyTurn(game.getTurn());
   board.setInteractive(isMyTurn);
   if (videoBoard.isActive()) {
-    videoBoard.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+    videoBoard.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
   }
   if (splitCam.isActive()) {
-    splitCam.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+    splitCam.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
   }
   if (splitCamH.isActive()) {
-    splitCamH.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+    splitCamH.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
   }
   updateStatus(isMyTurn ? 'Your turn (reconnected)' : "Opponent's turn (reconnected)");
   mpUI.setConnectionStatus('connected');
@@ -2712,13 +2379,13 @@ mp.onOpponentReconnected = () => {
   mpUI.setConnectionStatus('connected');
   const isMyTurn = mp.isMyTurn(game.getTurn());
   if (videoBoard.isActive()) {
-    videoBoard.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+    videoBoard.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
   }
   if (splitCam.isActive()) {
-    splitCam.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+    splitCam.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
   }
   if (splitCamH.isActive()) {
-    splitCamH.updateTurnTint(game.getTurn(), mp.color, parseInt(boardTintSlider.value, 10) / 100);
+    splitCamH.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
   }
   updateStatus(isMyTurn ? 'Your turn' : "Opponent's turn");
 };
@@ -3135,10 +2802,8 @@ function checkRoomCodeInUrl() {
 // --- New Game Wizard wiring ---
 
 newGameMenu.onStart((config) => {
-  // Apply wizard config to existing settings controls
-  chess960Toggle.checked = config.chess960;
-  evalBarToggle.checked = config.evalBar;
-  localStorage.setItem('chess-eval-bar', config.evalBar ? 'true' : 'false');
+  // Apply wizard settings (chess960, evalBar, AI config, engine/ELO)
+  settingsCtrl.applyWizardConfig(config);
 
   // Time control
   if (config.timeControl === '0') {
@@ -3169,38 +2834,6 @@ newGameMenu.onStart((config) => {
       timeControlSelect.insertBefore(opt, timeControlSelect.querySelector('[value="custom"]'));
     }
   }
-
-  // Player configuration
-  if (config.mode === 'bot') {
-    const userPlaysWhite = config.botSide === 'black';
-    aiWhiteToggle.checked = !userPlaysWhite;
-    aiBlackToggle.checked = userPlaysWhite;
-
-    // Set engine and ELO on the bot's side
-    if (config.botSide === 'black') {
-      aiBlackEngineSelect.value = config.engineId;
-      aiBlackEloSlider.value = config.elo;
-      aiBlackEloValue.textContent = config.elo;
-    } else {
-      aiWhiteEngineSelect.value = config.engineId;
-      aiWhiteEloSlider.value = config.elo;
-      aiWhiteEloValue.textContent = config.elo;
-    }
-
-    // Sync the engine/elo visibility in settings panel
-    updateEloSliderRange('w');
-    updateEloSliderRange('b');
-  } else {
-    // Shared device: both human
-    aiWhiteToggle.checked = false;
-    aiBlackToggle.checked = false;
-  }
-
-  // Show/hide engine selects based on AI toggle state
-  aiWhiteEngineSelect.classList.toggle('hidden', !aiWhiteToggle.checked);
-  aiWhiteEloWrapper.classList.toggle('hidden', !aiWhiteToggle.checked);
-  aiBlackEngineSelect.classList.toggle('hidden', !aiBlackToggle.checked);
-  aiBlackEloWrapper.classList.toggle('hidden', !aiBlackToggle.checked);
 
   startNewGame();
 });
