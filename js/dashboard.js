@@ -321,8 +321,8 @@ function renderGamesNav(navEntries, currentGameId, currentRoomCode) {
     const opacityStyle = isStale ? 'opacity:0.5;' : '';
     const style = `background:${pillBg};border-color:${colors.border};color:${colors.text};${opacityStyle}`;
     const href = isRoom
-      ? `/dashboard?roomCode=${encodeURIComponent(g.roomCode)}`
-      : `/dashboard?gameId=${g.gameId}`;
+      ? `dashboard.html?roomCode=${encodeURIComponent(g.roomCode)}`
+      : `dashboard.html?gameId=${g.gameId}`;
 
     if (isCurrent) {
       return `<span class="game-nav-item game-nav-current" style="${style}" title="Currently viewing">${dots}${esc(label)}</span>`;
