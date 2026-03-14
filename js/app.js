@@ -830,6 +830,9 @@ async function startNewGame() {
 
   // Update URL to home
   router.silentUpdate('/');
+
+  // Resume public lobby polling (may have been stopped during multiplayer transition)
+  startPublicLobbyPolling();
 }
 
 /** Configure timer display for lobby preview without starting it */
@@ -1141,7 +1144,12 @@ newGameBtn.addEventListener('click', async () => {
       'Resign Game?'
     );
     if (!confirmed) return;
-    mp.resign();
+    stopPublicLobbyPolling();  // Prevent poll timer from auto-reconnecting during transition
+    if (moveCount > 0 && !game.isGameOver()) {
+      mp.resign();
+    } else {
+      mp.cancelPendingRoom();  // Waiting room / lobby — cancel rather than resign
+    }
     mp.disconnect();
     multiplayerActive = false;
     timer.stop();
