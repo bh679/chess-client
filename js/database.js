@@ -294,10 +294,17 @@ class GameDatabase {
     // 1. Create on server if needed
     if (g.serverId === null) {
       try {
+        // Build server payload — strip timeControl if it's a display label
+        // (server validates N+N format; display strings like 'none' or 'Rapid 10+0' would fail)
+        const serverPayload = { ...g.metadata };
+        const tc = serverPayload.timeControl;
+        if (tc != null && !/^\d+(\/\d+)?\+\d+$/.test(tc)) {
+          serverPayload.timeControl = null;
+        }
         const res = await fetch(`${API_BASE}/games`, {
           method: 'POST',
           headers: this._headers(),
-          body: JSON.stringify(g.metadata),
+          body: JSON.stringify(serverPayload),
         });
         if (!res.ok) return; // server down — try next cycle
         const { id } = await res.json();
