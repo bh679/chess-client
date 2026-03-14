@@ -183,7 +183,8 @@ export class NewGameMenu {
         this._mode = btn.dataset.mode;
 
         if (this._mode === 'online') {
-          this._showStep('online');
+          this.close();
+          if (this._onFriend) this._onFriend('create');
           return;
         }
         if (this._mode === 'friend') {
@@ -382,7 +383,7 @@ export class NewGameMenu {
     const titles = {
       opponent: 'New Game',
       online: 'Play Online',
-      friend: 'Play with Friend',
+      friend: 'Join A Game',
       time: 'Time Control',
       settings: 'Game Settings',
     };
