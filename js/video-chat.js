@@ -13,6 +13,7 @@ const FALLBACK_ICE_SERVERS = [
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_DELAY_MS = 2000;
 const ICE_DISCONNECT_GRACE_MS = 4000; // wait before restarting on 'disconnected'
+const CAMERA_TIMEOUT_MS = 10_000;     // reject if getUserMedia hangs (e.g. macOS system permission)
 
 export class VideoChat {
   /**
@@ -94,10 +95,17 @@ export class VideoChat {
     }
     let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
+      const mediaPromise = navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 640 }, height: { ideal: 480 } },
         audio: true,
       });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(Object.assign(
+          new Error('Camera request timed out — check system permissions'),
+          { name: 'TimeoutError' }
+        )), CAMERA_TIMEOUT_MS)
+      );
+      stream = await Promise.race([mediaPromise, timeoutPromise]);
     } catch (err) {
       let msg;
       if (err.name === 'NotAllowedError') {
@@ -106,6 +114,8 @@ export class VideoChat {
         msg = 'No camera or microphone found.';
       } else if (err.name === 'NotReadableError') {
         msg = 'Camera is in use by another application.';
+      } else if (err.name === 'TimeoutError') {
+        msg = 'Camera request timed out. Check system permissions (Settings \u2192 Privacy \u2192 Camera).';
       } else {
         msg = 'Could not access camera: ' + err.message;
       }

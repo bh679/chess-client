@@ -1239,6 +1239,10 @@ mp.onLobbyJoined = async (payload) => {
       mp.sendVideoReady();
     } catch (e) {
       videoUI.showError(e.message || 'Camera access failed.');
+      diagnostics.record('lifecycle', 'camera_failed', {
+        error: e.name || 'unknown', message: e.message || ''
+      });
+      diagnostics.flush();
     }
   }
 };
