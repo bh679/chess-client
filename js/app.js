@@ -4361,7 +4361,7 @@ function renderPublicLobbies(rooms) {
     row.className = 'public-lobby-row';
     const nameSpan = document.createElement('span');
     nameSpan.className = 'public-lobby-info';
-    nameSpan.textContent = `${room.hostName || 'Anonymous'} — ${tc}${variant}`;
+    nameSpan.textContent = `${room.hostName || 'Opponent'} — ${tc}${variant}`;
     const joinBtn = document.createElement('button');
     joinBtn.className = 'public-lobby-join-btn';
     joinBtn.textContent = 'Join';
