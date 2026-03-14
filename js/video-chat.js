@@ -132,6 +132,11 @@ export class VideoChat {
       return;
     }
 
+    // Guard: if a call is already in progress (negotiating), don't restart it
+    if (this._peerConnection && this._peerConnection.signalingState !== 'closed') {
+      return;
+    }
+
     // If a stale PC exists without remote description, close it first
     if (this._peerConnection) {
       this._peerConnection.close();
@@ -202,6 +207,8 @@ export class VideoChat {
   async handleAnswer(sdp) {
     if (this._diag) this._diag.sdpExchange('received', 'answer');
     if (!this._peerConnection) return;
+    // Only accept an answer when we've sent an offer
+    if (this._peerConnection.signalingState !== 'have-local-offer') return;
     try {
       await this._peerConnection.setRemoteDescription(new RTCSessionDescription(sdp));
       this._remoteDescriptionReady = true;
