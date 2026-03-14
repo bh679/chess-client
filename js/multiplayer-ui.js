@@ -625,7 +625,7 @@ export class MultiplayerUI {
         const next = CAM_MODES[(CAM_MODES.indexOf(this.inlineCamBtn.dataset.mode) + 1) % CAM_MODES.length];
         this.inlineCamBtn.dataset.mode = next;
         this.inlineCamBtn.textContent = CAM_LABELS[next];
-        this.mp.proposeSetting('camMode', next);
+        if (this._onCamChange) this._onCamChange(next);
       });
     }
 
