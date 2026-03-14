@@ -112,30 +112,6 @@ body {
   flex-shrink: 0;
 }
 
-/* Game type label */
-.game-type-label {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  font-weight: 600;
-  height: 34px;
-  line-height: 34px;
-  padding: 0 10px;
-  background: var(--bg-surface);
-  border-radius: var(--radius-md);
-  white-space: nowrap;
-  user-select: none;
-  letter-spacing: 0.02em;
-}
-
-.pre-game .game-type-label {
-  cursor: pointer;
-}
-
-.pre-game .game-type-label:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
-
 /* Status bar */
 .status {
   color: var(--text-primary);
@@ -3756,27 +3732,6 @@ button.replay-summary-btn {
   background: var(--bg-elevated);
   color: var(--text-secondary);
   border: 1px solid var(--border);
-}
-
-/* Header room code (shown during pre-game lobby) */
-.lobby-room-code-display {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.lobby-room-code-display.hidden { display: none; }
-.lobby-room-code-label {
-  font-size: 0.65rem;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-.lobby-room-code-value {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  color: var(--text-primary);
 }
 
 /* ── Public lobbies panel (below board, visible when not in a game) ── */

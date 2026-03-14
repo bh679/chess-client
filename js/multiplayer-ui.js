@@ -347,15 +347,12 @@ export class MultiplayerUI {
 
   // --- Private ---
 
-  _showHeaderRoomCode(roomId) {
-    this.statusEl.classList.add('hidden');
-    this.headerRoomCodeDisplay.classList.remove('hidden');
-    this.headerRoomCodeValue.textContent = roomId || '------';
+  _showHeaderRoomCode(_roomId) {
+    // Room code display removed from header
   }
 
   _hideHeaderRoomCode() {
-    this.headerRoomCodeDisplay.classList.add('hidden');
-    this.statusEl.classList.remove('hidden');
+    // Room code display removed from header
   }
 
   _initElements() {
@@ -363,10 +360,7 @@ export class MultiplayerUI {
     this.modal = document.getElementById('mp-modal');
     this.backdrop = document.getElementById('mp-backdrop');
 
-    // Header room code display
     this.statusEl = document.getElementById('status');
-    this.headerRoomCodeDisplay = document.getElementById('lobby-room-code-display');
-    this.headerRoomCodeValue = document.getElementById('lobby-room-code-header');
 
     // Inline lobby panel
     this.lobbyPanel = document.getElementById('lobby-panel');
@@ -395,6 +389,8 @@ export class MultiplayerUI {
     this.joinCodeInput = document.getElementById('mp-join-code');
     this.mpTimeControl = document.getElementById('mp-time-control');
     this.mpPlayerName = document.getElementById('mp-player-name');
+    const savedName = localStorage.getItem('chess-player-name');
+    if (savedName) this.mpPlayerName.value = savedName;
 
     // Waiting view in modal (still used for display but no longer primary waiting UI)
     this.waitingView = document.getElementById('mp-waiting');
@@ -438,6 +434,7 @@ export class MultiplayerUI {
     this.quickMatchBtn.addEventListener('click', () => {
       const tc = this.mpTimeControl.value;
       const name = this.mpPlayerName.value.trim() || null;
+      if (name) localStorage.setItem('chess-player-name', name);
       this.mp.quickMatch(tc, name);
       this.showSearching();
     });
@@ -446,6 +443,7 @@ export class MultiplayerUI {
     this.createRoomBtn.addEventListener('click', () => {
       const tc = this.mpTimeControl.value;
       const name = this.mpPlayerName.value.trim() || null;
+      if (name) localStorage.setItem('chess-player-name', name);
       this.mp.createRoom(tc, name);
     });
 
@@ -454,6 +452,7 @@ export class MultiplayerUI {
       const code = this.joinCodeInput.value.trim().toUpperCase();
       if (!code || code.length < 4) return;
       const name = this.mpPlayerName.value.trim() || null;
+      if (name) localStorage.setItem('chess-player-name', name);
       this.mp.joinRoom(code, name);
     });
 
