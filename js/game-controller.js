@@ -147,6 +147,7 @@ export class GameController {
 
     // Clear any pre-game lobby state
     dom.boardEl.classList.remove('lobby-active');
+    this._mpUI.setAIMode(true);
     this._mpUI.hideLobbyPanel();
 
     // Reset issue reporter for new game
@@ -156,17 +157,30 @@ export class GameController {
 
     this._prepareGame();
 
-    this._board.setFlipped(false);
-    dom.appEl.classList.remove('board-flipped');
+    const aiCfg = this._settingsController.getAIConfig();
+    const wIsAI = aiCfg.whiteEnabled;
+    const bIsAI = aiCfg.blackEnabled;
+
+    // Flip board when user plays Black (AI is White, human is Black)
+    const userIsBlack = wIsAI && !bIsAI;
+    this._board.setFlipped(userIsBlack);
+    dom.appEl.classList.toggle('board-flipped', userIsBlack);
     dom.startGameBtn.classList.add('hidden');
 
     const chess960 = this._settingsController.isChess960();
     this._game.newGame(chess960);
     this._board.render();
 
-    const aiCfg = this._settingsController.getAIConfig();
-    const wIsAI = aiCfg.whiteEnabled;
-    const bIsAI = aiCfg.blackEnabled;
+    // Set player names and icons immediately (before async engine load)
+    // so the UI never shows stale names from the previous game
+    const wInfo = getEngineInfo(aiCfg.whiteEngineId);
+    const bInfo = getEngineInfo(aiCfg.blackEngineId);
+    dom.playerIconWhite.textContent = wIsAI ? (wInfo?.icon || '\uD83E\uDD16') : '\uD83D\uDC64';
+    dom.playerIconBlack.textContent = bIsAI ? (bInfo?.icon || '\uD83E\uDD16') : '\uD83D\uDC64';
+    dom.playerNameWhite.textContent = wIsAI ? (wInfo?.name ?? 'Engine') : (getCustomWhiteName() || 'Human');
+    dom.playerNameBlack.textContent = bIsAI ? (bInfo?.name ?? 'Engine') : (getCustomBlackName() || 'Human');
+    dom.playerNameWhite.classList.remove('multiplayer-opponent');
+    dom.playerNameBlack.classList.remove('multiplayer-opponent');
 
     // Show loading status while engines initialise
     if (wIsAI || bIsAI) {
@@ -193,11 +207,7 @@ export class GameController {
     const matchup = this._buildMatchupString(aiCfg, wIsAI, bIsAI);
     updateStatus(matchup, true);
 
-    // Update player type icons and info
-    const wInfo = getEngineInfo(aiCfg.whiteEngineId);
-    const bInfo = getEngineInfo(aiCfg.blackEngineId);
-    dom.playerIconWhite.textContent = wIsAI ? (wInfo?.icon || '\uD83E\uDD16') : '\uD83D\uDC64';
-    dom.playerIconBlack.textContent = bIsAI ? (bInfo?.icon || '\uD83E\uDD16') : '\uD83D\uDC64';
+    // Update player names with precise loaded engine name (may differ from registry name)
     const wEloVal = aiCfg.whiteElo;
     const bEloVal = aiCfg.blackElo;
     const wName = wIsAI ? this._ai.getEngineName('w') : (getCustomWhiteName() || 'Human');
@@ -264,6 +274,7 @@ export class GameController {
    * Start a multiplayer game (called by multiplayer event handlers).
    */
   startMultiplayerGame(color, fen, timeControl, opponentName, chess960, isCreator) {
+    this._mpUI.setAIMode(false);
     this.multiplayerActive = true;
     this._callbacks.stopPublicLobbyPolling();
     this.multiplayerGameStartTime = Date.now();
