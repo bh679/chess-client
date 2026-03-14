@@ -5,6 +5,7 @@ const PIECE_VALUES = { q: 9, r: 5, b: 3, n: 3, p: 1 };
 const PIECE_DISPLAY = { k: 'K', q: 'Q', r: 'R', b: 'B', n: 'N', p: 'P' };
 
 const DEV_MODE_KEY = 'chess-dev-mode';
+const CAM_LABELS = { 'king-cam': 'King·Cam', 'split-cam': 'Side/Side', 'split-cam-h': 'Top/Bottom', 'none': 'No-Cam' };
 
 /**
  * UIController — owns UI rendering and pre-game inline controls.
@@ -20,6 +21,7 @@ export class UIController {
   customWhiteName = localStorage.getItem('chess-player-name') || null;
   customBlackName = localStorage.getItem('chess-player-name') || null;
   _publicLobbyPollTimer = null;
+  _renderedRooms = new Map(); // roomId → { row, text } for diff-based rendering
 
   constructor({
     game, board, db, mp, gameCtrl, settingsCtrl, replayController, liveMoveBar,
@@ -68,9 +70,11 @@ export class UIController {
     this.publicLobbiesPanel = dom.publicLobbiesPanel;
     this.publicLobbiesList = dom.publicLobbiesList;
 
-    // Start dev mode polling
+    // Check dev mode once at startup, then listen for cross-tab changes
     this.checkDevMode();
-    setInterval(() => this.checkDevMode(), 500);
+    window.addEventListener('storage', (e) => {
+      if (e.key === DEV_MODE_KEY) this.checkDevMode();
+    });
   }
 
   // ─── Captured Pieces ─────────────────────────────────────────────
@@ -420,35 +424,65 @@ export class UIController {
 
   // ─── Public Lobbies Panel ────────────────────────────────────────
 
+  _buildRoomText(room) {
+    const tc = room.timeControl === 'none' ? 'No timer' : room.timeControl;
+    const variant = room.chess960 ? ' · 960' : '';
+    const cam = (room.camMode && room.camMode !== 'board-face') ? ` · ${CAM_LABELS[room.camMode] ?? room.camMode}` : '';
+    return `${room.hostName || 'Anonymous'} — ${tc}${variant}${cam}`;
+  }
+
   renderPublicLobbies(rooms) {
     // Hide if in a game, in pre-game lobby, or no rooms available
     if (this.gameCtrl.multiplayerActive || !this.lobbyPanel.classList.contains('hidden') || !rooms || rooms.length === 0) {
       this.publicLobbiesPanel.classList.add('hidden');
+      this._renderedRooms.clear();
+      this.publicLobbiesList.innerHTML = '';
       return;
     }
     this.publicLobbiesPanel.classList.remove('hidden');
-    this.publicLobbiesList.innerHTML = '';
+
+    const incomingIds = new Set(rooms.map(r => r.roomId));
+
+    // Remove stale rooms
+    for (const [id, entry] of this._renderedRooms) {
+      if (!incomingIds.has(id)) {
+        entry.row.remove();
+        this._renderedRooms.delete(id);
+      }
+    }
+
+    // Add new rooms / update changed text (batch new additions via DocumentFragment)
+    const fragment = document.createDocumentFragment();
     for (const room of rooms) {
-      const tc = room.timeControl === 'none' ? 'No timer' : room.timeControl;
-      const variant = room.chess960 ? ' · 960' : '';
-      const CAM_LABELS = { 'king-cam': 'King·Cam', 'split-cam': 'Side/Side', 'split-cam-h': 'Top/Bottom', 'none': 'No-Cam' };
-      const cam = (room.camMode && room.camMode !== 'board-face') ? ` · ${CAM_LABELS[room.camMode] ?? room.camMode}` : '';
-      const row = document.createElement('div');
-      row.className = 'public-lobby-row';
-      const nameSpan = document.createElement('span');
-      nameSpan.className = 'public-lobby-info';
-      nameSpan.textContent = `${room.hostName || 'Anonymous'} — ${tc}${variant}${cam}`;
-      const joinBtn = document.createElement('button');
-      joinBtn.className = 'public-lobby-join-btn';
-      joinBtn.textContent = 'Join';
-      joinBtn.addEventListener('click', () => {
-        this.stopPublicLobbyPolling();
-        this.gameCtrl.multiplayerActive = true;
-        this.mp.joinRoom(room.roomId, null);
-      });
-      row.appendChild(nameSpan);
-      row.appendChild(joinBtn);
-      this.publicLobbiesList.appendChild(row);
+      const text = this._buildRoomText(room);
+      const existing = this._renderedRooms.get(room.roomId);
+      if (existing) {
+        if (existing.text !== text) {
+          existing.row.querySelector('.public-lobby-info').textContent = text;
+          existing.text = text;
+        }
+      } else {
+        const row = document.createElement('div');
+        row.className = 'public-lobby-row';
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'public-lobby-info';
+        nameSpan.textContent = text;
+        const joinBtn = document.createElement('button');
+        joinBtn.className = 'public-lobby-join-btn';
+        joinBtn.textContent = 'Join';
+        joinBtn.addEventListener('click', () => {
+          this.stopPublicLobbyPolling();
+          this.gameCtrl.multiplayerActive = true;
+          this.mp.joinRoom(room.roomId, null);
+        });
+        row.appendChild(nameSpan);
+        row.appendChild(joinBtn);
+        fragment.appendChild(row);
+        this._renderedRooms.set(room.roomId, { row, text });
+      }
+    }
+    if (fragment.childNodes.length > 0) {
+      this.publicLobbiesList.appendChild(fragment);
     }
   }
 
@@ -470,6 +504,8 @@ export class UIController {
     clearInterval(this._publicLobbyPollTimer);
     this._publicLobbyPollTimer = null;
     this.publicLobbiesPanel.classList.add('hidden');
+    this._renderedRooms.clear();
+    this.publicLobbiesList.innerHTML = '';
   }
 
   // ─── Camera Mode ─────────────────────────────────────────────────

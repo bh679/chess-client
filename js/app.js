@@ -277,6 +277,14 @@ const diagnostics = new Diagnostics();
 diagnostics.setSessionId(mp.sessionId);
 diagnostics.start();
 
+// Fetch client and API versions and attach to all diagnostic logs
+Promise.all([
+  fetch('./package.json').then(r => r.json()).then(pkg => pkg.version).catch(() => null),
+  fetch('/api/chess/health').then(r => r.json()).then(h => h.version).catch(() => null),
+]).then(([clientVersion, apiVersion]) => {
+  diagnostics.setVersions(clientVersion, apiVersion);
+});
+
 // Global error capture
 window.addEventListener('error', (event) => {
   diagnostics.jsError(
@@ -1156,6 +1164,7 @@ mp.onGameStart = async (payload) => {
 
 // Room created — show waiting screen (lobby panel in waiting mode)
 mp.onRoomCreated = (payload) => {
+  uiCtrl.stopPublicLobbyPolling();
   mpUI.showWaiting(payload.roomId);
   issueReporter.setGameContext(null, mp.sessionId, false, payload.roomId);
   issueReporter.showWaitingButton();
