@@ -359,9 +359,12 @@ function renderCategoryFilterBar(events) {
 
 // --- Main render ---
 
-function renderDashboard(data, navEntries) {
+function renderDashboard(data, navEntries, versions = {}) {
   const { events = [], count = 0, gameId, roomCode, game, issueReports = [] } = data;
   const ctxLabel = gameId ? `Game ${gameId}` : (roomCode ? `Room ${roomCode}` : 'Recent');
+  const versionLine = (versions.client || versions.api)
+    ? `<div class="header-version">${versions.client ? `client v${esc(versions.client)}` : ''}${versions.client && versions.api ? ' \u00B7 ' : ''}${versions.api ? `api v${esc(versions.api)}` : ''}</div>`
+    : '';
 
   const firstTs = events.length ? events[0].timestamp : null;
   const lastTs  = events.length ? events[events.length - 1].timestamp : null;
@@ -378,6 +381,7 @@ function renderDashboard(data, navEntries) {
   <div>
     <div class="header-title">Chess Diagnostics</div>
     <div class="header-meta">${esc(ctxLabel)}</div>
+    ${versionLine}
   </div>
   <div class="header-actions">
     ${gameId ? '<button class="btn" id="api-link-btn">&#x29C9; Copy API link</button>' : ''}
@@ -483,10 +487,12 @@ async function init() {
     if (params.has('category')) qp.push(`category=${encodeURIComponent(params.get('category'))}`);
     if (qp.length) dataUrl += '?' + qp.join('&');
 
-    // Fetch data and nav in parallel
-    const [dataRes, navRes] = await Promise.all([
+    // Fetch data, nav, and version info in parallel
+    const [dataRes, navRes, healthRes, pkgRes] = await Promise.all([
       fetch(dataUrl),
       fetch(`${API_BASE}/nav`),
+      fetch('/api/chess/health').catch(() => null),
+      fetch('/package.json').catch(() => null),
     ]);
 
     if (!dataRes.ok) {
@@ -497,8 +503,11 @@ async function init() {
 
     const data = await dataRes.json();
     const navData = navRes.ok ? await navRes.json() : { entries: [] };
+    const healthData = healthRes && healthRes.ok ? await healthRes.json().catch(() => ({})) : {};
+    const pkgData = pkgRes && pkgRes.ok ? await pkgRes.json().catch(() => ({})) : {};
+    const versions = { client: pkgData.version || null, api: healthData.version || null };
 
-    app.innerHTML = renderDashboard(data, navData.entries);
+    app.innerHTML = renderDashboard(data, navData.entries, versions);
     bindEvents(data);
   } catch (e) {
     app.innerHTML = `<div class="empty">Error loading diagnostics: ${esc(e.message)}</div>`;
