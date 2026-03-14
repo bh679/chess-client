@@ -17,8 +17,8 @@ const DEV_MODE_KEY = 'chess-dev-mode';
 export class UIController {
   // Internal state
   showingGameInfo = false;
-  customWhiteName = null;
-  customBlackName = null;
+  customWhiteName = localStorage.getItem('chess-player-name') || null;
+  customBlackName = localStorage.getItem('chess-player-name') || null;
   _publicLobbyPollTimer = null;
 
   constructor({
@@ -319,6 +319,11 @@ export class UIController {
           this.customWhiteName = newName === 'Human' ? null : newName;
         } else {
           this.customBlackName = newName === 'Human' ? null : newName;
+        }
+        if (newName && newName !== 'Human') {
+          localStorage.setItem('chess-player-name', newName);
+        } else {
+          localStorage.removeItem('chess-player-name');
         }
       }
 
