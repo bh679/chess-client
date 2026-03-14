@@ -93,7 +93,6 @@ export class ReplayController {
 
     if (this.isActive) this.exit(false);
     if (cb.isLiveReview()) cb.exitLiveReview();
-    cb.fadeLiveMoveBar();
 
     cb.stopAI();
     this._timer.stop();
@@ -142,8 +141,11 @@ export class ReplayController {
     // Build move list
     this._buildMoveList(gameRecord);
 
-    // Show replay controls
-    dom.replayControlsEl.classList.remove('hidden');
+    // Show replay controls (activate live-move-bar with replay UI)
+    dom.replayControlsEl.classList.remove('faded');
+    dom.replayExtrasEl.classList.remove('hidden');
+    dom.replayPlayBtn.classList.remove('hidden');
+    if (dom.replayAnalyzeToggleEl) dom.replayAnalyzeToggleEl.classList.remove('hidden');
 
     // Show result
     if (gameRecord.result) {
@@ -201,8 +203,12 @@ export class ReplayController {
     this._board.setInteractive(true);
     dom.boardEl.classList.remove('replay-mode-border');
 
-    // Hide replay controls
-    dom.replayControlsEl.classList.add('hidden');
+    // Hide replay controls (fade live-move-bar, hide replay-only elements)
+    dom.replayExtrasEl.classList.add('hidden');
+    dom.replayPlayBtn.classList.add('hidden');
+    if (dom.replayAnalyzeToggleEl) dom.replayAnalyzeToggleEl.classList.add('hidden');
+    dom.replayMoveListEl.innerHTML = '';
+    dom.replayControlsEl.classList.add('faded');
 
     // Remove keyboard handler
     document.removeEventListener('keydown', this._keyHandler);

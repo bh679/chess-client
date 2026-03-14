@@ -84,15 +84,16 @@ const confirmModalMessage = document.getElementById('confirm-modal-message');
 const confirmModalOk = document.getElementById('confirm-modal-ok');
 const confirmModalCancel = document.getElementById('confirm-modal-cancel');
 
-// Replay-on-board DOM elements
-const replayControlsEl = document.getElementById('replay-controls');
-const replayMoveListEl = document.getElementById('replay-move-list');
-const replayStartBtn = document.getElementById('replay-main-start');
-const replayPrevBtn = document.getElementById('replay-main-prev');
+// Replay-on-board DOM elements (reuse live-move-bar for replay mode)
+const replayControlsEl = document.getElementById('live-move-bar');
+const replayMoveListEl = document.getElementById('live-move-list');
+const replayStartBtn = document.getElementById('live-start-btn');
+const replayPrevBtn = document.getElementById('live-prev-btn');
 const replayPlayBtn = document.getElementById('replay-main-play');
-const replayNextBtn = document.getElementById('replay-main-next');
-const replayEndBtn = document.getElementById('replay-main-end');
+const replayNextBtn = document.getElementById('live-next-btn');
+const replayEndBtn = document.getElementById('live-end-btn');
 const replayResultEl = document.getElementById('replay-main-result');
+const replayExtrasEl = document.getElementById('replay-extras');
 
 // Analysis DOM elements for main-board replay
 const replayAnalyzeCheckbox = document.getElementById('replay-auto-analyze');
@@ -128,12 +129,13 @@ const replayController = new ReplayController({
   timer,
   dom: {
     statusEl, boardEl, timerWhiteEl, timerBlackEl,
-    replayControlsEl, replayMoveListEl,
+    replayControlsEl, replayMoveListEl, replayExtrasEl,
     replayStartBtn, replayPrevBtn, replayPlayBtn, replayNextBtn, replayEndBtn,
     replayResultEl, playerNameWhite, playerNameBlack,
     playerIconWhite, playerIconBlack, playerEloWhite, playerEloBlack,
     capturedByWhiteEl, capturedByBlackEl, gameTypeLabel,
     startGameBtn, appEl, newGameBtn,
+    replayAnalyzeToggleEl,
   },
   callbacks: {
     onExitReplay: (startNew) => { if (startNew) startNewGame(); },
@@ -153,7 +155,6 @@ const replayController = new ReplayController({
     onNavigate: (ply) => { if (sharedReviewActive && !isRemoteNavigation) mp.sendReviewNavigate(ply); },
     shouldClearPeerArrows: () => sharedReviewActive,
     closeAllPopups: () => uiCtrl.closeAllPopups(),
-    fadeLiveMoveBar: () => liveMoveBar.fade(),
     exitLiveReview: () => liveMoveBar.exit(),
     isLiveReview: () => liveMoveBar.isReviewing,
     showConfirmation: (msg, title) => uiCtrl.showConfirmation(msg, title),

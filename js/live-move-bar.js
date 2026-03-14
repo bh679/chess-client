@@ -409,6 +409,7 @@ export class LiveMoveBar {
   _wireButtons() {
     if (this._startBtn) {
       this._startBtn.addEventListener('click', () => {
+        if (this._getIsReplayMode()) return; // replay controller handles this
         if (this._isReviewing) {
           this.goToStart();
         } else if (this._getMoveCount() > 0 && !this._game.isGameOver()) {
@@ -419,6 +420,7 @@ export class LiveMoveBar {
 
     if (this._prevBtn) {
       this._prevBtn.addEventListener('click', () => {
+        if (this._getIsReplayMode()) return; // replay controller handles this
         if (this._isReviewing) {
           this.prev();
         } else if (this._getMoveCount() > 0 && !this._game.isGameOver()) {
