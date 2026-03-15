@@ -141,6 +141,7 @@ export class MultiplayerUI {
       colorPreference: 'random',
     };
     this._currentView = 'waiting';
+    this._updateStatusBar();
 
     // Set up the share URL
     const shareUrl = `${location.origin}${location.pathname}?room=${roomId}`;
@@ -194,6 +195,7 @@ export class MultiplayerUI {
     // Show room code in header
     this._showHeaderRoomCode(payload.roomId);
     this._currentView = 'lobby';
+    this._updateStatusBar();
   }
 
   /** Returns whether the local player is the room creator */
@@ -215,6 +217,8 @@ export class MultiplayerUI {
     this._hideHeaderRoomCode();
     this._lobbyState = null;
     this._myReady = false;
+    document.title = 'Chess';
+    if (this.statusEl) this.statusEl.className = 'status';
   }
 
   /** Render lobby panel in waiting mode from _waitingSettings */
@@ -298,6 +302,7 @@ export class MultiplayerUI {
         this._waitingSettings.colorPreference = payload.settings.colorPreference;
       }
       this._renderLobbyPanelWaiting();
+      this._updateStatusBar();
       return;
     }
     if (!this._lobbyState) return;
@@ -317,6 +322,7 @@ export class MultiplayerUI {
     if (this._lobbyState.white) this._lobbyState.white.ready = false;
     if (this._lobbyState.black) this._lobbyState.black.ready = false;
     this._renderLobbyPanel();
+    this._updateStatusBar();
   }
 
   /** Called when ready state changes */
@@ -363,6 +369,27 @@ export class MultiplayerUI {
   }
 
   // --- Private ---
+
+  /** Update the header status bar and document title to reflect the current multiplayer pre-game state */
+  _updateStatusBar() {
+    if (!this.statusEl) return;
+    if (this._currentView === 'waiting') {
+      const s = this._waitingSettings;
+      const tc = s.timeControl === 'none' ? 'No Timer' : (s.timeControl || '5+0');
+      const variant = s.chess960 ? ' · Chess960' : '';
+      this.statusEl.textContent = `Hosting${variant} · ${tc}`;
+      this.statusEl.className = 'status waiting-room';
+      document.title = 'Waiting... | Chess';
+    } else if (this._currentView === 'lobby' && this._lobbyState) {
+      const s = this._lobbyState;
+      const tc = s.settings?.timeControl === 'none' ? 'No Timer' : (s.settings?.timeControl || '5+0');
+      const variant = s.settings?.chess960 ? ' · Chess960' : '';
+      const oppName = s.color === 'w' ? (s.black?.name || 'Opponent') : (s.white?.name || 'Opponent');
+      this.statusEl.textContent = `vs ${oppName}${variant} · ${tc}`;
+      this.statusEl.className = 'status lobby';
+      document.title = `vs ${oppName} | Chess`;
+    }
+  }
 
   _showHeaderRoomCode(_roomId) {
     // Room code display removed from header
