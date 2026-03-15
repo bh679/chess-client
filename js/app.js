@@ -1237,6 +1237,7 @@ mp.onLobbyJoined = async (payload) => {
     try {
       await videoChat.requestCamera(); // sets _localStream, fires onLocalStream
       videoChat.fetchIceServers();     // pre-fetch to reduce WebRTC delay
+      diagnostics.record('lifecycle', 'video_ready_sent', { context: 'lobby' });
       mp.sendVideoReady();
     } catch (e) {
       videoUI.showError(e.message || 'Camera access failed.');
@@ -1608,6 +1609,7 @@ mp.onReconnect = async (payload) => {
   if (reconnectCamMode !== 'none' && !videoActive) {
     try {
       await videoChat.requestCamera();
+      diagnostics.record('lifecycle', 'video_ready_sent', { context: 'reconnect' });
       mp.sendVideoReady();
     } catch (e) {
       videoUI.showError(e.message || 'Camera access failed on reconnect.');
@@ -1786,6 +1788,7 @@ videoChat.onCameraError = (msg) => {
 };
 videoChat.onLocalStream = (stream) => {
   diagnostics.record('lifecycle', 'camera_acquired', {});
+  diagnostics.flush(); // flush immediately — short games may end before the 15s interval
 
   // Track the last time the page became hidden, so we can correlate it with track endings.
   let lastHiddenAt = null;
@@ -1922,6 +1925,7 @@ videoChat.onRemoteVideoUnmuted = () => {
 videoUI.onPreviewConfirm = () => {
   // Pre-fetch ICE servers while waiting for opponent to confirm camera
   videoChat.fetchIceServers();
+  diagnostics.record('lifecycle', 'video_ready_sent', { context: 'preview_confirm' });
   mp.sendVideoReady();
 };
 

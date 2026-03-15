@@ -470,6 +470,12 @@ export class VideoChat {
       });
     };
 
+    pc.onsignalingstatechange = () => {
+      const state = pc.signalingState;
+      console.log('[VideoChat] Signaling state:', state);
+      if (this._diag) this._diag.record('webrtc', 'signaling_state_change', { state });
+    };
+
     return pc;
   }
 
