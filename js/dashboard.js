@@ -390,13 +390,17 @@ function renderTurnStatus(iceData, usageData = null) {
   const turnCount = servers.filter(s => s.username !== undefined).length;
   const stunCount = servers.filter(s => s.username === undefined).length;
   const provider = iceData.turnProvider || 'unknown';
-  const usage = renderUsageBar(usageData);
+  const usageBar = renderUsageBar(usageData);
+  const hasUsage = !!usageBar;
+  const usageClass = hasUsage ? ' has-usage' : '';
+  const chevron = hasUsage ? '<span class="turn-usage-toggle">\u25B6</span>' : '';
+  const usageSection = hasUsage ? `<div class="turn-usage-details">${usageBar}</div>` : '';
 
   if (provider === 'stun-only' || turnCount === 0) {
-    return `<div class="turn-status-bar turn-warn"><span class="turn-status-label">\u26A0 STUN only</span><span class="turn-status-detail">No TURN servers configured \u00B7 ${stunCount} stun</span>${usage}</div>`;
+    return `<div class="turn-status-bar turn-warn${usageClass}">${chevron}<span class="turn-status-label">\u26A0 STUN only</span><span class="turn-status-detail">No TURN servers configured \u00B7 ${stunCount} stun</span>${usageSection}</div>`;
   }
 
-  return `<div class="turn-status-bar turn-ok"><span class="turn-status-label">\u2713 TURN active</span><span class="turn-status-detail">provider: ${esc(provider)} \u00B7 ${turnCount} turn server${turnCount !== 1 ? 's' : ''} \u00B7 ${stunCount} stun</span>${usage}</div>`;
+  return `<div class="turn-status-bar turn-ok${usageClass}">${chevron}<span class="turn-status-label">\u2713 TURN active</span><span class="turn-status-detail">provider: ${esc(provider)} \u00B7 ${turnCount} turn server${turnCount !== 1 ? 's' : ''} \u00B7 ${stunCount} stun</span>${usageSection}</div>`;
 }
 
 // --- Main render ---
@@ -496,6 +500,14 @@ function bindEvents(data) {
   const refreshBtn = document.getElementById('refresh-btn');
   if (refreshBtn) {
     refreshBtn.addEventListener('click', () => location.reload());
+  }
+
+  // TURN usage expand/collapse
+  const turnBar = document.querySelector('.turn-status-bar.has-usage');
+  if (turnBar) {
+    turnBar.addEventListener('click', () => {
+      turnBar.classList.toggle('open');
+    });
   }
 
   // Category filter pills

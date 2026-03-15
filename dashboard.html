@@ -120,6 +120,13 @@
   .turn-fail { background: #2d0a0a; color: #f87171; }
   .turn-status-label { font-weight: 700; }
   .turn-status-detail { color: #94a3b8; font-size: 11px; }
+  .turn-status-bar.has-usage { cursor: pointer; user-select: none; }
+  .turn-usage-toggle { font-size: 10px; opacity: 0.6; transition: transform 0.2s; display: inline-block; flex-shrink: 0; }
+  .turn-status-bar.open .turn-usage-toggle { transform: rotate(90deg); }
+
+  /* TURN usage collapsible details */
+  .turn-usage-details { display: none; width: 100%; }
+  .turn-status-bar.open .turn-usage-details { display: block; }
 
   /* TURN usage bar */
   .turn-usage-row { display: flex; align-items: center; gap: 8px; width: 100%; padding-bottom: 3px; }
