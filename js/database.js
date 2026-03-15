@@ -15,6 +15,7 @@ const LS_IDS_KEY = 'chess-game-ids';        // legacy — kept for isOwnGame loo
 const REQUIRED_SERVER_VERSION = '1.0.0';
 const SYNC_INTERVAL = 10_000;               // 10 seconds
 const EVICT_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
+const IDLE_THRESHOLD = 60_000;              // pause sync after 60s idle
 
 class GameDatabase {
   constructor() {
@@ -25,6 +26,8 @@ class GameDatabase {
     this._syncing = false;
     this._serverIds = new Set(); // numeric server IDs (for isOwnGame)
     this._auth = null;
+    this._lastActivity = Date.now();
+    this._activityBound = () => { this._lastActivity = Date.now(); };
   }
 
   /** Set the Auth instance to include JWT headers in API calls. */
@@ -64,6 +67,11 @@ class GameDatabase {
     } catch (e) {
       console.warn('Chess API not available:', e);
       this._available = false;
+    }
+
+    // Track user activity for idle-aware sync
+    for (const evt of ['mousedown', 'keydown', 'touchstart', 'scroll']) {
+      window.addEventListener(evt, this._activityBound, { passive: true });
     }
 
     // Start background sync
@@ -204,17 +212,27 @@ class GameDatabase {
     }
   }
 
-  async listAllGames({ limit = 15, offset = 0 } = {}) {
+  async listAllGames({ limit = 9999, offset = 0 } = {}) {
     if (!this._available) return [];
     try {
-      const res = await fetch(`${API_BASE}/games/list-all`, {
-        method: 'POST',
-        headers: this._headers(),
-        body: JSON.stringify({ limit, offset }),
-      });
-      if (!res.ok) return [];
-      const data = await res.json();
-      return data.games;
+      const PAGE_SIZE = 100;
+      const all = [];
+      let fetched = 0;
+      let total = null;
+      do {
+        const res = await fetch(`${API_BASE}/games/list-all`, {
+          method: 'POST',
+          headers: this._headers(),
+          body: JSON.stringify({ limit: PAGE_SIZE, offset: fetched }),
+        });
+        if (!res.ok) break;
+        const data = await res.json();
+        if (total === null) total = data.total;
+        all.push(...data.games);
+        fetched += data.games.length;
+        if (data.games.length < PAGE_SIZE) break;
+      } while (fetched < Math.min(limit, total));
+      return all;
     } catch (e) {
       console.warn('Failed to list all games:', e);
       return [];
@@ -265,6 +283,8 @@ class GameDatabase {
 
   async _sync() {
     if (this._syncing || !this._available) return;
+    // Skip sync when user has been idle
+    if (Date.now() - this._lastActivity > IDLE_THRESHOLD) return;
     this._syncing = true;
 
     try {
@@ -284,10 +304,17 @@ class GameDatabase {
     // 1. Create on server if needed
     if (g.serverId === null) {
       try {
+        // Build server payload — strip timeControl if it's a display label
+        // (server validates N+N format; display strings like 'none' or 'Rapid 10+0' would fail)
+        const serverPayload = { ...g.metadata };
+        const tc = serverPayload.timeControl;
+        if (tc != null && !/^\d+(\/\d+)?\+\d+$/.test(tc)) {
+          serverPayload.timeControl = null;
+        }
         const res = await fetch(`${API_BASE}/games`, {
           method: 'POST',
           headers: this._headers(),
-          body: JSON.stringify(g.metadata),
+          body: JSON.stringify(serverPayload),
         });
         if (!res.ok) return; // server down — try next cycle
         const { id } = await res.json();

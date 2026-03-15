@@ -19,6 +19,8 @@ export class Diagnostics {
     this._roomCode = null;
     this._sessionId = null;
     this._deviceInfo = null;
+    this._clientVersion = null;
+    this._apiVersion = null;
     this._enabled = true;
   }
 
@@ -33,6 +35,12 @@ export class Diagnostics {
   setContext(gameId, roomCode) {
     this._gameId = gameId || null;
     this._roomCode = roomCode || null;
+  }
+
+  /** Set client and API version strings for inclusion in all log batches. */
+  setVersions(clientVersion, apiVersion) {
+    this._clientVersion = clientVersion || null;
+    this._apiVersion = apiVersion || null;
   }
 
   /** Clear game context (game ended or disconnected). */
@@ -84,7 +92,7 @@ export class Diagnostics {
       sessionId: this._sessionId,
       gameId: this._gameId,
       roomCode: this._roomCode,
-      deviceInfo: this._deviceInfo || this._detectDeviceInfo(),
+      deviceInfo: this._buildDeviceInfo(),
       events,
     };
 
@@ -123,8 +131,13 @@ export class Diagnostics {
   }
 
   /** Record ICE servers configuration. */
-  iceServersConfig(count, hasTurn, turnProvider) {
-    this.record('webrtc', 'ice_servers_config', { count, hasTurn, turnProvider });
+  iceServersConfig(count, hasTurn, turnProvider, turnUrls) {
+    this.record('webrtc', 'ice_servers_config', { count, hasTurn, turnProvider, turnUrls: turnUrls || [] });
+  }
+
+  /** Record that a TURN relay ICE candidate was gathered (confirms TURN server is reachable). */
+  turnCandidateGathered(protocol) {
+    this.record('webrtc', 'turn_candidate_gathered', { protocol });
   }
 
   /** Record SDP exchange event. */
@@ -178,7 +191,7 @@ export class Diagnostics {
       sessionId: this._sessionId,
       gameId: this._gameId,
       roomCode: this._roomCode,
-      deviceInfo: this._deviceInfo,
+      deviceInfo: this._buildDeviceInfo(),
       events,
     };
     try {
@@ -189,6 +202,16 @@ export class Diagnostics {
     } catch (e) {
       // Best effort — nothing more we can do
     }
+  }
+
+  /** Return device info merged with current version strings. */
+  _buildDeviceInfo() {
+    const base = this._deviceInfo || this._detectDeviceInfo();
+    return {
+      ...base,
+      clientVersion: this._clientVersion,
+      apiVersion: this._apiVersion,
+    };
   }
 
   /** Detect browser, OS, and device info from user agent. */

@@ -25,6 +25,8 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**ELO-based difficulty**](https://github.com/bh679/Chess/wiki/Feature:-AI-Opponents) — adjustable from 100 to 3200 ELO per side using Skill Level (low ELO) and UCI_LimitStrength (high ELO)
 - [**AI vs AI mode**](https://github.com/bh679/Chess/wiki/Feature:-AI-vs-AI) — watch two engines play against each other at different strengths
 - [**Deferred start**](https://github.com/bh679/Chess/wiki/Feature:-AI-Opponents) — when AI plays white, a Start button appears so you can configure settings first
+- [**Board orientation for AI games**](https://github.com/bh679/Chess/wiki/Feature:-AI-Opponents) — board automatically flips when playing as Black against AI, matching multiplayer behaviour
+- [**Correct player names on game start**](https://github.com/bh679/Chess/wiki/Feature:-AI-Opponents) — engine name and Human label appear immediately when starting an AI game, even after leaving a multiplayer session
 
 ### [Interactive Player Bars](https://github.com/bh679/Chess/wiki/Feature:-Player-Configuration)
 - [**Player info display**](https://github.com/bh679/Chess/wiki/Feature:-Player-Configuration) — shows player name, ELO (for AI), type icon, and timer for each side
@@ -32,11 +34,12 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Click ELO to adjust**](https://github.com/bh679/Chess/wiki/Feature:-Player-Configuration) — click the ELO label (pre-game) to open an inline slider popup
 - [**Click timer to change time**](https://github.com/bh679/Chess/wiki/Feature:-Player-Configuration) — click either timer (pre-game) for a time control dropdown
 - [**Editable player names**](https://github.com/bh679/Chess/wiki/Feature:-Player-Configuration) — click any player name to rename it (works anytime, persists to database)
+- [**Persistent player name**](https://github.com/bh679/Chess/wiki/Feature:-Player-Name-Cache) — name is cached in localStorage and pre-filled automatically in future sessions
 
 ### [Timers](https://github.com/bh679/Chess/wiki/Feature:-Time-Controls)
 - [**Preset time controls**](https://github.com/bh679/Chess/wiki/Feature:-Time-Controls) — Bullet 1+0, Blitz 3+2, Rapid 5+0, Rapid 10+0, Classical 30+0
 - [**Custom time control**](https://github.com/bh679/Chess/wiki/Feature:-Time-Controls) — set minutes per side and increment, with optional different time per player (time odds)
-- [**Timeout detection**](https://github.com/bh679/Chess/wiki/Feature:-Time-Controls) — automatic win on time with visual indicator
+- [**Timeout detection**](https://github.com/bh679/Chess/wiki/Feature:-Clock-Timeout-Fix) — game ends immediately when clock hits 0:00; drag-drop, in-flight animations, and queued premoves are all blocked after timeout
 - [**Custom time controls for friend games**](https://github.com/bh679/chess-client/wiki/Feature:-Custom-Time-Controls-for-Friend-Games) — set any minutes+increment when creating a friend game; supports time odds (different time per player) with "Your time / Opponent's time" labels that follow you after random color assignment
 
 ### [Art Styles](https://github.com/bh679/Chess/wiki/Feature:-Art-Styles)
@@ -63,14 +66,14 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Game history browser**](https://github.com/bh679/Chess/wiki/Feature:-Game-Browser) — browse past games with player info, results, and move counts
 - [**Replay viewer**](https://github.com/bh679/Chess/wiki/Feature:-Replay-Viewer) — step through any saved game move by move with:
   - Reconstructed board positions
-  - Horizontal move strip with scroll navigation
+  - Horizontal move strip with scroll navigation (consolidated into live-move-bar below board — no duplicate controls)
   - Reconstructed clock display from move timestamps
   - Playback controls (play/pause, step forward/back, jump to start/end)
   - Keyboard navigation (arrow keys, space for play/pause)
 - [**URL routing**](https://github.com/bh679/Chess/wiki/Feature:-URL-Routing) — shareable hash-based URLs for game views (`/#/replay?gameid=42`, `/#/games`, `/#/history`, `/#/live`); URL updates live as you navigate with no page refresh; path-based URLs redirect to hash equivalents
 
 ### [Analysis](https://github.com/bh679/Chess/wiki/Feature:-Board-Analysis)
-- [**Post-game summary**](https://github.com/bh679/Chess/wiki/Feature:-Post-Game-Summary) — chess.com-style summary screen with win-probability-based per-player accuracy, per-player average move time, and 10 move classification types (Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder); auto-triggers after every game, also available via "Game Summary" button in replay mode; multiplayer game summary uses coordinate-based move replay for reliable reconstruction across all game modes; avg move time shows immediately during analysis and for multiplayer games
+- [**Post-game summary**](https://github.com/bh679/Chess/wiki/Feature:-Post-Game-Summary) — chess.com-style summary screen with win-probability-based per-player accuracy, per-player average move time, and 10 move classification types (Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder); auto-triggers after every game, also available via "Game Summary" button in replay mode; multiplayer game summary uses coordinate-based move replay for reliable reconstruction across all game modes; avg move time shows immediately during analysis and for multiplayer games; tapping the move time stat cycles through avg/median/longest/shortest on both desktop and mobile; a "Summary" button appears next to Rematch after closing the modal so you can reopen it
 - [**Board analysis**](https://github.com/bh679/Chess/wiki/Feature:-Board-Analysis) — Stockfish-powered position evaluation with move classification arrows and accuracy percentages
 
 ### [Automation](https://github.com/bh679/Chess/wiki/Blogging-Agent)
@@ -104,12 +107,27 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Inline lobby panel**](https://github.com/bh679/chess-client/wiki/Feature:-Lobby-Redesign) — pre-game lobby shown inline below the board (not a modal); room code in header; pieces faded at 30% opacity; camera feed on board squares during lobby preview; ready button with dynamic labels
 - [**Simplified friend modal**](https://github.com/bh679/chess-client/wiki/Feature:-Simplify-Friend-Modal) — Play with Friend step reduced to Create Room + Join; camera mode (Board Face / King Cam / No Cam) moved to lobby panel alongside TC, Variant, and Colors
 - **Lobby flash on board touch** — tapping or clicking the board during the pre-game lobby flashes the lobby panel with a glowing border ring to draw attention to the Ready button
-- [**Waiting room settings**](https://github.com/bh679/chess-client/wiki/Feature:-Waiting-Lobby-Settings) — when a host creates a Friend game, the inline lobby panel opens immediately below the board; TC and Variant (Chess960) are configurable while waiting for the opponent; settings persist when the opponent joins
+- [**Waiting room settings**](https://github.com/bh679/chess-client/wiki/Feature:-Waiting-Lobby-Settings) — when a host creates a Friend game, the inline lobby panel opens immediately below the board; TC, Variant (Chess960), and Color preference (Random / White / Black) are configurable while waiting for the opponent; settings persist when the opponent joins; color is assigned at game start according to the preference set by the creator
 - [**Submit issue flag in lobby**](https://github.com/bh679/chess-client/wiki/Feature:-Lobby-Issue-Flag) — the ⚑ issue report button now appears in the waiting room (while waiting for opponent) and in the lobby panel (once both players connect), not just during active games
+- [**Resign on New Game**](https://github.com/bh679/chess-client/wiki/Feature:-Resign-on-New-Game) — clicking New Game during an active multiplayer game shows a "Resign Game?" confirmation; confirming resigns the current game, disconnects, and opens the new game menu
+- [**Exit Current Game**](https://github.com/bh679/chess-client/wiki/Feature:-Exit-Current-Game) — after confirming resignation/abandonment, the new game menu shows a red "Exit Current Game" button at the bottom; clicking it resets the board to a fresh start state without starting a new game
+- [**Hard Reset**](https://github.com/bh679/chess-client/wiki/Feature:-Hard-Reset) — consolidated cleanup function that fully resets game state, network connections, video feeds, and UI when exiting a multiplayer game or lobby
+- [**Exit Game button**](https://github.com/bh679/chess-client/wiki/Feature:-Exit-Game-Button) — the New Game button contextually becomes a red "Exit Game" button when in an online game, lobby, waiting room, post-game summary, or shared replay; clicking it shows a confirmation and exits cleanly to a fresh local game
 - [**Public lobbies**](https://github.com/bh679/chess-client/wiki/Feature:-Public-Lobbies) — hosts can toggle a globe button in the waiting room to make their lobby discoverable; other players see public rooms listed in the Play with Friend menu and can join with one click
-- [**Public lobby list below board**](https://github.com/bh679/chess-client/wiki/Feature:-Public-Lobby-List) — open public games appear in an "Open Games" panel directly below the board, auto-refreshing every 15 seconds; players can join with one click without opening the New Game wizard
+- [**Game title/status in waiting room & lobby**](https://github.com/bh679/Chess/wiki/Feature:-Game-Title-Lobby-Status) — the header status bar updates to show "Hosting · 5+0" in the waiting room and "vs Name · 5+0" in the lobby; updates live as settings change; browser tab title mirrors the state
+- [**Public lobby list below board**](https://github.com/bh679/chess-client/wiki/Feature:-Public-Lobby-List) — open public games appear in an "Open Games" panel directly below the board, auto-refreshing every 5 seconds; each listing shows the host name, time control, variant, and camera mode (e.g. `Alice — 5+0 · King·Cam`); players can join with one click without opening the New Game wizard
+- [**Per-player connection status**](https://github.com/bh679/chess-client/wiki/Feature:-Per-Player-Connection-Status) — two separate inline connection dots, one next to each player's name in the player bars; visible during waiting room (host only), lobby, and in-game; shows colored text + dot for non-connected states (e.g. `Disconnected ●` in red)
 - [**Split Cam mode**](https://github.com/bh679/chess-client/wiki/Feature:-Split-Cam) — new camera mode where the left half of the board shows white player's camera and the right half shows black player's camera; board color tints indicate whose turn it is
 - [**Connection & video diagnostics**](https://github.com/bh679/chess-client/wiki/Feature:-Connection-and-Video-Logging) — 12 new diagnostic events covering WebSocket reconnect attempts, heartbeat timeouts, room-lost errors, camera acquisition/denial, video call start/fail, and ICE reconnect lifecycle; critical failure events flush immediately for maximum delivery reliability
+- [**Analysis Controller extraction**](https://github.com/bh679/chess-client/wiki/Feature:-Analysis-Controller) — refactored 12 analysis display functions and 3 state variables from `app.js` into a dedicated `AnalysisController` ES6 module; shared constants eliminate duplication between app.js and replay.js
+- **Audio/video issue checkbox** — the "Audio / video issue" category is now shown in the issue reporter for all games, not only King-Cam video games
+- [**Rematch button fix**](https://github.com/bh679/chess-client/wiki/Feature:-Rematch-Fix) — rematch button text now resets to "Rematch" on every game-over; previously it could get stuck showing "Accept" from a prior game, causing the server to unilaterally start a new game when clicked
+- [**Diagnostics Dashboard**](https://github.com/bh679/chess-client/wiki/Feature:-Diagnostics-Dashboard) — client-side diagnostics dashboard at `dashboard.html` with dark theme UI; displays session events, WebRTC summaries, game navigation, category filters, and issue reports; fetches data from JSON API endpoints; shows client and API version numbers in the header
+- [**TURN Usage Monitor**](https://github.com/bh679/chess-client/wiki/Feature:-TURN-Usage-Monitor) — collapsible Metered.ca bandwidth display on the diagnostics dashboard; shows current usage vs quota with a colour-coded progress bar and billing reset date; click the TURN banner to expand/collapse
+- [**Video lobby fix**](https://github.com/bh679/chess-client/wiki/Feature:-Video-Lobby-Fix) — guards against duplicate WebRTC signaling that caused video/audio to fail in the lobby; server prevents duplicate `video_start` broadcasts, client prevents redundant `startCall()` and rejects stale SDP answers
+- [**Lobby performance**](https://github.com/bh679/chess-client/wiki/Feature:-Lobby-Performance) — diff-based lobby list rendering, event-driven dev mode check, idle-aware database sync, and reduced polling overhead for smoother lobby experience
+- [**Connection status in lobby**](https://github.com/bh679/chess-client/wiki/Feature:-Connection-Status-in-Lobby) — the connection status label ("Connected", "Reconnecting...", "Opponent disconnected", etc.) now appears inside the lobby panel as well as during active games
+- **Split-cam color fix** — camera feeds in Side by Side / Top-Bottom modes no longer vanish when the board is re-oriented due to a color preference change in the lobby
 
 ## Roadmap
 
@@ -170,9 +188,12 @@ js/auth-ui.js           Sign-in/register modals, user badge with dropdown
 js/profile.js           Profile modal with ratings and filtered game list
 js/friends.js           Friends modal (add, accept, reject, remove)
 js/replay.js            Replay viewer with board, move strip, and clock reconstruction
+js/replay-controller.js Replay mode controller (navigation, playback, clock reconstruction)
+js/live-move-bar.js     Live move bar and live review mode (persistent strip during active games)
 js/face-tracker.js      Face detection (MediaPipe) for video board centering
 js/video-board.js       Video board mode (camera feeds as board mosaic)
 js/split-cam.js         Split Cam mode (left half = white player, right half = black player)
+js/split-cam-h.js       Top/Bottom Cam mode (local player always bottom, remote always top)
 js/cropped-stream.js    Face-tracked canvas stream for WebRTC transmission
 js/chess.js             chess.js engine (full rule enforcement)
 js/lib/stockfish.js     Stockfish WASM engine (Web Worker)

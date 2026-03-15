@@ -11,6 +11,8 @@
  */
 import { getAllEngines, getEngineInfo } from './engines/registry.js';
 
+const CAM_LABELS = { 'king-cam': 'King·Cam', 'split-cam': 'Side/Side', 'split-cam-h': 'Top/Bottom', 'none': 'No-Cam' };
+
 export class NewGameMenu {
   constructor() {
     this._step = 'opponent'; // 'opponent' | 'online' | 'friend' | 'time' | 'settings'
@@ -21,6 +23,7 @@ export class NewGameMenu {
     this._onOnline = null;   // (tc, name, videoEnabled, chess960) => void  — auto matchmaking
     this._onFriend = null;   // (action, code?) => void  — create or join
     this._onCustomTime = null; // () => void
+    this._onExit = null;      // () => void
     this._pendingCustomTime = false;
 
     this._initElements();
@@ -35,8 +38,10 @@ export class NewGameMenu {
   onOnline(cb) { this._onOnline = cb; }
   onFriend(cb) { this._onFriend = cb; }
   onCustomTime(cb) { this._onCustomTime = cb; }
+  onExit(cb) { this._onExit = cb; }
   /** Returns the current game mode ('bot' | 'local' | 'online' | 'friend' | null) */
   getMode() { return this._mode; }
+  showExitButton() { this.exitGameBtn.classList.remove('hidden'); }
   onRequestPublicRooms(cb) { this._onRequestPublicRooms = cb; }
 
   /** Update the public rooms list display */
@@ -53,9 +58,8 @@ export class NewGameMenu {
       row.className = 'ng-btn ng-btn-block ng-public-room';
       const tc = room.timeControl || 'No Timer';
       const variant = room.chess960 ? ' 960' : '';
+      const cam = (room.camMode && room.camMode !== 'board-face') ? ` · ${CAM_LABELS[room.camMode] ?? room.camMode}` : '';
       const host = room.hostName || 'Opponent';
-      const CAM_LABELS = { 'king-cam': 'King Cam', 'board-face': 'Board Face', 'split-cam': 'Split Cam', 'split-cam-h': 'Split Cam H' };
-      const cam = room.camMode && room.camMode !== 'none' ? ` · ${CAM_LABELS[room.camMode] || room.camMode}` : '';
       row.textContent = `${host} — ${tc}${variant}${cam}`;
       row.addEventListener('click', () => {
         this.close();
@@ -74,6 +78,7 @@ export class NewGameMenu {
   close() {
     this.modal.classList.add('hidden');
     this.backdrop.classList.add('hidden');
+    this.exitGameBtn.classList.add('hidden');
   }
 
   isOpen() {
@@ -130,6 +135,8 @@ export class NewGameMenu {
 
     // Online step elements
     this.onlineNameInput = document.getElementById('ng-online-name');
+    const savedPlayerName = localStorage.getItem('chess-player-name');
+    if (savedPlayerName) this.onlineNameInput.value = savedPlayerName;
     this.onlineTcSelect = document.getElementById('ng-online-tc');
     this.onlineCamBtn = document.getElementById('ng-online-cam-btn');
     this.online960Btn = document.getElementById('ng-online-960-btn');
@@ -157,6 +164,7 @@ export class NewGameMenu {
     this.eloWrapper = document.getElementById('ng-elo-wrapper');
     this.colorBtns = this.stepSettings.querySelectorAll('.ng-color-btn');
     this.startBtn = document.getElementById('ng-start');
+    this.exitGameBtn = document.getElementById('ng-exit-game');
   }
 
   _populateEngines() {
@@ -174,6 +182,12 @@ export class NewGameMenu {
     // Close
     this.backdrop.addEventListener('click', () => this.close());
     this.closeBtn.addEventListener('click', () => this.close());
+
+    // Exit current game
+    this.exitGameBtn.addEventListener('click', () => {
+      this.close();
+      if (this._onExit) this._onExit();
+    });
 
     // Back
     this.backBtn.addEventListener('click', () => this._goBack());
@@ -212,6 +226,7 @@ export class NewGameMenu {
     this.findOpponentBtn.addEventListener('click', () => {
       const tc = this.onlineTcSelect.value;
       const name = this.onlineNameInput.value.trim() || null;
+      if (name) localStorage.setItem('chess-player-name', name);
       const camMode = this._getCamMode(this.onlineCamBtn);
       const chess960 = this.online960Btn?.classList.contains('active') || false;
       this.close();

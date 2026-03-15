@@ -58,6 +58,19 @@ class Timer {
     this._lastTick = performance.now();
     this._updateActiveClasses();
     this._render();
+
+    // If the now-active side already has 0 time (e.g. server sent clocks.w=0),
+    // fire timeout immediately instead of waiting up to 100ms for the next tick.
+    if (this._time[side] <= 0) {
+      this._time[side] = 0;
+      if (!this._serverAuthoritative) {
+        this.stop();
+        this._render();
+        if (this._onTimeout) {
+          this._onTimeout(side === 'w' ? 'White' : 'Black');
+        }
+      }
+    }
   }
 
   stop() {

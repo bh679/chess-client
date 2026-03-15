@@ -51,6 +51,7 @@ body {
   height: 100dvh;
   overflow: hidden;
   width: 100%;
+  touch-action: manipulation;
 }
 
 body {
@@ -110,30 +111,6 @@ body {
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
-}
-
-/* Game type label */
-.game-type-label {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  font-weight: 600;
-  height: 34px;
-  line-height: 34px;
-  padding: 0 10px;
-  background: var(--bg-surface);
-  border-radius: var(--radius-md);
-  white-space: nowrap;
-  user-select: none;
-  letter-spacing: 0.02em;
-}
-
-.pre-game .game-type-label {
-  cursor: pointer;
-}
-
-.pre-game .game-type-label:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
 }
 
 /* Status bar */
@@ -243,6 +220,34 @@ body {
 #new-game.game-ended:hover {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
+}
+
+#new-game.hidden {
+  display: none;
+}
+
+#exit-game {
+  height: 34px;
+  line-height: 32px;
+  padding: 0 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(239, 83, 80, 0.1);
+  color: var(--danger, #ef5350);
+  border: 1.5px solid var(--danger, #ef5350);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+#exit-game:hover {
+  background: var(--danger, #ef5350);
+  color: #fff;
+}
+
+#exit-game.hidden {
+  display: none;
 }
 
 /* Start game button in header */
@@ -791,6 +796,23 @@ body {
 .player-name.multiplayer-opponent:hover {
   color: #ccc;
 }
+
+/* Per-player connection status dot (shown inline next to player name during online games) */
+.player-conn-dot {
+  font-size: 0.65rem;
+  line-height: 1;
+  user-select: none;
+  font-weight: 600;
+}
+.player-conn-dot::after { content: ' ●'; }
+.player-conn-dot.connected { color: var(--accent-soft); }
+.player-conn-dot.reconnecting {
+  color: var(--warning);
+  animation: mp-pulse 1.5s ease-in-out infinite;
+}
+.player-conn-dot.disconnected { color: var(--danger); }
+.player-conn-dot.connection-lost { color: var(--danger); }
+.player-conn-dot.hidden { display: none; }
 
 .player-name-input {
   background: var(--bg-sunken);
@@ -1477,6 +1499,7 @@ body {
   line-height: 1.4;
   margin: 0;
 }
+
 
 /* =========================================
    Piece Animations
@@ -2580,101 +2603,11 @@ body {
    Replay on Main Board
    ========================================= */
 
-.replay-main-controls {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  width: min(90vw, 75vh, 800px);
-  margin: 0 auto;
-}
-
-.replay-main-controls.hidden {
-  display: none;
-}
-
-.replay-main-move-list {
-  display: flex;
-  gap: 2px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  white-space: nowrap;
-  width: 100%;
-  padding: 6px 4px;
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-x;
-  scrollbar-width: none;
-  background: #1e1c1a;
-  border-radius: var(--radius-sm);
-}
-
-.replay-main-move-list::-webkit-scrollbar {
-  display: none;
-}
-
-.replay-nav-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: 8px;
-}
-
-.replay-main-buttons {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.replay-main-btn {
-  background: var(--bg-elevated);
-  border: none;
-  color: var(--text-primary);
-  font-size: 1rem;
-  padding: 8px 14px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-
-.replay-main-btn:hover {
-  background: var(--border);
-}
-
-.replay-main-btn:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
-.replay-main-btn-play {
-  background: var(--accent);
-  padding: 8px 18px;
-  font-size: 1.1rem;
-}
-
-.replay-main-btn-play:hover {
-  background: var(--accent-hover);
-}
-
-.replay-main-btn-play.playing {
-  background: var(--playing);
-}
-
-.replay-main-btn-play.playing:hover {
-  background: var(--playing-hover);
-}
-
 .replay-main-result {
   color: var(--warning);
   font-weight: 600;
   font-size: 0.95rem;
   text-align: center;
-}
-
-.replay-main-controls .auto-analyze-toggle {
-  flex-shrink: 0;
-  margin: 0;
 }
 
 .replay-crit-btn {
@@ -2687,15 +2620,56 @@ body {
   display: none;
 }
 
-.replay-main-controls .analysis-detail {
+.live-move-btn-play {
+  background: var(--accent);
+  padding: 5px 14px;
+}
+
+.live-move-btn-play:hover {
+  background: var(--accent-hover);
+}
+
+.live-move-btn-play.playing {
+  background: var(--playing);
+}
+
+.live-move-btn-play.playing:hover {
+  background: var(--playing-hover);
+}
+
+.live-move-btn-play.hidden {
+  display: none;
+}
+
+.replay-extras {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   width: 100%;
 }
 
-.replay-main-controls .analysis-accuracy {
+.replay-extras.hidden {
+  display: none;
+}
+
+.live-move-bar .auto-analyze-toggle {
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.live-move-bar .auto-analyze-toggle.hidden {
+  display: none;
+}
+
+.live-move-bar .analysis-detail {
   width: 100%;
 }
 
-.replay-main-controls .analysis-progress {
+.live-move-bar .analysis-accuracy {
+  width: 100%;
+}
+
+.live-move-bar .analysis-progress {
   border-radius: 2px;
 }
 
@@ -2712,8 +2686,8 @@ body {
 
 .live-move-bar {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   width: min(90vw, 75vh, 800px);
   margin: 0 auto;
   padding: 4px 0;
@@ -2722,6 +2696,13 @@ body {
 .live-move-bar.faded {
   opacity: 0.35;
   pointer-events: none;
+}
+
+.live-move-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
 }
 
 .live-move-list {
@@ -3115,6 +3096,7 @@ button.replay-summary-btn {
 .pgs-timing-tappable {
   cursor: pointer;
   user-select: none;
+  touch-action: manipulation;
   transition: opacity 0.1s;
 }
 
@@ -3798,27 +3780,6 @@ button.replay-summary-btn {
   border: 1px solid var(--border);
 }
 
-/* Header room code (shown during pre-game lobby) */
-.lobby-room-code-display {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.lobby-room-code-display.hidden { display: none; }
-.lobby-room-code-label {
-  font-size: 0.65rem;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-.lobby-room-code-value {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  color: var(--text-primary);
-}
-
 /* ── Public lobbies panel (below board, visible when not in a game) ── */
 .public-lobbies-panel {
   display: flex;
@@ -4003,6 +3964,7 @@ button.replay-summary-btn {
 
 .mp-btn-sm { padding: 4px 10px; font-size: 0.78rem; }
 .mp-btn-block { display: block; width: 100%; text-align: center; }
+.mp-btn.hidden { display: none; }
 
 /* Divider */
 .mp-divider {
@@ -4395,6 +4357,15 @@ button.replay-summary-btn {
   background: rgba(66, 133, 200, 0.25);
   border-color: rgba(66, 133, 200, 0.6);
 }
+.ng-opponent-btn-red {
+  background: rgba(200, 60, 60, 0.15);
+  border-color: rgba(200, 60, 60, 0.4);
+}
+.ng-opponent-btn-red:hover {
+  background: rgba(200, 60, 60, 0.25);
+  border-color: rgba(200, 60, 60, 0.6);
+}
+#ng-exit-game.hidden { display: none; }
 .ng-opponent-icon {
   font-size: 1.5rem;
   flex-shrink: 0;

@@ -92,6 +92,10 @@ class Board {
 
   executePremove() {
     if (!this._premove) return false;
+    if (this.game.isGameOver()) {
+      this.clearPremove();
+      return false;
+    }
     const { from, to } = this._premove;
     this.clearPremove();
 
@@ -161,6 +165,8 @@ class Board {
   _buildGrid() {
     // Save elements that must survive the innerHTML clear
     const videoLayer = this.container.querySelector('.video-board-layer');
+    const splitCamLayer = this.container.querySelector('.split-cam-layer');
+    const splitCamHLayer = this.container.querySelector('.split-cam-h-layer');
 
     this.container.innerHTML = '';
     const files = this._flipped ? [...FILES].reverse() : FILES;
@@ -193,9 +199,15 @@ class Board {
       }
     }
 
-    // Re-insert video board layer as first child (innerHTML = '' removes it)
+    // Re-insert video layers as first child (innerHTML = '' removes them)
     if (videoLayer) {
       this.container.insertBefore(videoLayer, this.container.firstChild);
+    }
+    if (splitCamLayer) {
+      this.container.insertBefore(splitCamLayer, this.container.firstChild);
+    }
+    if (splitCamHLayer) {
+      this.container.insertBefore(splitCamHLayer, this.container.firstChild);
     }
 
     // Re-append arrow overlay SVG (innerHTML = '' removes it)
@@ -417,6 +429,11 @@ class Board {
       return;
     }
 
+    if (!this._interactive) {
+      this._clearSelection();
+      return;
+    }
+
     if (squareEl && this._legalMoves.includes(squareEl.dataset.square)) {
       this._executeMove(fromSquare, squareEl.dataset.square);
     } else {
@@ -520,6 +537,11 @@ class Board {
 
     // Animate the move first, then update the board
     this._animateMove(from, to, () => {
+      if (this.game.isGameOver()) {
+        this._clearSelection();
+        this.render();
+        return;
+      }
       const result = this.game.makeMove(from, to);
       if (result.success) {
         this._clearSelection();

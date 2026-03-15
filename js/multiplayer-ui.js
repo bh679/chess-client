@@ -11,6 +11,10 @@
  * waiting. When the opponent joins, the panel transitions to full lobby
  * mode (ready buttons, color swap).
  */
+const CAM_LABELS = { 'board-face': 'Board - Face', 'king-cam': 'King - Cam', 'split-cam': 'Side / Side', 'split-cam-h': 'Top / Bottom', 'none': 'No-Cam' };
+const CAM_LABELS_SHORT = { 'board-face': 'Board Face', 'split-cam': 'Side / Side', 'split-cam-h': 'Top / Bottom', 'king-cam': 'King Cam', 'none': 'No Cam' };
+const CAM_MODES = ['board-face', 'king-cam', 'split-cam', 'split-cam-h', 'none'];
+
 export class MultiplayerUI {
   constructor(mp) {
     this.mp = mp; // MultiplayerClient instance
@@ -20,7 +24,9 @@ export class MultiplayerUI {
     this._currentView = 'menu'; // 'menu' | 'waiting' | 'searching' | 'lobby' | 'ingame'
     this._lobbyState = null;
     this._myReady = false;
+    this._aiMode = false; // true when an AI game is starting (lobby Ready→Start)
     this._pendingLobbyCustomTc = false;
+    this._myColor = null; // 'w' | 'b' — set when game starts via setPlayerColor()
     // Settings tracked while in waiting state (host-only, before opponent joins)
     this._waitingSettings = { timeControl: '5+0', chess960: false, colorPreference: 'random' };
 
@@ -45,7 +51,6 @@ export class MultiplayerUI {
   /** Sync the cam button to a mode received from the other player */
   syncCamMode(mode) {
     if (!this.inlineCamBtn) return;
-    const CAM_LABELS = { 'board-face': 'Board - Face', 'king-cam': 'King - Cam', 'split-cam': 'Side / Side', 'split-cam-h': 'Top / Bottom', 'none': 'No-Cam' };
     this.inlineCamBtn.dataset.mode = mode;
     this.inlineCamBtn.textContent = CAM_LABELS[mode] ?? mode;
   }
@@ -67,11 +72,21 @@ export class MultiplayerUI {
     }
   }
 
+  /** Set which color the local player is (call before showGameControls) */
+  setPlayerColor(color) {
+    this._myColor = color;
+  }
+
   /** Show the in-game multiplayer controls */
   showGameControls() {
     this.gameControls.classList.remove('hidden');
     this.drawOfferToast.classList.add('hidden');
     this.rematchControls.classList.add('hidden');
+    // Show per-player connection dots and set initial connected state
+    if (this.playerConnStatusWhite) this.playerConnStatusWhite.classList.remove('hidden');
+    if (this.playerConnStatusBlack) this.playerConnStatusBlack.classList.remove('hidden');
+    this._updateConnDot(this.playerConnStatusWhite, 'connected');
+    this._updateConnDot(this.playerConnStatusBlack, 'connected');
   }
 
   /** Hide in-game controls */
@@ -79,6 +94,10 @@ export class MultiplayerUI {
     this.gameControls.classList.add('hidden');
     this.drawOfferToast.classList.add('hidden');
     this.rematchControls.classList.add('hidden');
+    // Hide per-player connection dots
+    if (this.playerConnStatusWhite) this.playerConnStatusWhite.classList.add('hidden');
+    if (this.playerConnStatusBlack) this.playerConnStatusBlack.classList.add('hidden');
+    this._myColor = null;
   }
 
   /** Show draw offer toast */
@@ -95,7 +114,19 @@ export class MultiplayerUI {
   showRematchControls() {
     this.rematchControls.classList.remove('hidden');
     this.rematchStatus.textContent = '';
+    this.rematchOfferBtn.textContent = 'Rematch';
     this.rematchOfferBtn.classList.remove('hidden');
+    if (this.summaryBtn) this.summaryBtn.classList.add('hidden'); // summary is open
+  }
+
+  /** Show the Summary button (after user closes the post-game summary modal) */
+  showSummaryButton() {
+    if (this.summaryBtn) this.summaryBtn.classList.remove('hidden');
+  }
+
+  /** Hide the Summary button (when re-opening the post-game summary modal) */
+  hideSummaryButton() {
+    if (this.summaryBtn) this.summaryBtn.classList.add('hidden');
   }
 
   /** Show rematch offer received */
@@ -106,17 +137,28 @@ export class MultiplayerUI {
     this.rematchOfferBtn.classList.remove('hidden');
   }
 
-  /** Update connection status indicator */
-  setConnectionStatus(status, detail) {
-    this.connectionStatus.className = 'mp-connection-status ' + status;
-    const labels = {
-      connected: 'Connected',
-      reconnecting: detail || 'Reconnecting...',
-      disconnected: 'Disconnected',
-      'opponent-disconnected': 'Opponent disconnected',
-      'connection-lost': 'Connection lost',
-    };
-    this.connectionStatus.textContent = labels[status] || status;
+  /** Update per-player connection status dots in the player bars */
+  setConnectionStatus(status) {
+    if (!this._myColor) return;
+    const myEl = this._myColor === 'w' ? this.playerConnStatusWhite : this.playerConnStatusBlack;
+    const oppEl = this._myColor === 'w' ? this.playerConnStatusBlack : this.playerConnStatusWhite;
+
+    switch (status) {
+      case 'connected':
+        this._updateConnDot(myEl, 'connected');
+        this._updateConnDot(oppEl, 'connected');
+        break;
+      case 'reconnecting':
+        this._updateConnDot(myEl, 'reconnecting');
+        break;
+      case 'disconnected':
+      case 'connection-lost':
+        this._updateConnDot(myEl, status);
+        break;
+      case 'opponent-disconnected':
+        this._updateConnDot(oppEl, 'disconnected');
+        break;
+    }
   }
 
   /**
@@ -131,6 +173,7 @@ export class MultiplayerUI {
       colorPreference: 'random',
     };
     this._currentView = 'waiting';
+    this._updateStatusBar();
 
     // Set up the share URL
     const shareUrl = `${location.origin}${location.pathname}?room=${roomId}`;
@@ -143,11 +186,20 @@ export class MultiplayerUI {
     this.publicToggleBtn.title = 'Make lobby public';
 
     // Show lobby panel in waiting mode
-    this._renderLobbyPanelWaiting();
+    this._renderLobbyPanel();
     this.waitingSection.classList.remove('hidden');
     this.readyRow.classList.add('hidden');
     this.colorItem.classList.remove('hidden');
     this.lobbyPanel.classList.remove('hidden');
+
+    // Show my connection dot (opponent not present yet in waiting room)
+    if (this._myColor) {
+      const myEl = this._myColor === 'w' ? this.playerConnStatusWhite : this.playerConnStatusBlack;
+      const oppEl = this._myColor === 'w' ? this.playerConnStatusBlack : this.playerConnStatusWhite;
+      myEl.classList.remove('hidden');
+      this._updateConnDot(myEl, 'connected');
+      oppEl.classList.add('hidden');
+    }
 
     // Close modal, show room code in header
     this.close();
@@ -164,11 +216,11 @@ export class MultiplayerUI {
    * Hides the waiting section, shows ready buttons and color control.
    */
   showLobby(payload) {
-    this._lobbyState = { ...payload };
+    this._lobbyState = { ...payload, colorPreference: this._waitingSettings?.colorPreference ?? 'random' };
+    this._aiMode = false;
     this._myReady = false;
     // Initialize cam button from lobby settings (creator's chosen mode)
     if (this.inlineCamBtn) {
-      const CAM_LABELS = { 'board-face': 'Board - Face', 'king-cam': 'King - Cam', 'split-cam': 'Side / Side', 'split-cam-h': 'Top / Bottom', 'none': 'No-Cam' };
       const mode = payload.settings?.camMode ?? 'board-face';
       this.inlineCamBtn.dataset.mode = mode;
       this.inlineCamBtn.textContent = CAM_LABELS[mode] ?? mode;
@@ -184,11 +236,26 @@ export class MultiplayerUI {
     // Show room code in header
     this._showHeaderRoomCode(payload.roomId);
     this._currentView = 'lobby';
+    this._updateStatusBar();
+
+    // Show both connection dots now that opponent has joined
+    this._myColor = payload.color;
+    const myEl = this._myColor === 'w' ? this.playerConnStatusWhite : this.playerConnStatusBlack;
+    const oppEl = this._myColor === 'w' ? this.playerConnStatusBlack : this.playerConnStatusWhite;
+    myEl.classList.remove('hidden');
+    oppEl.classList.remove('hidden');
+    this._updateConnDot(myEl, 'connected');
+    this._updateConnDot(oppEl, 'connected');
   }
 
   /** Returns whether the local player is the room creator */
   isCreator() {
     return this._lobbyState?.isCreator ?? true;
+  }
+
+  /** Mark that an AI game is being set up (replaces "Ready" with "Start" in lobby) */
+  setAIMode(enabled) {
+    this._aiMode = enabled;
   }
 
   /** Hide the inline lobby panel — called when game starts */
@@ -200,23 +267,17 @@ export class MultiplayerUI {
     this._hideHeaderRoomCode();
     this._lobbyState = null;
     this._myReady = false;
+    document.title = 'Chess';
+    if (this.statusEl) this.statusEl.className = 'status';
+    // Hide connection dots — game controls will re-show them when the game starts
+    if (this.playerConnStatusWhite) this.playerConnStatusWhite.classList.add('hidden');
+    if (this.playerConnStatusBlack) this.playerConnStatusBlack.classList.add('hidden');
   }
 
-  /** Render lobby panel in waiting mode from _waitingSettings */
-  _renderLobbyPanelWaiting() {
-    const tc = this._waitingSettings.timeControl || 'none';
-    this.inlineTcDisplay.textContent = tc === 'none' ? 'No Timer' : tc;
-    this.inlineTcDisplay.classList.remove('hidden');
-    this.inlineTcSelect.classList.add('hidden');
-    this.inline960Btn.textContent = this._waitingSettings.chess960 ? 'Chess960' : 'Standard';
-    const COLOR_LABELS = { white: 'I am White', black: 'I am Black', random: 'Random Color' };
-    this.inlineSwapBtn.textContent = COLOR_LABELS[this._waitingSettings.colorPreference] ?? 'Random Color';
-  }
-
-  /** Render inline lobby panel from current lobby state */
+  /** Render the lobby panel settings buttons (TC, variant, color, cam) for both waiting and lobby views */
   _renderLobbyPanel() {
-    if (!this._lobbyState) return;
-    const s = this._lobbyState;
+    const isWaiting = this._currentView === 'waiting';
+    if (!isWaiting && !this._lobbyState) return;
 
     // TC
     const TC_LABELS = {
@@ -224,16 +285,15 @@ export class MultiplayerUI {
       '10+0': 'Rapid 10+0', '15+10': 'Classical 15+10', '30+0': 'Classical 30+0',
       'none': 'No Timer'
     };
-    const tc = s.settings?.timeControl || 'none';
-    // For odds TC, show player-relative display instead of raw string
-    const oddsMatch = tc.match(/^(\d+)\/(\d+)\+(\d+)$/);
+    const tc = isWaiting
+      ? (this._waitingSettings.timeControl || 'none')
+      : (this._lobbyState.settings?.timeControl || 'none');
+    const oddsMatch = !isWaiting && tc.match(/^(\d+)\/(\d+)\+(\d+)$/);
     if (oddsMatch) {
-      const creatorMin = oddsMatch[1];
-      const opponentMin = oddsMatch[2];
-      const increment = oddsMatch[3];
-      const myMin = s.isCreator ? creatorMin : opponentMin;
-      const theirMin = s.isCreator ? opponentMin : creatorMin;
-      this.inlineTcDisplay.textContent = `You: ${myMin}min / Opp: ${theirMin}min +${increment}s`;
+      const s = this._lobbyState;
+      const myMin = s.isCreator ? oddsMatch[1] : oddsMatch[2];
+      const theirMin = s.isCreator ? oddsMatch[2] : oddsMatch[1];
+      this.inlineTcDisplay.textContent = `You: ${myMin}min / Opp: ${theirMin}min +${oddsMatch[3]}s`;
     } else {
       this.inlineTcDisplay.textContent = TC_LABELS[tc] ?? tc;
     }
@@ -241,28 +301,38 @@ export class MultiplayerUI {
     this.inlineTcSelect.classList.add('hidden');
 
     // Variant
-    this.inline960Btn.textContent = s.settings?.chess960 ? 'Chess960' : 'Chess';
+    const chess960 = isWaiting ? this._waitingSettings.chess960 : this._lobbyState.settings?.chess960;
+    this.inline960Btn.textContent = chess960 ? 'Chess960' : 'Standard';
 
-    // Color — from our perspective
-    const myColor = s.color === 'w' ? 'I am White' : 'I am Black';
-    this.inlineSwapBtn.textContent = myColor;
-
-    // Ready states
-    const myReadyState = s.color === 'w' ? s.white?.ready : s.black?.ready;
-    const oppReadyState = s.color === 'w' ? s.black?.ready : s.white?.ready;
-    this.inlineReadyYou.classList.toggle('ready', !!myReadyState);
-    this.inlineReadyOpp.classList.toggle('ready', !!oppReadyState);
-    const oppName = s.color === 'w' ? (s.black?.name || 'Opponent') : (s.white?.name || 'Opponent');
-    this.inlineReadyYou.querySelector('.lobby-ready-name').textContent = myReadyState ? 'You are ready' : 'You';
-    this.inlineReadyOpp.querySelector('.lobby-ready-name').textContent = oppReadyState ? `${oppName} is ready` : oppName;
-
-    // Ready button state
-    if (this._myReady) {
-      this.inlineReadyBtn.textContent = 'Not Ready';
-      this.inlineReadyBtn.classList.add('not-ready');
+    // Color
+    const COLOR_LABELS = { white: 'I am White', black: 'I am Black', random: 'Random Color' };
+    if (isWaiting) {
+      this.inlineSwapBtn.textContent = COLOR_LABELS[this._waitingSettings.colorPreference] ?? 'Random Color';
     } else {
-      this.inlineReadyBtn.textContent = 'Ready';
-      this.inlineReadyBtn.classList.remove('not-ready');
+      this.inlineSwapBtn.textContent = COLOR_LABELS[this._lobbyState.colorPreference ?? 'random'] ?? 'Random Color';
+    }
+
+    // Ready states (lobby only)
+    if (!isWaiting) {
+      const s = this._lobbyState;
+      const myReadyState = s.color === 'w' ? s.white?.ready : s.black?.ready;
+      const oppReadyState = s.color === 'w' ? s.black?.ready : s.white?.ready;
+      this.inlineReadyYou.classList.toggle('ready', !!myReadyState);
+      this.inlineReadyOpp.classList.toggle('ready', !!oppReadyState);
+      const oppName = s.color === 'w' ? (s.black?.name || 'Opponent') : (s.white?.name || 'Opponent');
+      this.inlineReadyYou.querySelector('.lobby-ready-name').textContent = myReadyState ? 'You are ready' : 'You';
+      this.inlineReadyOpp.querySelector('.lobby-ready-name').textContent = oppReadyState ? `${oppName} is ready` : oppName;
+
+      if (this._aiMode) {
+        this.inlineReadyBtn.textContent = 'Start';
+        this.inlineReadyBtn.classList.remove('not-ready');
+      } else if (this._myReady) {
+        this.inlineReadyBtn.textContent = 'Not Ready';
+        this.inlineReadyBtn.classList.add('not-ready');
+      } else {
+        this.inlineReadyBtn.textContent = 'Ready';
+        this.inlineReadyBtn.classList.remove('not-ready');
+      }
     }
   }
 
@@ -279,7 +349,8 @@ export class MultiplayerUI {
       if (payload.settings?.colorPreference !== undefined) {
         this._waitingSettings.colorPreference = payload.settings.colorPreference;
       }
-      this._renderLobbyPanelWaiting();
+      this._renderLobbyPanel();
+      this._updateStatusBar();
       return;
     }
     if (!this._lobbyState) return;
@@ -290,16 +361,16 @@ export class MultiplayerUI {
       this._lobbyState.color = this._lobbyState.color === 'w' ? 'b' : 'w';
     }
     if (payload.field === 'camMode' && this.inlineCamBtn) {
-      const CAM_LABELS = { 'board-face': 'Board Face', 'split-cam': 'Side / Side', 'split-cam-h': 'Top / Bottom', 'king-cam': 'King Cam', 'none': 'No Cam' };
       const newMode = payload.settings?.camMode ?? 'board-face';
       this.inlineCamBtn.dataset.mode = newMode;
-      this.inlineCamBtn.textContent = CAM_LABELS[newMode] ?? 'Board Face';
+      this.inlineCamBtn.textContent = CAM_LABELS_SHORT[newMode] ?? 'Board Face';
     }
     // Reset our ready state
     this._myReady = false;
     if (this._lobbyState.white) this._lobbyState.white.ready = false;
     if (this._lobbyState.black) this._lobbyState.black.ready = false;
     this._renderLobbyPanel();
+    this._updateStatusBar();
   }
 
   /** Called when ready state changes */
@@ -347,15 +418,33 @@ export class MultiplayerUI {
 
   // --- Private ---
 
-  _showHeaderRoomCode(roomId) {
-    this.statusEl.classList.add('hidden');
-    this.headerRoomCodeDisplay.classList.remove('hidden');
-    this.headerRoomCodeValue.textContent = roomId || '------';
+  /** Update the header status bar and document title to reflect the current multiplayer pre-game state */
+  _updateStatusBar() {
+    if (!this.statusEl) return;
+    if (this._currentView === 'waiting') {
+      const s = this._waitingSettings;
+      const tc = s.timeControl === 'none' ? 'No Timer' : (s.timeControl || '5+0');
+      const variant = s.chess960 ? ' · Chess960' : '';
+      this.statusEl.textContent = `Hosting${variant} · ${tc}`;
+      this.statusEl.className = 'status waiting-room';
+      document.title = 'Waiting... | Chess';
+    } else if (this._currentView === 'lobby' && this._lobbyState) {
+      const s = this._lobbyState;
+      const tc = s.settings?.timeControl === 'none' ? 'No Timer' : (s.settings?.timeControl || '5+0');
+      const variant = s.settings?.chess960 ? ' · Chess960' : '';
+      const oppName = s.color === 'w' ? (s.black?.name || 'Opponent') : (s.white?.name || 'Opponent');
+      this.statusEl.textContent = `vs ${oppName}${variant} · ${tc}`;
+      this.statusEl.className = 'status lobby';
+      document.title = `vs ${oppName} | Chess`;
+    }
+  }
+
+  _showHeaderRoomCode(_roomId) {
+    // Room code display removed from header
   }
 
   _hideHeaderRoomCode() {
-    this.headerRoomCodeDisplay.classList.add('hidden');
-    this.statusEl.classList.remove('hidden');
+    // Room code display removed from header
   }
 
   _initElements() {
@@ -363,10 +452,7 @@ export class MultiplayerUI {
     this.modal = document.getElementById('mp-modal');
     this.backdrop = document.getElementById('mp-backdrop');
 
-    // Header room code display
     this.statusEl = document.getElementById('status');
-    this.headerRoomCodeDisplay = document.getElementById('lobby-room-code-display');
-    this.headerRoomCodeValue = document.getElementById('lobby-room-code-header');
 
     // Inline lobby panel
     this.lobbyPanel = document.getElementById('lobby-panel');
@@ -395,6 +481,8 @@ export class MultiplayerUI {
     this.joinCodeInput = document.getElementById('mp-join-code');
     this.mpTimeControl = document.getElementById('mp-time-control');
     this.mpPlayerName = document.getElementById('mp-player-name');
+    const savedName = localStorage.getItem('chess-player-name');
+    if (savedName) this.mpPlayerName.value = savedName;
 
     // Waiting view in modal (still used for display but no longer primary waiting UI)
     this.waitingView = document.getElementById('mp-waiting');
@@ -425,9 +513,11 @@ export class MultiplayerUI {
     this.rematchControls = document.getElementById('mp-rematch-controls');
     this.rematchOfferBtn = document.getElementById('mp-rematch-offer-btn');
     this.rematchStatus = document.getElementById('mp-rematch-status');
+    this.summaryBtn = document.getElementById('mp-summary-btn');
 
-    // Connection status
-    this.connectionStatus = document.getElementById('mp-connection-status');
+    // Per-player connection status dots (shown inline next to player names during online games)
+    this.playerConnStatusWhite = document.getElementById('player-connection-status-white');
+    this.playerConnStatusBlack = document.getElementById('player-connection-status-black');
   }
 
   _bindEvents() {
@@ -438,6 +528,7 @@ export class MultiplayerUI {
     this.quickMatchBtn.addEventListener('click', () => {
       const tc = this.mpTimeControl.value;
       const name = this.mpPlayerName.value.trim() || null;
+      if (name) localStorage.setItem('chess-player-name', name);
       this.mp.quickMatch(tc, name);
       this.showSearching();
     });
@@ -446,6 +537,7 @@ export class MultiplayerUI {
     this.createRoomBtn.addEventListener('click', () => {
       const tc = this.mpTimeControl.value;
       const name = this.mpPlayerName.value.trim() || null;
+      if (name) localStorage.setItem('chess-player-name', name);
       this.mp.createRoom(tc, name);
     });
 
@@ -454,6 +546,7 @@ export class MultiplayerUI {
       const code = this.joinCodeInput.value.trim().toUpperCase();
       if (!code || code.length < 4) return;
       const name = this.mpPlayerName.value.trim() || null;
+      if (name) localStorage.setItem('chess-player-name', name);
       this.mp.joinRoom(code, name);
     });
 
@@ -594,7 +687,7 @@ export class MultiplayerUI {
       if (this._currentView === 'waiting') {
         const next = !this._waitingSettings.chess960;
         this._waitingSettings.chess960 = next;
-        this.inline960Btn.textContent = next ? 'Chess960' : 'Standard';
+        this._renderLobbyPanel();
         this.mp.proposeSetting('chess960', next);
         return;
       }
@@ -609,18 +702,20 @@ export class MultiplayerUI {
         const next = ORDER[(ORDER.indexOf(this._waitingSettings.colorPreference) + 1) % ORDER.length];
         this._waitingSettings.colorPreference = next;
         this.mp.proposeSetting('colorPreference', next);
-        this._renderLobbyPanelWaiting();
+        this._renderLobbyPanel();
         this._onColorPreferenceChange?.(next);
         return;
       }
       if (this._currentView !== 'lobby') return;
-      this.mp.proposeSetting('colorSwap', true);
+      const ORDER = ['random', 'white', 'black'];
+      const next = ORDER[(ORDER.indexOf(this._lobbyState.colorPreference ?? 'random') + 1) % ORDER.length];
+      this._lobbyState.colorPreference = next;
+      this._renderLobbyPanel();
+      this.mp.proposeSetting('colorPreference', next);
     });
 
     // Inline lobby — cam mode cycle
     if (this.inlineCamBtn) {
-      const CAM_MODES = ['board-face', 'king-cam', 'split-cam', 'split-cam-h', 'none'];
-      const CAM_LABELS = { 'board-face': 'Board - Face', 'king-cam': 'King - Cam', 'split-cam': 'Side / Side', 'split-cam-h': 'Top / Bottom', 'none': 'No-Cam' };
       this.inlineCamBtn.addEventListener('click', () => {
         const next = CAM_MODES[(CAM_MODES.indexOf(this.inlineCamBtn.dataset.mode) + 1) % CAM_MODES.length];
         this.inlineCamBtn.dataset.mode = next;
@@ -635,6 +730,18 @@ export class MultiplayerUI {
       this.mp.setReady(this._myReady);
       this._renderLobbyPanel();
     });
+  }
+
+  /** Update a connection dot element to a given state */
+  _updateConnDot(el, state) {
+    if (!el) return;
+    el.className = `player-conn-dot ${state}`;
+    const ariaLabels = { connected: 'Connected', reconnecting: 'Reconnecting', disconnected: 'Disconnected', 'connection-lost': 'Connection lost' };
+    el.setAttribute('aria-label', ariaLabels[state] || state);
+    // Show text label for non-connected states; dot-only for connected
+    // Space before ● is handled by ::after CSS, so no leading space here
+    const textLabels = { connected: '', reconnecting: 'Reconnecting', disconnected: 'Disconnected', 'connection-lost': 'Lost' };
+    el.textContent = textLabels[state] ?? '';
   }
 
   _showView(view) {

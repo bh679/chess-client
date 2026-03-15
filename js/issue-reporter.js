@@ -10,7 +10,7 @@
 const ISSUE_API = '/api/chess/issues';
 
 const ISSUE_CATEGORIES = [
-  { id: 'audio_video', label: 'Audio / video issue', videoOnly: true },
+  { id: 'audio_video', label: 'Audio / video issue', videoOnly: false },
   { id: 'connection',  label: 'Connection issue',    videoOnly: false },
   { id: 'gameplay',    label: 'Gameplay issue',      videoOnly: false },
   { id: 'missing',     label: 'Something missing',   videoOnly: false },
