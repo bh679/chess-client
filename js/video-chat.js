@@ -70,7 +70,7 @@ export class VideoChat {
           const turnUrls = this._iceServers
             .flatMap(s => Array.isArray(s.urls) ? s.urls : [String(s.urls)])
             .filter(u => u.startsWith('turn'))
-            .map(u => u.replace(/^turns?:\/\/[^@]*@/, 'turn:').replace(/^turns?:\/\//, 'turn:'));
+            .map(u => u.replace(/^(turns?:(?:\/\/)?)([^@]*@)?(.*)$/, '$1$3'));
           this._diag.iceServersConfig(this._iceServers.length, hasTurn, turnProvider, turnUrls);
         }
       } else {
