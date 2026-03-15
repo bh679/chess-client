@@ -180,6 +180,15 @@ export class MultiplayerUI {
     this.colorItem.classList.remove('hidden');
     this.lobbyPanel.classList.remove('hidden');
 
+    // Show my connection dot (opponent not present yet in waiting room)
+    if (this._myColor) {
+      const myEl = this._myColor === 'w' ? this.playerConnStatusWhite : this.playerConnStatusBlack;
+      const oppEl = this._myColor === 'w' ? this.playerConnStatusBlack : this.playerConnStatusWhite;
+      myEl.classList.remove('hidden');
+      this._updateConnDot(myEl, 'connected');
+      oppEl.classList.add('hidden');
+    }
+
     // Close modal, show room code in header
     this.close();
     this._showHeaderRoomCode(roomId);
@@ -216,6 +225,15 @@ export class MultiplayerUI {
     this._showHeaderRoomCode(payload.roomId);
     this._currentView = 'lobby';
     this._updateStatusBar();
+
+    // Show both connection dots now that opponent has joined
+    this._myColor = payload.color;
+    const myEl = this._myColor === 'w' ? this.playerConnStatusWhite : this.playerConnStatusBlack;
+    const oppEl = this._myColor === 'w' ? this.playerConnStatusBlack : this.playerConnStatusWhite;
+    myEl.classList.remove('hidden');
+    oppEl.classList.remove('hidden');
+    this._updateConnDot(myEl, 'connected');
+    this._updateConnDot(oppEl, 'connected');
   }
 
   /** Returns whether the local player is the room creator */
@@ -239,6 +257,9 @@ export class MultiplayerUI {
     this._myReady = false;
     document.title = 'Chess';
     if (this.statusEl) this.statusEl.className = 'status';
+    // Hide connection dots — game controls will re-show them when the game starts
+    if (this.playerConnStatusWhite) this.playerConnStatusWhite.classList.add('hidden');
+    if (this.playerConnStatusBlack) this.playerConnStatusBlack.classList.add('hidden');
   }
 
   /** Render lobby panel in waiting mode from _waitingSettings */
@@ -703,8 +724,11 @@ export class MultiplayerUI {
   _updateConnDot(el, state) {
     if (!el) return;
     el.className = `player-conn-dot ${state}`;
-    const labels = { connected: 'Connected', reconnecting: 'Reconnecting', disconnected: 'Disconnected', 'connection-lost': 'Connection lost' };
-    el.setAttribute('aria-label', labels[state] || state);
+    const ariaLabels = { connected: 'Connected', reconnecting: 'Reconnecting', disconnected: 'Disconnected', 'connection-lost': 'Connection lost' };
+    el.setAttribute('aria-label', ariaLabels[state] || state);
+    // Show text label for non-connected states; dot-only for connected
+    const textLabels = { connected: '', reconnecting: ' Reconnecting', disconnected: ' Disconnected', 'connection-lost': ' Lost' };
+    el.textContent = textLabels[state] ?? '';
   }
 
   _showView(view) {
