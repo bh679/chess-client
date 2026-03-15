@@ -67,7 +67,11 @@ export class VideoChat {
           const hasTurn = this._iceServers.some(s =>
             Array.isArray(s.urls) ? s.urls.some(u => u.startsWith('turn')) : String(s.urls).startsWith('turn')
           );
-          this._diag.iceServersConfig(this._iceServers.length, hasTurn, turnProvider);
+          const turnUrls = this._iceServers
+            .flatMap(s => Array.isArray(s.urls) ? s.urls : [String(s.urls)])
+            .filter(u => u.startsWith('turn'))
+            .map(u => u.replace(/^(turns?:(?:\/\/)?)([^@]*@)?(.*)$/, '$1$3'));
+          this._diag.iceServersConfig(this._iceServers.length, hasTurn, turnProvider, turnUrls);
         }
       } else {
         console.warn('[VideoChat] ICE servers endpoint returned', res.status, '— using fallback STUN');
@@ -393,6 +397,9 @@ export class VideoChat {
         if (this._diag && event.candidate.candidate) {
           const parsed = this._parseCandidate(event.candidate.candidate);
           this._diag.iceCandidateLocal(parsed);
+          if (parsed.type === 'relay') {
+            this._diag.turnCandidateGathered(parsed.protocol);
+          }
         }
       } else if (this._diag) {
         this._diag.record('webrtc', 'ice_gathering_complete', {});
