@@ -150,7 +150,13 @@ const replayController = new ReplayController({
     }),
     onEnterSharedReview: () => { sharedReviewActive = true; mp.sendReviewEnter(); },
     onExitSharedReview: () => {
-      if (sharedReviewActive) { mp.sendReviewExit(); sharedReviewActive = false; peerInReview = false; peerAnalysisRunning = false; }
+      if (sharedReviewActive) {
+        mp.sendReviewExit();
+        sharedReviewActive = false;
+        peerInReview = false;
+        peerAnalysisRunning = false;
+        setMultiplayerMode(false);
+      }
     },
     onNavigate: (ply) => { if (sharedReviewActive && !isRemoteNavigation) mp.sendReviewNavigate(ply); },
     shouldClearPeerArrows: () => sharedReviewActive,
@@ -1513,7 +1519,7 @@ mp.onGameEnd = (payload) => {
   liveMoveBar.fade();
   sound.gameOver();
   gameCtrl.multiplayerActive = false;
-  setMultiplayerMode(false);
+  // setMultiplayerMode(false) is deferred — exit button stays visible through post-game summary and shared replay
   uiCtrl.startPublicLobbyPolling();
   playerNameWhite.classList.remove('multiplayer-opponent');
   playerNameBlack.classList.remove('multiplayer-opponent');

@@ -161,6 +161,8 @@ class Board {
   _buildGrid() {
     // Save elements that must survive the innerHTML clear
     const videoLayer = this.container.querySelector('.video-board-layer');
+    const splitCamLayer = this.container.querySelector('.split-cam-layer');
+    const splitCamHLayer = this.container.querySelector('.split-cam-h-layer');
 
     this.container.innerHTML = '';
     const files = this._flipped ? [...FILES].reverse() : FILES;
@@ -193,9 +195,15 @@ class Board {
       }
     }
 
-    // Re-insert video board layer as first child (innerHTML = '' removes it)
+    // Re-insert video layers as first child (innerHTML = '' removes them)
     if (videoLayer) {
       this.container.insertBefore(videoLayer, this.container.firstChild);
+    }
+    if (splitCamLayer) {
+      this.container.insertBefore(splitCamLayer, this.container.firstChild);
+    }
+    if (splitCamHLayer) {
+      this.container.insertBefore(splitCamHLayer, this.container.firstChild);
     }
 
     // Re-append arrow overlay SVG (innerHTML = '' removes it)

@@ -112,7 +112,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Resign on New Game**](https://github.com/bh679/chess-client/wiki/Feature:-Resign-on-New-Game) — clicking New Game during an active multiplayer game shows a "Resign Game?" confirmation; confirming resigns the current game, disconnects, and opens the new game menu
 - [**Exit Current Game**](https://github.com/bh679/chess-client/wiki/Feature:-Exit-Current-Game) — after confirming resignation/abandonment, the new game menu shows a red "Exit Current Game" button at the bottom; clicking it resets the board to a fresh start state without starting a new game
 - [**Hard Reset**](https://github.com/bh679/chess-client/wiki/Feature:-Hard-Reset) — consolidated cleanup function that fully resets game state, network connections, video feeds, and UI when exiting a multiplayer game or lobby
-- [**Exit Game button**](https://github.com/bh679/chess-client/wiki/Feature:-Exit-Game-Button) — the New Game button contextually becomes a red "Exit Game" button when in an online game, lobby, or waiting room; clicking it shows a confirmation and exits cleanly to a fresh local game
+- [**Exit Game button**](https://github.com/bh679/chess-client/wiki/Feature:-Exit-Game-Button) — the New Game button contextually becomes a red "Exit Game" button when in an online game, lobby, waiting room, post-game summary, or shared replay; clicking it shows a confirmation and exits cleanly to a fresh local game
 - [**Public lobbies**](https://github.com/bh679/chess-client/wiki/Feature:-Public-Lobbies) — hosts can toggle a globe button in the waiting room to make their lobby discoverable; other players see public rooms listed in the Play with Friend menu and can join with one click
 - [**Game title/status in waiting room & lobby**](https://github.com/bh679/Chess/wiki/Feature:-Game-Title-Lobby-Status) — the header status bar updates to show "Hosting · 5+0" in the waiting room and "vs Name · 5+0" in the lobby; updates live as settings change; browser tab title mirrors the state
 - [**Public lobby list below board**](https://github.com/bh679/chess-client/wiki/Feature:-Public-Lobby-List) — open public games appear in an "Open Games" panel directly below the board, auto-refreshing every 5 seconds; each listing shows the host name, time control, variant, and camera mode (e.g. `Alice — 5+0 · King·Cam`); players can join with one click without opening the New Game wizard
@@ -125,6 +125,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Video lobby fix**](https://github.com/bh679/chess-client/wiki/Feature:-Video-Lobby-Fix) — guards against duplicate WebRTC signaling that caused video/audio to fail in the lobby; server prevents duplicate `video_start` broadcasts, client prevents redundant `startCall()` and rejects stale SDP answers
 - [**Lobby performance**](https://github.com/bh679/chess-client/wiki/Feature:-Lobby-Performance) — diff-based lobby list rendering, event-driven dev mode check, idle-aware database sync, and reduced polling overhead for smoother lobby experience
 - [**Connection status in lobby**](https://github.com/bh679/chess-client/wiki/Feature:-Connection-Status-in-Lobby) — the connection status label ("Connected", "Reconnecting...", "Opponent disconnected", etc.) now appears inside the lobby panel as well as during active games
+- **Split-cam color fix** — camera feeds in Side by Side / Top-Bottom modes no longer vanish when the board is re-oriented due to a color preference change in the lobby
 
 ## Roadmap
 
@@ -190,6 +191,7 @@ js/live-move-bar.js     Live move bar and live review mode (persistent strip dur
 js/face-tracker.js      Face detection (MediaPipe) for video board centering
 js/video-board.js       Video board mode (camera feeds as board mosaic)
 js/split-cam.js         Split Cam mode (left half = white player, right half = black player)
+js/split-cam-h.js       Top/Bottom Cam mode (local player always bottom, remote always top)
 js/cropped-stream.js    Face-tracked canvas stream for WebRTC transmission
 js/chess.js             chess.js engine (full rule enforcement)
 js/lib/stockfish.js     Stockfish WASM engine (Web Worker)
