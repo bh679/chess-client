@@ -131,8 +131,13 @@ export class Diagnostics {
   }
 
   /** Record ICE servers configuration. */
-  iceServersConfig(count, hasTurn, turnProvider) {
-    this.record('webrtc', 'ice_servers_config', { count, hasTurn, turnProvider });
+  iceServersConfig(count, hasTurn, turnProvider, turnUrls) {
+    this.record('webrtc', 'ice_servers_config', { count, hasTurn, turnProvider, turnUrls: turnUrls || [] });
+  }
+
+  /** Record that a TURN relay ICE candidate was gathered (confirms TURN server is reachable). */
+  turnCandidateGathered(protocol) {
+    this.record('webrtc', 'turn_candidate_gathered', { protocol });
   }
 
   /** Record SDP exchange event. */
