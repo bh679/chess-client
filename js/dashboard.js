@@ -359,17 +359,23 @@ function renderCategoryFilterBar(events) {
 
 // --- TURN status banner ---
 
+function fmtGB(n) {
+  if (n === 0) return '0';
+  // Show up to 2 significant decimal places, stripping trailing zeros
+  return parseFloat(n.toFixed(2)).toString();
+}
+
 function renderUsageBar(usageData) {
   if (!usageData || !usageData.available) return '';
-  const { usageInGB = 0, quotaInGB = 0, overageInGB = 0 } = usageData;
-  const usageStr = usageInGB.toFixed(2);
-  const quotaStr = quotaInGB > 0 ? quotaInGB.toFixed(0) : '\u221E';
+  const { usageInGB = 0, quotaInGB = 0, overageInGB = 0, nextResetDate = null } = usageData;
   const pct = quotaInGB > 0 ? Math.min((usageInGB / quotaInGB) * 100, 100) : 0;
-  const overStr = overageInGB > 0 ? ` \u00B7 <span class="turn-usage-overage">+${overageInGB.toFixed(2)} GB overage</span>` : '';
+  const quotaStr = quotaInGB > 0 ? `${fmtGB(quotaInGB)} GB` : '\u221E';
+  const overStr = overageInGB > 0 ? ` \u00B7 <span class="turn-usage-overage">+${fmtGB(overageInGB)} GB overage</span>` : '';
+  const resetStr = nextResetDate ? ` \u00B7 resets ${esc(nextResetDate)}` : '';
   const barClass = overageInGB > 0 ? 'turn-usage-fill overage' : (pct >= 80 ? 'turn-usage-fill warn' : 'turn-usage-fill');
   return `<div class="turn-usage-row">
     <span class="turn-usage-label">Metered usage:</span>
-    <span class="turn-usage-text">${esc(usageStr)} / ${esc(quotaStr)} GB${overStr}</span>
+    <span class="turn-usage-text">${esc(fmtGB(usageInGB))} / ${quotaStr}${overStr}${resetStr}</span>
     ${quotaInGB > 0 ? `<div class="turn-usage-track"><div class="${barClass}" style="width:${pct.toFixed(1)}%"></div></div>` : ''}
   </div>`;
 }
