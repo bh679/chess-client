@@ -428,7 +428,7 @@ export class UIController {
     const tc = room.timeControl === 'none' ? 'No timer' : room.timeControl;
     const variant = room.chess960 ? ' · 960' : '';
     const cam = (room.camMode && room.camMode !== 'board-face') ? ` · ${CAM_LABELS[room.camMode] ?? room.camMode}` : '';
-    return `${room.hostName || 'Anonymous'} — ${tc}${variant}${cam}`;
+    return `${room.hostName || 'Opponent'} — ${tc}${variant}${cam}`;
   }
 
   renderPublicLobbies(rooms) {
