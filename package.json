@@ -1,6 +1,6 @@
 {
   "name": "chess-client",
-  "version": "2.07.0002",
+  "version": "2.08.0000",
   "requiredApiVersion": "1.03",
   "private": true,
   "description": "Chess client — static site with vanilla JavaScript",
