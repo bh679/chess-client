@@ -59,7 +59,7 @@ export class NewGameMenu {
       const tc = room.timeControl || 'No Timer';
       const variant = room.chess960 ? ' 960' : '';
       const cam = (room.camMode && room.camMode !== 'board-face') ? ` · ${CAM_LABELS[room.camMode] ?? room.camMode}` : '';
-      const host = room.hostName || 'Anonymous';
+      const host = room.hostName || 'Opponent';
       row.textContent = `${host} — ${tc}${variant}${cam}`;
       row.addEventListener('click', () => {
         this.close();
