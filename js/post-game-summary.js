@@ -148,6 +148,10 @@ class PostGameSummary {
     this._overlay.classList.add('hidden');
   }
 
+  reopen() {
+    this._overlay.classList.remove('hidden');
+  }
+
   isOpen() {
     return this._overlay && !this._overlay.classList.contains('hidden');
   }
