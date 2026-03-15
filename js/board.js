@@ -92,6 +92,10 @@ class Board {
 
   executePremove() {
     if (!this._premove) return false;
+    if (this.game.isGameOver()) {
+      this.clearPremove();
+      return false;
+    }
     const { from, to } = this._premove;
     this.clearPremove();
 
@@ -425,6 +429,11 @@ class Board {
       return;
     }
 
+    if (!this._interactive) {
+      this._clearSelection();
+      return;
+    }
+
     if (squareEl && this._legalMoves.includes(squareEl.dataset.square)) {
       this._executeMove(fromSquare, squareEl.dataset.square);
     } else {
@@ -528,6 +537,11 @@ class Board {
 
     // Animate the move first, then update the board
     this._animateMove(from, to, () => {
+      if (this.game.isGameOver()) {
+        this._clearSelection();
+        this.render();
+        return;
+      }
       const result = this.game.makeMove(from, to);
       if (result.success) {
         this._clearSelection();
