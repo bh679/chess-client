@@ -3964,6 +3964,7 @@ button.replay-summary-btn {
 
 .mp-btn-sm { padding: 4px 10px; font-size: 0.78rem; }
 .mp-btn-block { display: block; width: 100%; text-align: center; }
+.mp-btn.hidden { display: none; }
 
 /* Divider */
 .mp-divider {
