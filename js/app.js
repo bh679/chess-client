@@ -44,6 +44,7 @@ const statusEl = document.getElementById('status');
 const boardEl = document.getElementById('board');
 const promotionModal = document.getElementById('promotion-modal');
 const newGameBtn = document.getElementById('new-game');
+const exitGameBtn = document.getElementById('exit-game');
 const capturedByWhiteEl = document.getElementById('captured-by-white');
 const capturedByBlackEl = document.getElementById('captured-by-black');
 const timerWhiteEl = document.getElementById('timer-white');
@@ -499,6 +500,11 @@ function startMultiplayerGame(color, fen, tc, oppName, chess960, isCreator) {
 // ─── Video & Hard Reset ──────────────────────────────────────────
 
 /** Stop all video subsystems (WebRTC, camera, overlays). */
+function setMultiplayerMode(active) {
+  newGameBtn.classList.toggle('hidden', active);
+  exitGameBtn.classList.toggle('hidden', !active);
+}
+
 function stopAllVideo() {
   videoChat.stop();
   videoUI.hide();
@@ -538,6 +544,7 @@ function resetState() {
   }
   mp.disconnect();
   gameCtrl.multiplayerActive = false;
+  setMultiplayerMode(false);
 
   // Timers & polling
   timer.stop();
@@ -729,19 +736,6 @@ timer.onTimeout((loser) => {
 });
 
 newGameBtn.addEventListener('click', async () => {
-  // If multiplayer game active, prompt to resign then hard-reset everything
-  if (gameCtrl.multiplayerActive) {
-    const confirmed = await uiCtrl.showConfirmation(
-      'Resign the current game and start a new one?',
-      'Resign Game?'
-    );
-    if (!confirmed) return;
-    resetState();
-    newGameMenu.showExitButton();
-    newGameMenu.open();
-    return;
-  }
-
   // If a game is in progress, confirm abandonment first
   if (gameCtrl.moveCount > 0 && !game.isGameOver()) {
     const confirmed = await uiCtrl.showConfirmation(
@@ -756,6 +750,15 @@ newGameBtn.addEventListener('click', async () => {
   }
 
   newGameMenu.open();
+});
+
+exitGameBtn.addEventListener('click', async () => {
+  const confirmed = await uiCtrl.showConfirmation(
+    'Exit the current online game?',
+    'Exit Game?'
+  );
+  if (!confirmed) return;
+  hardReset();
 });
 
 // Flash lobby panel when user touches the board during pre-game lobby
@@ -1228,6 +1231,7 @@ mp.onRoomCreated = (payload) => {
   diagnostics.flush();
 
   gameCtrl.multiplayerActive = true;
+  setMultiplayerMode(true);
 
   // Fade board and lock interaction while waiting for opponent (same as lobby)
   boardEl.classList.add('lobby-active');
@@ -1259,6 +1263,7 @@ mp.onLobbyJoined = async (payload) => {
   }
 
   gameCtrl.multiplayerActive = true;
+  setMultiplayerMode(true);
   uiCtrl.stopPublicLobbyPolling();
   issueReporter.hideWaitingButton();
   mpUI.showLobby(payload);
@@ -1507,6 +1512,7 @@ mp.onGameEnd = (payload) => {
   liveMoveBar.fade();
   sound.gameOver();
   gameCtrl.multiplayerActive = false;
+  setMultiplayerMode(false);
   uiCtrl.startPublicLobbyPolling();
   playerNameWhite.classList.remove('multiplayer-opponent');
   playerNameBlack.classList.remove('multiplayer-opponent');
@@ -1550,7 +1556,7 @@ mp.onGameEnd = (payload) => {
       null,
       {
         onReview: (rec) => replayController.enter(rec),
-        onNewGame: () => { gameCtrl.multiplayerActive = false; startNewGame(); },
+        onNewGame: () => { gameCtrl.multiplayerActive = false; setMultiplayerMode(false); startNewGame(); },
         onClose: () => {},
       }
     );
@@ -1736,6 +1742,7 @@ mp.onConnected = (payload) => {
       // No room to rejoin — game is over
       mpUI.setConnectionStatus('connection-lost');
       gameCtrl.multiplayerActive = false;
+      setMultiplayerMode(false);
       mp.active = false;
       uiCtrl.updateStatus('Game ended — connection to room was lost');
     }
@@ -1761,6 +1768,7 @@ mp.onConnectionLost = () => {
   diagnostics.flush();
   mpUI.setConnectionStatus('connection-lost');
   gameCtrl.multiplayerActive = false;
+  setMultiplayerMode(false);
   uiCtrl.startPublicLobbyPolling();
   issueReporter.recordError();
   uiCtrl.updateStatus('Connection lost — game may have ended');
@@ -1783,6 +1791,7 @@ mp.onError = (msg) => {
   // Don't show alerts or reset state during shared post-game review
   if (!mp.isActive() && !sharedReviewActive) {
     gameCtrl.multiplayerActive = false;
+    setMultiplayerMode(false);
     alert(msg || 'Multiplayer error. Please try again.');
   }
 };
@@ -2108,11 +2117,13 @@ function checkRoomCodeInUrl() {
 
     // Connect and join the room
     gameCtrl.multiplayerActive = true;
+    setMultiplayerMode(true);
     mp.connect().then(() => {
       const name = document.getElementById('mp-player-name').value.trim() || null;
       mp.joinRoom(roomCode, name);
     }).catch(() => {
       gameCtrl.multiplayerActive = false;
+      setMultiplayerMode(false);
       alert('Could not connect to the multiplayer server.');
     });
   }
@@ -2188,6 +2199,7 @@ newGameMenu.onFriend(async (action, code) => {
     // mpUI.showWaiting() will open the lobby panel when room_created fires
   } else if (action === 'join') {
     gameCtrl.multiplayerActive = true;  // Prevent startNewGame() from overwriting
+    setMultiplayerMode(true);
     mp.joinRoom(code, null);
   }
 });
@@ -2323,7 +2335,7 @@ Promise.all([
 ]).then(() => {
   // Set gameCtrl.multiplayerActive BEFORE routing so startNewGame() won't overwrite the join
   const hasRoomCode = new URLSearchParams(window.location.search).has('room');
-  if (hasRoomCode) gameCtrl.multiplayerActive = true;
+  if (hasRoomCode) { gameCtrl.multiplayerActive = true; setMultiplayerMode(true); }
   router.start();
   checkRoomCodeInUrl();
   // Start polling for public lobbies (only runs while not in a game)
