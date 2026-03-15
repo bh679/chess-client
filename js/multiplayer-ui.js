@@ -186,7 +186,7 @@ export class MultiplayerUI {
     this.publicToggleBtn.title = 'Make lobby public';
 
     // Show lobby panel in waiting mode
-    this._renderLobbyPanelWaiting();
+    this._renderLobbyPanel();
     this.waitingSection.classList.remove('hidden');
     this.readyRow.classList.add('hidden');
     this.colorItem.classList.remove('hidden');
@@ -216,7 +216,7 @@ export class MultiplayerUI {
    * Hides the waiting section, shows ready buttons and color control.
    */
   showLobby(payload) {
-    this._lobbyState = { ...payload };
+    this._lobbyState = { ...payload, colorPreference: this._waitingSettings?.colorPreference ?? 'random' };
     this._aiMode = false;
     this._myReady = false;
     // Initialize cam button from lobby settings (creator's chosen mode)
@@ -274,21 +274,10 @@ export class MultiplayerUI {
     if (this.playerConnStatusBlack) this.playerConnStatusBlack.classList.add('hidden');
   }
 
-  /** Render lobby panel in waiting mode from _waitingSettings */
-  _renderLobbyPanelWaiting() {
-    const tc = this._waitingSettings.timeControl || 'none';
-    this.inlineTcDisplay.textContent = tc === 'none' ? 'No Timer' : tc;
-    this.inlineTcDisplay.classList.remove('hidden');
-    this.inlineTcSelect.classList.add('hidden');
-    this.inline960Btn.textContent = this._waitingSettings.chess960 ? 'Chess960' : 'Standard';
-    const COLOR_LABELS = { white: 'I am White', black: 'I am Black', random: 'Random Color' };
-    this.inlineSwapBtn.textContent = COLOR_LABELS[this._waitingSettings.colorPreference] ?? 'Random Color';
-  }
-
-  /** Render inline lobby panel from current lobby state */
+  /** Render the lobby panel settings buttons (TC, variant, color, cam) for both waiting and lobby views */
   _renderLobbyPanel() {
-    if (!this._lobbyState) return;
-    const s = this._lobbyState;
+    const isWaiting = this._currentView === 'waiting';
+    if (!isWaiting && !this._lobbyState) return;
 
     // TC
     const TC_LABELS = {
@@ -296,16 +285,15 @@ export class MultiplayerUI {
       '10+0': 'Rapid 10+0', '15+10': 'Classical 15+10', '30+0': 'Classical 30+0',
       'none': 'No Timer'
     };
-    const tc = s.settings?.timeControl || 'none';
-    // For odds TC, show player-relative display instead of raw string
-    const oddsMatch = tc.match(/^(\d+)\/(\d+)\+(\d+)$/);
+    const tc = isWaiting
+      ? (this._waitingSettings.timeControl || 'none')
+      : (this._lobbyState.settings?.timeControl || 'none');
+    const oddsMatch = !isWaiting && tc.match(/^(\d+)\/(\d+)\+(\d+)$/);
     if (oddsMatch) {
-      const creatorMin = oddsMatch[1];
-      const opponentMin = oddsMatch[2];
-      const increment = oddsMatch[3];
-      const myMin = s.isCreator ? creatorMin : opponentMin;
-      const theirMin = s.isCreator ? opponentMin : creatorMin;
-      this.inlineTcDisplay.textContent = `You: ${myMin}min / Opp: ${theirMin}min +${increment}s`;
+      const s = this._lobbyState;
+      const myMin = s.isCreator ? oddsMatch[1] : oddsMatch[2];
+      const theirMin = s.isCreator ? oddsMatch[2] : oddsMatch[1];
+      this.inlineTcDisplay.textContent = `You: ${myMin}min / Opp: ${theirMin}min +${oddsMatch[3]}s`;
     } else {
       this.inlineTcDisplay.textContent = TC_LABELS[tc] ?? tc;
     }
@@ -313,31 +301,38 @@ export class MultiplayerUI {
     this.inlineTcSelect.classList.add('hidden');
 
     // Variant
-    this.inline960Btn.textContent = s.settings?.chess960 ? 'Chess960' : 'Chess';
+    const chess960 = isWaiting ? this._waitingSettings.chess960 : this._lobbyState.settings?.chess960;
+    this.inline960Btn.textContent = chess960 ? 'Chess960' : 'Standard';
 
-    // Color — from our perspective
-    const myColor = s.color === 'w' ? 'I am White' : 'I am Black';
-    this.inlineSwapBtn.textContent = myColor;
-
-    // Ready states
-    const myReadyState = s.color === 'w' ? s.white?.ready : s.black?.ready;
-    const oppReadyState = s.color === 'w' ? s.black?.ready : s.white?.ready;
-    this.inlineReadyYou.classList.toggle('ready', !!myReadyState);
-    this.inlineReadyOpp.classList.toggle('ready', !!oppReadyState);
-    const oppName = s.color === 'w' ? (s.black?.name || 'Opponent') : (s.white?.name || 'Opponent');
-    this.inlineReadyYou.querySelector('.lobby-ready-name').textContent = myReadyState ? 'You are ready' : 'You';
-    this.inlineReadyOpp.querySelector('.lobby-ready-name').textContent = oppReadyState ? `${oppName} is ready` : oppName;
-
-    // Ready button state
-    if (this._aiMode) {
-      this.inlineReadyBtn.textContent = 'Start';
-      this.inlineReadyBtn.classList.remove('not-ready');
-    } else if (this._myReady) {
-      this.inlineReadyBtn.textContent = 'Not Ready';
-      this.inlineReadyBtn.classList.add('not-ready');
+    // Color
+    const COLOR_LABELS = { white: 'I am White', black: 'I am Black', random: 'Random Color' };
+    if (isWaiting) {
+      this.inlineSwapBtn.textContent = COLOR_LABELS[this._waitingSettings.colorPreference] ?? 'Random Color';
     } else {
-      this.inlineReadyBtn.textContent = 'Ready';
-      this.inlineReadyBtn.classList.remove('not-ready');
+      this.inlineSwapBtn.textContent = COLOR_LABELS[this._lobbyState.colorPreference ?? 'random'] ?? 'Random Color';
+    }
+
+    // Ready states (lobby only)
+    if (!isWaiting) {
+      const s = this._lobbyState;
+      const myReadyState = s.color === 'w' ? s.white?.ready : s.black?.ready;
+      const oppReadyState = s.color === 'w' ? s.black?.ready : s.white?.ready;
+      this.inlineReadyYou.classList.toggle('ready', !!myReadyState);
+      this.inlineReadyOpp.classList.toggle('ready', !!oppReadyState);
+      const oppName = s.color === 'w' ? (s.black?.name || 'Opponent') : (s.white?.name || 'Opponent');
+      this.inlineReadyYou.querySelector('.lobby-ready-name').textContent = myReadyState ? 'You are ready' : 'You';
+      this.inlineReadyOpp.querySelector('.lobby-ready-name').textContent = oppReadyState ? `${oppName} is ready` : oppName;
+
+      if (this._aiMode) {
+        this.inlineReadyBtn.textContent = 'Start';
+        this.inlineReadyBtn.classList.remove('not-ready');
+      } else if (this._myReady) {
+        this.inlineReadyBtn.textContent = 'Not Ready';
+        this.inlineReadyBtn.classList.add('not-ready');
+      } else {
+        this.inlineReadyBtn.textContent = 'Ready';
+        this.inlineReadyBtn.classList.remove('not-ready');
+      }
     }
   }
 
@@ -354,7 +349,7 @@ export class MultiplayerUI {
       if (payload.settings?.colorPreference !== undefined) {
         this._waitingSettings.colorPreference = payload.settings.colorPreference;
       }
-      this._renderLobbyPanelWaiting();
+      this._renderLobbyPanel();
       this._updateStatusBar();
       return;
     }
@@ -692,7 +687,7 @@ export class MultiplayerUI {
       if (this._currentView === 'waiting') {
         const next = !this._waitingSettings.chess960;
         this._waitingSettings.chess960 = next;
-        this.inline960Btn.textContent = next ? 'Chess960' : 'Standard';
+        this._renderLobbyPanel();
         this.mp.proposeSetting('chess960', next);
         return;
       }
@@ -707,12 +702,16 @@ export class MultiplayerUI {
         const next = ORDER[(ORDER.indexOf(this._waitingSettings.colorPreference) + 1) % ORDER.length];
         this._waitingSettings.colorPreference = next;
         this.mp.proposeSetting('colorPreference', next);
-        this._renderLobbyPanelWaiting();
+        this._renderLobbyPanel();
         this._onColorPreferenceChange?.(next);
         return;
       }
       if (this._currentView !== 'lobby') return;
-      this.mp.proposeSetting('colorSwap', true);
+      const ORDER = ['random', 'white', 'black'];
+      const next = ORDER[(ORDER.indexOf(this._lobbyState.colorPreference ?? 'random') + 1) % ORDER.length];
+      this._lobbyState.colorPreference = next;
+      this._renderLobbyPanel();
+      this.mp.proposeSetting('colorPreference', next);
     });
 
     // Inline lobby — cam mode cycle
