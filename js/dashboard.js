@@ -357,9 +357,28 @@ function renderCategoryFilterBar(events) {
   }).join('');
 }
 
+// --- TURN status banner ---
+
+function renderTurnStatus(iceData) {
+  if (iceData === null) {
+    return `<div class="turn-status-bar turn-fail"><span class="turn-status-label">\u26A0 TURN status unavailable</span><span class="turn-status-detail">Could not reach /api/chess/ice-servers</span></div>`;
+  }
+
+  const servers = iceData.iceServers || [];
+  const turnCount = servers.filter(s => s.username !== undefined).length;
+  const stunCount = servers.filter(s => s.username === undefined).length;
+  const provider = iceData.turnProvider || 'unknown';
+
+  if (provider === 'stun-only' || turnCount === 0) {
+    return `<div class="turn-status-bar turn-warn"><span class="turn-status-label">\u26A0 STUN only</span><span class="turn-status-detail">No TURN servers configured \u00B7 ${stunCount} stun</span></div>`;
+  }
+
+  return `<div class="turn-status-bar turn-ok"><span class="turn-status-label">\u2713 TURN active</span><span class="turn-status-detail">provider: ${esc(provider)} \u00B7 ${turnCount} turn server${turnCount !== 1 ? 's' : ''} \u00B7 ${stunCount} stun</span></div>`;
+}
+
 // --- Main render ---
 
-function renderDashboard(data, navEntries, versions = {}) {
+function renderDashboard(data, navEntries, versions = {}, iceData = null) {
   const { events = [], count = 0, gameId, roomCode, game, issueReports = [] } = data;
   const ctxLabel = gameId ? `Game ${gameId}` : (roomCode ? `Room ${roomCode}` : 'Recent');
   const versionLine = (versions.client || versions.api)
@@ -388,6 +407,8 @@ function renderDashboard(data, navEntries, versions = {}) {
     <button class="btn" id="refresh-btn">\u21BB Refresh</button>
   </div>
 </div>
+
+${renderTurnStatus(iceData)}
 
 <div class="summary">
   <div class="stat"><span class="stat-label">Game ID</span><span class="stat-value">${esc(String(gameId || '\u2014'))}</span></div>
@@ -487,12 +508,13 @@ async function init() {
     if (params.has('category')) qp.push(`category=${encodeURIComponent(params.get('category'))}`);
     if (qp.length) dataUrl += '?' + qp.join('&');
 
-    // Fetch data, nav, and version info in parallel
-    const [dataRes, navRes, healthRes, pkgRes] = await Promise.all([
+    // Fetch data, nav, version info, and ICE server status in parallel
+    const [dataRes, navRes, healthRes, pkgRes, iceRes] = await Promise.all([
       fetch(dataUrl),
       fetch(`${API_BASE}/nav`),
       fetch('/api/chess/health').catch(() => null),
       fetch('/package.json').catch(() => null),
+      fetch('/api/chess/ice-servers').catch(() => null),
     ]);
 
     if (!dataRes.ok) {
@@ -505,9 +527,10 @@ async function init() {
     const navData = navRes.ok ? await navRes.json() : { entries: [] };
     const healthData = healthRes && healthRes.ok ? await healthRes.json().catch(() => ({})) : {};
     const pkgData = pkgRes && pkgRes.ok ? await pkgRes.json().catch(() => ({})) : {};
+    const iceData = iceRes && iceRes.ok ? await iceRes.json().catch(() => null) : null;
     const versions = { client: pkgData.version || null, api: healthData.version || null };
 
-    app.innerHTML = renderDashboard(data, navData.entries, versions);
+    app.innerHTML = renderDashboard(data, navData.entries, versions, iceData);
     bindEvents(data);
   } catch (e) {
     app.innerHTML = `<div class="empty">Error loading diagnostics: ${esc(e.message)}</div>`;
