@@ -496,6 +496,70 @@ function startMultiplayerGame(color, fen, tc, oppName, chess960, isCreator) {
   gameCtrl.startMultiplayerGame(color, fen, tc, oppName, chess960, isCreator);
 }
 
+// ─── Video & Hard Reset ──────────────────────────────────────────
+
+/** Stop all video subsystems (WebRTC, camera, overlays). */
+function stopAllVideo() {
+  videoChat.stop();
+  videoUI.hide();
+  videoUI.hideCameraPreview();
+  videoBoard.disable();
+  kingCam.disable();
+  splitCam.disable();
+  splitCamH.disable();
+  videoActive = false;
+  activeCamMode = 'none';
+}
+
+/**
+ * Reset all transient application state (video, network, UI).
+ * Does NOT start a new game — caller decides what to do next.
+ * Preserves: settings, account, username cache.
+ */
+function resetState() {
+  // Video
+  _userStoppedCamera = false;
+  stopAllVideo();
+
+  // Shared review state
+  sharedReviewActive = false;
+  isRemoteNavigation = false;
+  peerInReview = false;
+  peerAnalysisRunning = false;
+  lastMultiplayerGameRecord = null;
+
+  // Multiplayer — resign or cancel, then disconnect
+  if (gameCtrl.multiplayerActive) {
+    if (gameCtrl.moveCount > 0 && !game.isGameOver()) {
+      mp.resign();
+    } else {
+      mp.cancelPendingRoom();
+    }
+  }
+  mp.disconnect();
+  gameCtrl.multiplayerActive = false;
+
+  // Timers & polling
+  timer.stop();
+  uiCtrl.stopPublicLobbyPolling();
+
+  // Multiplayer UI
+  mpUI.hideGameControls();
+  mpUI.hideLobbyPanel();
+  mpUI.close();
+  mpUI.setAIMode(true);
+  boardEl.classList.remove('lobby-active');
+
+  // Re-render board (removes kingCam video elements)
+  board.render();
+}
+
+/** Full reset + start a fresh local game. */
+function hardReset() {
+  resetState();
+  startNewGame();
+}
+
 // ─── UIController ────────────────────────────────────────────────
 uiCtrl = new UIController({
   game, board, db, mp, gameCtrl, settingsCtrl, replayController, liveMoveBar,
@@ -665,23 +729,14 @@ timer.onTimeout((loser) => {
 });
 
 newGameBtn.addEventListener('click', async () => {
-  // If multiplayer game active, prompt to resign first
+  // If multiplayer game active, prompt to resign then hard-reset everything
   if (gameCtrl.multiplayerActive) {
     const confirmed = await uiCtrl.showConfirmation(
       'Resign the current game and start a new one?',
       'Resign Game?'
     );
     if (!confirmed) return;
-    uiCtrl.stopPublicLobbyPolling();  // Prevent poll timer from auto-reconnecting during transition
-    if (gameCtrl.moveCount > 0 && !game.isGameOver()) {
-      mp.resign();
-    } else {
-      mp.cancelPendingRoom();  // Waiting room / lobby — cancel rather than resign
-    }
-    mp.disconnect();
-    gameCtrl.multiplayerActive = false;
-    timer.stop();
-    mpUI.hideGameControls();
+    resetState();
     newGameMenu.showExitButton();
     newGameMenu.open();
     return;
@@ -1934,25 +1989,13 @@ videoUI.onPreviewCancel = () => {
 videoUI.onEndCall = () => {
   mp.sendVideoEnd();
   _userStoppedCamera = true;
-  videoChat.stop();
-  videoUI.hide();
-  videoBoard.disable();
-  if (kingCam.isActive()) { kingCam.disable(); board.render(); }
-  splitCam.disable();
-  splitCamH.disable();
-  videoActive = false;
-  activeCamMode = 'none';
+  stopAllVideo();
+  board.render(); // remove kingCam video elements
 };
 
 mp.onVideoEnded = () => {
-  videoChat.stop();
-  videoUI.hide();
-  videoBoard.disable();
-  if (kingCam.isActive()) { kingCam.disable(); board.render(); }
-  splitCam.disable();
-  splitCamH.disable();
-  videoActive = false;
-  activeCamMode = 'none';
+  stopAllVideo();
+  board.render();
 };
 
 // --- Shared Post-Game Review ---
@@ -2145,19 +2188,7 @@ mp.onPublicRoomsList = (rooms) => {
 };
 
 newGameMenu.onExit(() => {
-  if (gameCtrl.multiplayerActive) {
-    uiCtrl.stopPublicLobbyPolling();
-    if (gameCtrl.moveCount > 0 && !game.isGameOver()) {
-      mp.resign();
-    } else {
-      mp.cancelPendingRoom();
-    }
-    mp.disconnect();
-    gameCtrl.multiplayerActive = false;
-    timer.stop();
-    mpUI.hideGameControls();
-  }
-  startNewGame();
+  hardReset();
 });
 
 newGameMenu.onCustomTime(() => {
