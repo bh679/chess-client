@@ -359,6 +359,7 @@ export class GameController {
     }
 
     // Show multiplayer in-game controls
+    this._mpUI.setPlayerColor(color);
     this._mpUI.showGameControls();
     this._mpUI.close();
 

@@ -150,7 +150,13 @@ const replayController = new ReplayController({
     }),
     onEnterSharedReview: () => { sharedReviewActive = true; mp.sendReviewEnter(); },
     onExitSharedReview: () => {
-      if (sharedReviewActive) { mp.sendReviewExit(); sharedReviewActive = false; peerInReview = false; peerAnalysisRunning = false; }
+      if (sharedReviewActive) {
+        mp.sendReviewExit();
+        sharedReviewActive = false;
+        peerInReview = false;
+        peerAnalysisRunning = false;
+        setMultiplayerMode(false);
+      }
     },
     onNavigate: (ply) => { if (sharedReviewActive && !isRemoteNavigation) mp.sendReviewNavigate(ply); },
     shouldClearPeerArrows: () => sharedReviewActive,
@@ -1223,6 +1229,7 @@ mp.onGameStart = async (payload) => {
 // Room created — show waiting screen (lobby panel in waiting mode)
 mp.onRoomCreated = (payload) => {
   uiCtrl.stopPublicLobbyPolling();
+  mpUI.setPlayerColor(payload.color);
   mpUI.showWaiting(payload.roomId);
   issueReporter.setGameContext(null, mp.sessionId, false, payload.roomId);
   issueReporter.showWaitingButton();
@@ -1512,7 +1519,7 @@ mp.onGameEnd = (payload) => {
   liveMoveBar.fade();
   sound.gameOver();
   gameCtrl.multiplayerActive = false;
-  setMultiplayerMode(false);
+  // setMultiplayerMode(false) is deferred — exit button stays visible through post-game summary and shared replay
   uiCtrl.startPublicLobbyPolling();
   playerNameWhite.classList.remove('multiplayer-opponent');
   playerNameBlack.classList.remove('multiplayer-opponent');
@@ -2243,11 +2250,15 @@ mpUI.onCamChange((mode) => {
   uiCtrl.applyCamMode(mode);
 });
 
-// Waiting room color preference — flip board to preview selected color
+// Waiting room color preference — flip board to preview selected color and update names
 mpUI.onColorPreferenceChange((pref) => {
   const asBlack = pref === 'black';
   board.setFlipped(asBlack);
   appEl.classList.toggle('board-flipped', asBlack);
+  playerNameWhite.textContent = asBlack ? 'Opponent' : 'You';
+  playerNameBlack.textContent = asBlack ? 'You' : 'Opponent';
+  playerNameWhite.classList.toggle('multiplayer-opponent', asBlack);
+  playerNameBlack.classList.toggle('multiplayer-opponent', !asBlack);
 });
 
 // --- Route handlers ---
