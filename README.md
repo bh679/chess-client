@@ -39,7 +39,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 ### [Timers](https://github.com/bh679/Chess/wiki/Feature:-Time-Controls)
 - [**Preset time controls**](https://github.com/bh679/Chess/wiki/Feature:-Time-Controls) — Bullet 1+0, Blitz 3+2, Rapid 5+0, Rapid 10+0, Classical 30+0
 - [**Custom time control**](https://github.com/bh679/Chess/wiki/Feature:-Time-Controls) — set minutes per side and increment, with optional different time per player (time odds)
-- [**Timeout detection**](https://github.com/bh679/Chess/wiki/Feature:-Time-Controls) — automatic win on time with visual indicator
+- [**Timeout detection**](https://github.com/bh679/Chess/wiki/Feature:-Clock-Timeout-Fix) — game ends immediately when clock hits 0:00; drag-drop, in-flight animations, and queued premoves are all blocked after timeout
 - [**Custom time controls for friend games**](https://github.com/bh679/chess-client/wiki/Feature:-Custom-Time-Controls-for-Friend-Games) — set any minutes+increment when creating a friend game; supports time odds (different time per player) with "Your time / Opponent's time" labels that follow you after random color assignment
 
 ### [Art Styles](https://github.com/bh679/Chess/wiki/Feature:-Art-Styles)
