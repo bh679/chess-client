@@ -1185,6 +1185,11 @@ mp.onRoomCreated = (payload) => {
   playerNameBlack.textContent = payload.color === 'b' ? 'You' : 'Opponent';
   playerNameWhite.classList.toggle('multiplayer-opponent', payload.color !== 'w');
   playerNameBlack.classList.toggle('multiplayer-opponent', payload.color !== 'b');
+  // Reset icons and elo from any previous game
+  playerIconWhite.textContent = '\uD83C\uDF10';
+  playerIconBlack.textContent = '\uD83C\uDF10';
+  playerEloWhite.classList.add('hidden');
+  playerEloBlack.classList.add('hidden');
 };
 
 // Lobby joined — show pre-game settings inline below board
