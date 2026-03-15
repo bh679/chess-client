@@ -727,7 +727,8 @@ export class MultiplayerUI {
     const ariaLabels = { connected: 'Connected', reconnecting: 'Reconnecting', disconnected: 'Disconnected', 'connection-lost': 'Connection lost' };
     el.setAttribute('aria-label', ariaLabels[state] || state);
     // Show text label for non-connected states; dot-only for connected
-    const textLabels = { connected: '', reconnecting: ' Reconnecting', disconnected: ' Disconnected', 'connection-lost': ' Lost' };
+    // Space before ● is handled by ::after CSS, so no leading space here
+    const textLabels = { connected: '', reconnecting: 'Reconnecting', disconnected: 'Disconnected', 'connection-lost': 'Lost' };
     el.textContent = textLabels[state] ?? '';
   }
 

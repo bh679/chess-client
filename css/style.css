@@ -804,7 +804,7 @@ body {
   user-select: none;
   font-weight: 600;
 }
-.player-conn-dot::before { content: '●'; }
+.player-conn-dot::after { content: ' ●'; }
 .player-conn-dot.connected { color: var(--accent-soft); }
 .player-conn-dot.reconnecting {
   color: var(--warning);
