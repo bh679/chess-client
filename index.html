@@ -488,6 +488,17 @@
     </div>
   </div>
 
+  <!-- Hidden time-control state store (read by getTimeConfig; value set by new-game wizard) -->
+  <select id="time-control" hidden aria-hidden="true">
+    <option value="0" selected>No Timer</option>
+    <option value="60|0">Bullet 1+0</option>
+    <option value="180|2">Blitz 3+2</option>
+    <option value="300|0">Rapid 5+0</option>
+    <option value="600|0">Rapid 10+0</option>
+    <option value="1800|0">Classical 30+0</option>
+    <option value="custom">Custom...</option>
+  </select>
+
   <!-- Settings bottom sheet (outside .app for overlay positioning) -->
   <div id="settings-backdrop" class="settings-backdrop"></div>
   <div id="settings-panel" class="settings-panel">
