@@ -122,6 +122,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Diagnostics Dashboard**](https://github.com/bh679/chess-client/wiki/Feature:-Diagnostics-Dashboard) — client-side diagnostics dashboard at `dashboard.html` with dark theme UI; displays session events, WebRTC summaries, game navigation, category filters, and issue reports; fetches data from JSON API endpoints; shows client and API version numbers in the header
 - [**Video lobby fix**](https://github.com/bh679/chess-client/wiki/Feature:-Video-Lobby-Fix) — guards against duplicate WebRTC signaling that caused video/audio to fail in the lobby; server prevents duplicate `video_start` broadcasts, client prevents redundant `startCall()` and rejects stale SDP answers
 - [**Lobby performance**](https://github.com/bh679/chess-client/wiki/Feature:-Lobby-Performance) — diff-based lobby list rendering, event-driven dev mode check, idle-aware database sync, and reduced polling overhead for smoother lobby experience
+- [**Connection status in lobby**](https://github.com/bh679/chess-client/wiki/Feature:-Connection-Status-in-Lobby) — the connection status label ("Connected", "Reconnecting...", "Opponent disconnected", etc.) now appears inside the lobby panel as well as during active games
 
 ## Roadmap
 
