@@ -1,9 +1,9 @@
 /**
  * SplitCamH — displays player webcam feeds split horizontally across the chess board.
  *
- * Black player's camera appears on the top half of the board,
- * white player's camera on the bottom half. This mirrors the standard
- * chess board orientation (white pieces at bottom, black at top).
+ * The local player's camera always appears on the bottom half of the board,
+ * and the remote player's camera on the top half. This matches the board
+ * orientation where the local player's pieces are always at the bottom.
  *
  * Board color tints (--board-light / --board-dark) fade on top of each half to
  * indicate whose turn it is, matching the board-face mode.
@@ -19,8 +19,8 @@ export class SplitCamH {
   constructor(boardEl) {
     this._boardEl = boardEl;
     this._layer = null;
-    this._topVideo = null;      // black player's feed
-    this._bottomVideo = null;   // white player's feed
+    this._topVideo = null;      // remote player's feed
+    this._bottomVideo = null;   // local player's feed
     this._topTint = null;
     this._bottomTint = null;
     this._active = false;
@@ -28,7 +28,7 @@ export class SplitCamH {
 
   /**
    * Enable horizontal split cam mode.
-   * Black player always on top, white player always on bottom.
+   * Local player always on bottom, remote player always on top.
    * @param {MediaStream|null} localStream — local player's camera
    * @param {MediaStream|null} remoteStream — remote player's camera (may arrive later)
    * @param {'w'|'b'} playerColor — local player's color
@@ -38,12 +38,8 @@ export class SplitCamH {
       this._buildLayer();
     }
 
-    const localVideo = this._videoForColor(playerColor);
-    const remoteColor = playerColor === 'w' ? 'b' : 'w';
-    const remoteVideo = this._videoForColor(remoteColor);
-
-    this._setStream(localVideo, localStream);
-    this._setStream(remoteVideo, remoteStream);
+    this._setStream(this._bottomVideo, localStream);   // local always bottom
+    this._setStream(this._topVideo, remoteStream);     // remote always top
 
     this._boardEl.classList.add('split-cam-h-active');
     this._active = true;
@@ -72,12 +68,11 @@ export class SplitCamH {
   /**
    * Update the remote player's stream after it arrives via WebRTC.
    * @param {MediaStream} remoteStream
-   * @param {'w'|'b'} localPlayerColor — local player's color (used to derive remote color)
+   * @param {'w'|'b'} localPlayerColor — local player's color
    */
   updateRemoteStream(remoteStream, localPlayerColor) {
     if (!this._active || !this._layer) return;
-    const remoteColor = localPlayerColor === 'w' ? 'b' : 'w';
-    this._setStream(this._videoForColor(remoteColor), remoteStream);
+    this._setStream(this._topVideo, remoteStream);     // remote always top
   }
 
   /**
@@ -87,7 +82,7 @@ export class SplitCamH {
    */
   updateLocalStream(localStream, playerColor) {
     if (!this._active || !this._layer) return;
-    this._setStream(this._videoForColor(playerColor), localStream);
+    this._setStream(this._bottomVideo, localStream);   // local always bottom
   }
 
   /**
@@ -103,18 +98,18 @@ export class SplitCamH {
   /**
    * Update tint opacity based on whose turn it is.
    * @param {'w'|'b'} turn — whose turn it is
-   * @param {'w'|'b'} playerColor — local player's color (unused, kept for API parity)
+   * @param {'w'|'b'} playerColor — local player's color
    * @param {number} [baseOpacity=0.55]
    */
   updateTurnTint(turn, playerColor, baseOpacity = 0.55) {
     if (!this._active || !this._topTint || !this._bottomTint) return;
 
-    const whiteIsActive = turn === 'w';
+    const localIsActive = turn === playerColor;
     const lo = Math.max(0, baseOpacity - 0.05);
     const hi = Math.min(1, baseOpacity + 0.05);
-    // Top = black side, bottom = white side
-    this._topTint.style.opacity = whiteIsActive ? hi : lo;
-    this._bottomTint.style.opacity = whiteIsActive ? lo : hi;
+    // Bottom = local player, top = remote player
+    this._bottomTint.style.opacity = localIsActive ? lo : hi;
+    this._topTint.style.opacity = localIsActive ? hi : lo;
   }
 
   /** @returns {boolean} */
@@ -188,13 +183,5 @@ export class SplitCamH {
     }
   }
 
-  /**
-   * Returns the video element for the given player color.
-   * White is always on the bottom, black always on the top.
-   * @param {'w'|'b'} color
-   * @returns {HTMLVideoElement|null}
-   */
-  _videoForColor(color) {
-    return color === 'w' ? this._bottomVideo : this._topVideo;
-  }
+
 }
