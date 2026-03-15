@@ -1148,6 +1148,15 @@ if (replaySummaryBtn) {
   });
 }
 
+// Wire up multiplayer post-game Summary button
+const mpSummaryBtn = document.getElementById('mp-summary-btn');
+if (mpSummaryBtn) {
+  mpSummaryBtn.addEventListener('click', () => {
+    mpUI.hideSummaryButton();
+    postGameSummary.reopen();
+  });
+}
+
 // --- Multiplayer wiring ---
 
 // When the server says a game has started
@@ -1564,7 +1573,7 @@ mp.onGameEnd = (payload) => {
       {
         onReview: (rec) => replayController.enter(rec),
         onNewGame: () => { gameCtrl.multiplayerActive = false; setMultiplayerMode(false); startNewGame(); },
-        onClose: () => {},
+        onClose: () => { mpUI.showSummaryButton(); },
       }
     );
   }
