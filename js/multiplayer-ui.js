@@ -26,6 +26,7 @@ export class MultiplayerUI {
     this._myReady = false;
     this._aiMode = false; // true when an AI game is starting (lobby Ready→Start)
     this._pendingLobbyCustomTc = false;
+    this._myColor = null; // 'w' | 'b' — set when game starts via setPlayerColor()
     // Settings tracked while in waiting state (host-only, before opponent joins)
     this._waitingSettings = { timeControl: '5+0', chess960: false, colorPreference: 'random' };
 
@@ -71,11 +72,21 @@ export class MultiplayerUI {
     }
   }
 
+  /** Set which color the local player is (call before showGameControls) */
+  setPlayerColor(color) {
+    this._myColor = color;
+  }
+
   /** Show the in-game multiplayer controls */
   showGameControls() {
     this.gameControls.classList.remove('hidden');
     this.drawOfferToast.classList.add('hidden');
     this.rematchControls.classList.add('hidden');
+    // Show per-player connection dots and set initial connected state
+    if (this.playerConnStatusWhite) this.playerConnStatusWhite.classList.remove('hidden');
+    if (this.playerConnStatusBlack) this.playerConnStatusBlack.classList.remove('hidden');
+    this._updateConnDot(this.playerConnStatusWhite, 'connected');
+    this._updateConnDot(this.playerConnStatusBlack, 'connected');
   }
 
   /** Hide in-game controls */
@@ -83,6 +94,10 @@ export class MultiplayerUI {
     this.gameControls.classList.add('hidden');
     this.drawOfferToast.classList.add('hidden');
     this.rematchControls.classList.add('hidden');
+    // Hide per-player connection dots
+    if (this.playerConnStatusWhite) this.playerConnStatusWhite.classList.add('hidden');
+    if (this.playerConnStatusBlack) this.playerConnStatusBlack.classList.add('hidden');
+    this._myColor = null;
   }
 
   /** Show draw offer toast */
@@ -110,22 +125,27 @@ export class MultiplayerUI {
     this.rematchOfferBtn.classList.remove('hidden');
   }
 
-  /** Update connection status indicator */
-  setConnectionStatus(status, detail) {
-    const labels = {
-      connected: 'Connected',
-      reconnecting: detail || 'Reconnecting...',
-      disconnected: 'Disconnected',
-      'opponent-disconnected': 'Opponent disconnected',
-      'connection-lost': 'Connection lost',
-    };
-    const text = labels[status] || status;
-    const className = 'mp-connection-status ' + status;
-    this.connectionStatus.className = className;
-    this.connectionStatus.textContent = text;
-    if (this.lobbyConnectionStatus) {
-      this.lobbyConnectionStatus.className = className;
-      this.lobbyConnectionStatus.textContent = text;
+  /** Update per-player connection status dots in the player bars */
+  setConnectionStatus(status) {
+    if (!this._myColor) return;
+    const myEl = this._myColor === 'w' ? this.playerConnStatusWhite : this.playerConnStatusBlack;
+    const oppEl = this._myColor === 'w' ? this.playerConnStatusBlack : this.playerConnStatusWhite;
+
+    switch (status) {
+      case 'connected':
+        this._updateConnDot(myEl, 'connected');
+        this._updateConnDot(oppEl, 'connected');
+        break;
+      case 'reconnecting':
+        this._updateConnDot(myEl, 'reconnecting');
+        break;
+      case 'disconnected':
+      case 'connection-lost':
+        this._updateConnDot(myEl, status);
+        break;
+      case 'opponent-disconnected':
+        this._updateConnDot(oppEl, 'disconnected');
+        break;
     }
   }
 
@@ -466,9 +486,9 @@ export class MultiplayerUI {
     this.rematchOfferBtn = document.getElementById('mp-rematch-offer-btn');
     this.rematchStatus = document.getElementById('mp-rematch-status');
 
-    // Connection status
-    this.connectionStatus = document.getElementById('mp-connection-status');
-    this.lobbyConnectionStatus = document.getElementById('lobby-connection-status');
+    // Per-player connection status dots (shown inline next to player names during online games)
+    this.playerConnStatusWhite = document.getElementById('player-connection-status-white');
+    this.playerConnStatusBlack = document.getElementById('player-connection-status-black');
   }
 
   _bindEvents() {
@@ -677,6 +697,14 @@ export class MultiplayerUI {
       this.mp.setReady(this._myReady);
       this._renderLobbyPanel();
     });
+  }
+
+  /** Update a connection dot element to a given state */
+  _updateConnDot(el, state) {
+    if (!el) return;
+    el.className = `player-conn-dot ${state}`;
+    const labels = { connected: 'Connected', reconnecting: 'Reconnecting', disconnected: 'Disconnected', 'connection-lost': 'Connection lost' };
+    el.setAttribute('aria-label', labels[state] || state);
   }
 
   _showView(view) {

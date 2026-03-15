@@ -797,6 +797,21 @@ body {
   color: #ccc;
 }
 
+/* Per-player connection status dot (shown inline next to player name during online games) */
+.player-conn-dot {
+  font-size: 0.5rem;
+  line-height: 1;
+  user-select: none;
+}
+.player-conn-dot::before { content: '●'; }
+.player-conn-dot.connected { color: var(--accent-soft); }
+.player-conn-dot.reconnecting {
+  color: var(--warning);
+  animation: mp-pulse 1.5s ease-in-out infinite;
+}
+.player-conn-dot.disconnected { color: var(--danger); }
+.player-conn-dot.connection-lost { color: var(--danger); }
+
 .player-name-input {
   background: var(--bg-sunken);
   color: var(--text-primary);

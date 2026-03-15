@@ -40,6 +40,7 @@
       <div id="captured-by-black" class="captured-pieces"></div>
       <div class="timer-group">
         <span id="player-name-black" class="player-name">Human</span>
+        <span id="player-connection-status-black" class="player-conn-dot hidden"></span>
         <span id="player-elo-black" class="player-elo hidden"></span>
         <span id="player-icon-black" class="player-icon">👤</span>
         <div id="timer-black" class="timer">--:--</div>
@@ -56,6 +57,7 @@
       <div id="captured-by-white" class="captured-pieces"></div>
       <div class="timer-group">
         <span id="player-name-white" class="player-name">Human</span>
+        <span id="player-connection-status-white" class="player-conn-dot hidden"></span>
         <span id="player-elo-white" class="player-elo hidden"></span>
         <span id="player-icon-white" class="player-icon">👤</span>
         <div id="timer-white" class="timer">--:--</div>
@@ -164,7 +166,6 @@
 
   <!-- Multiplayer in-game controls (resign, draw, connection status) -->
   <div id="mp-game-controls" class="mp-game-controls hidden">
-    <div id="mp-connection-status" class="mp-connection-status connected">Connected</div>
     <button id="ir-flag-btn" class="ir-flag-btn hidden" title="Report an issue">&#9873;</button>
     <button id="mp-draw-offer-btn" class="mp-btn">Offer Draw</button>
     <button id="mp-resign-btn" class="mp-btn mp-btn-danger">Resign</button>
