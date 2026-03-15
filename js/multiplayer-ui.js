@@ -112,7 +112,6 @@ export class MultiplayerUI {
 
   /** Update connection status indicator */
   setConnectionStatus(status, detail) {
-    this.connectionStatus.className = 'mp-connection-status ' + status;
     const labels = {
       connected: 'Connected',
       reconnecting: detail || 'Reconnecting...',
@@ -120,7 +119,14 @@ export class MultiplayerUI {
       'opponent-disconnected': 'Opponent disconnected',
       'connection-lost': 'Connection lost',
     };
-    this.connectionStatus.textContent = labels[status] || status;
+    const text = labels[status] || status;
+    const className = 'mp-connection-status ' + status;
+    this.connectionStatus.className = className;
+    this.connectionStatus.textContent = text;
+    if (this.lobbyConnectionStatus) {
+      this.lobbyConnectionStatus.className = className;
+      this.lobbyConnectionStatus.textContent = text;
+    }
   }
 
   /**
@@ -435,6 +441,7 @@ export class MultiplayerUI {
 
     // Connection status
     this.connectionStatus = document.getElementById('mp-connection-status');
+    this.lobbyConnectionStatus = document.getElementById('lobby-connection-status');
   }
 
   _bindEvents() {
