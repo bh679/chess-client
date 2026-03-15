@@ -150,7 +150,7 @@ const replayController = new ReplayController({
     }),
     onEnterSharedReview: () => { sharedReviewActive = true; mp.sendReviewEnter(); },
     onExitSharedReview: () => {
-      if (sharedReviewActive) { mp.sendReviewExit(); sharedReviewActive = false; peerInReview = false; peerAnalysisRunning = false; }
+      if (sharedReviewActive) { mp.sendReviewExit(); sharedReviewActive = false; peerInReview = false; peerAnalysisRunning = false; lastMultiplayerGameRecord = null; }
     },
     onNavigate: (ply) => { if (sharedReviewActive && !isRemoteNavigation) mp.sendReviewNavigate(ply); },
     shouldClearPeerArrows: () => sharedReviewActive,
