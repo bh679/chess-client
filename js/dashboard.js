@@ -359,7 +359,22 @@ function renderCategoryFilterBar(events) {
 
 // --- TURN status banner ---
 
-function renderTurnStatus(iceData) {
+function renderUsageBar(usageData) {
+  if (!usageData || !usageData.available) return '';
+  const { usageInGB = 0, quotaInGB = 0, overageInGB = 0 } = usageData;
+  const usageStr = usageInGB.toFixed(2);
+  const quotaStr = quotaInGB > 0 ? quotaInGB.toFixed(0) : '\u221E';
+  const pct = quotaInGB > 0 ? Math.min((usageInGB / quotaInGB) * 100, 100) : 0;
+  const overStr = overageInGB > 0 ? ` \u00B7 <span class="turn-usage-overage">+${overageInGB.toFixed(2)} GB overage</span>` : '';
+  const barClass = overageInGB > 0 ? 'turn-usage-fill overage' : (pct >= 80 ? 'turn-usage-fill warn' : 'turn-usage-fill');
+  return `<div class="turn-usage-row">
+    <span class="turn-usage-label">Metered usage:</span>
+    <span class="turn-usage-text">${esc(usageStr)} / ${esc(quotaStr)} GB${overStr}</span>
+    ${quotaInGB > 0 ? `<div class="turn-usage-track"><div class="${barClass}" style="width:${pct.toFixed(1)}%"></div></div>` : ''}
+  </div>`;
+}
+
+function renderTurnStatus(iceData, usageData = null) {
   if (iceData === null) {
     return `<div class="turn-status-bar turn-fail"><span class="turn-status-label">\u26A0 TURN status unavailable</span><span class="turn-status-detail">Could not reach /api/chess/ice-servers</span></div>`;
   }
@@ -368,17 +383,18 @@ function renderTurnStatus(iceData) {
   const turnCount = servers.filter(s => s.username !== undefined).length;
   const stunCount = servers.filter(s => s.username === undefined).length;
   const provider = iceData.turnProvider || 'unknown';
+  const usage = renderUsageBar(usageData);
 
   if (provider === 'stun-only' || turnCount === 0) {
-    return `<div class="turn-status-bar turn-warn"><span class="turn-status-label">\u26A0 STUN only</span><span class="turn-status-detail">No TURN servers configured \u00B7 ${stunCount} stun</span></div>`;
+    return `<div class="turn-status-bar turn-warn"><span class="turn-status-label">\u26A0 STUN only</span><span class="turn-status-detail">No TURN servers configured \u00B7 ${stunCount} stun</span>${usage}</div>`;
   }
 
-  return `<div class="turn-status-bar turn-ok"><span class="turn-status-label">\u2713 TURN active</span><span class="turn-status-detail">provider: ${esc(provider)} \u00B7 ${turnCount} turn server${turnCount !== 1 ? 's' : ''} \u00B7 ${stunCount} stun</span></div>`;
+  return `<div class="turn-status-bar turn-ok"><span class="turn-status-label">\u2713 TURN active</span><span class="turn-status-detail">provider: ${esc(provider)} \u00B7 ${turnCount} turn server${turnCount !== 1 ? 's' : ''} \u00B7 ${stunCount} stun</span>${usage}</div>`;
 }
 
 // --- Main render ---
 
-function renderDashboard(data, navEntries, versions = {}, iceData = null) {
+function renderDashboard(data, navEntries, versions = {}, iceData = null, usageData = null) {
   const { events = [], count = 0, gameId, roomCode, game, issueReports = [] } = data;
   const ctxLabel = gameId ? `Game ${gameId}` : (roomCode ? `Room ${roomCode}` : 'Recent');
   const versionLine = (versions.client || versions.api)
@@ -408,7 +424,7 @@ function renderDashboard(data, navEntries, versions = {}, iceData = null) {
   </div>
 </div>
 
-${renderTurnStatus(iceData)}
+${renderTurnStatus(iceData, usageData)}
 
 <div class="summary">
   <div class="stat"><span class="stat-label">Game ID</span><span class="stat-value">${esc(String(gameId || '\u2014'))}</span></div>
@@ -508,13 +524,14 @@ async function init() {
     if (params.has('category')) qp.push(`category=${encodeURIComponent(params.get('category'))}`);
     if (qp.length) dataUrl += '?' + qp.join('&');
 
-    // Fetch data, nav, version info, and ICE server status in parallel
-    const [dataRes, navRes, healthRes, pkgRes, iceRes] = await Promise.all([
+    // Fetch data, nav, version info, ICE server status, and TURN usage in parallel
+    const [dataRes, navRes, healthRes, pkgRes, iceRes, usageRes] = await Promise.all([
       fetch(dataUrl),
       fetch(`${API_BASE}/nav`),
       fetch('/api/chess/health').catch(() => null),
       fetch('/package.json').catch(() => null),
       fetch('/api/chess/ice-servers').catch(() => null),
+      fetch('/api/chess/turn-usage').catch(() => null),
     ]);
 
     if (!dataRes.ok) {
@@ -528,9 +545,10 @@ async function init() {
     const healthData = healthRes && healthRes.ok ? await healthRes.json().catch(() => ({})) : {};
     const pkgData = pkgRes && pkgRes.ok ? await pkgRes.json().catch(() => ({})) : {};
     const iceData = iceRes && iceRes.ok ? await iceRes.json().catch(() => null) : null;
+    const usageData = usageRes && usageRes.ok ? await usageRes.json().catch(() => null) : null;
     const versions = { client: pkgData.version || null, api: healthData.version || null };
 
-    app.innerHTML = renderDashboard(data, navData.entries, versions, iceData);
+    app.innerHTML = renderDashboard(data, navData.entries, versions, iceData, usageData);
     bindEvents(data);
   } catch (e) {
     app.innerHTML = `<div class="empty">Error loading diagnostics: ${esc(e.message)}</div>`;

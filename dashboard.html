@@ -114,12 +114,22 @@
   .loading { color: #94a3b8; padding: 48px; text-align: center; font-size: 14px; }
 
   /* TURN status banner */
-  .turn-status-bar { padding: 6px 24px; font-size: 12px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #334155; }
+  .turn-status-bar { padding: 6px 24px; font-size: 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid #334155; }
   .turn-ok   { background: #052e16; color: #4ade80; }
   .turn-warn { background: #2d1a00; color: #fb923c; }
   .turn-fail { background: #2d0a0a; color: #f87171; }
   .turn-status-label { font-weight: 700; }
   .turn-status-detail { color: #94a3b8; font-size: 11px; }
+
+  /* TURN usage bar */
+  .turn-usage-row { display: flex; align-items: center; gap: 8px; width: 100%; padding-bottom: 3px; }
+  .turn-usage-label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; white-space: nowrap; }
+  .turn-usage-text { font-size: 11px; color: #94a3b8; white-space: nowrap; }
+  .turn-usage-overage { color: #f87171; font-weight: 700; }
+  .turn-usage-track { flex: 1; min-width: 80px; max-width: 200px; height: 4px; background: #1e293b; border-radius: 2px; overflow: hidden; }
+  .turn-usage-fill { height: 100%; background: #4ade80; border-radius: 2px; }
+  .turn-usage-fill.warn { background: #fb923c; }
+  .turn-usage-fill.overage { background: #f87171; }
 
   /* Issue Reports */
   .ir-section { margin: 12px 24px; }
