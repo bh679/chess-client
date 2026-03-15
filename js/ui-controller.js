@@ -195,34 +195,31 @@ export class UIController {
     if (this.replayController.isActive || this.gameCtrl.moveCount > 0) return;
     this.closeAllPopups();
 
-    const slider = this.settingsCtrl.getEloSlider(side);
-    const settingsValue = this.settingsCtrl.getEloValueEl(side);
+    const eloCfg = this.settingsCtrl.getEloConfig(side);
 
     // Don't show popup for engines with no ELO range (e.g. Random)
-    if (slider.min === slider.max) return;
+    if (!eloCfg) return;
 
     const popup = document.createElement('div');
     popup.className = 'elo-popup';
 
     const rangeInput = document.createElement('input');
     rangeInput.type = 'range';
-    rangeInput.min = slider.min;
-    rangeInput.max = slider.max;
-    rangeInput.step = slider.step;
-    rangeInput.value = slider.value;
+    rangeInput.min = eloCfg.min;
+    rangeInput.max = eloCfg.max;
+    rangeInput.step = eloCfg.step;
+    rangeInput.value = eloCfg.value;
     rangeInput.className = 'elo-slider';
 
     const valueDisplay = document.createElement('span');
     valueDisplay.className = 'elo-value';
-    valueDisplay.textContent = slider.value;
+    valueDisplay.textContent = eloCfg.value;
 
     rangeInput.addEventListener('input', () => {
-      valueDisplay.textContent = rangeInput.value;
-      // Sync with settings panel slider
-      slider.value = rangeInput.value;
-      settingsValue.textContent = rangeInput.value;
-      // Update the player bar elo display
-      eloEl.textContent = rangeInput.value;
+      const elo = parseInt(rangeInput.value, 10);
+      valueDisplay.textContent = elo;
+      this.settingsCtrl.setElo(side, elo);
+      eloEl.textContent = elo;
     });
 
     popup.appendChild(rangeInput);
@@ -361,9 +358,8 @@ export class UIController {
     if (this.replayController.isActive || this.gameCtrl.multiplayerActive) return;
     if (nameEl.querySelector('.engine-switch-select')) return;
 
-    const isWhite = side === 'white';
-    const settingsSelect = this.settingsCtrl.getEngineSelect(isWhite ? 'w' : 'b');
-    const currentEngineId = settingsSelect.value;
+    const sideKey = side === 'white' ? 'w' : 'b';
+    const currentEngineId = this.settingsCtrl.getEngineId(sideKey);
     const currentName = nameEl.textContent;
 
     const select = document.createElement('select');
@@ -394,8 +390,7 @@ export class UIController {
         select.parentNode.removeChild(select);
       }
       if (newId !== currentEngineId) {
-        settingsSelect.value = newId;
-        settingsSelect.dispatchEvent(new Event('change'));
+        this.settingsCtrl.setEngine(sideKey, newId);
         this.callbacks.startNewGame();
       } else {
         nameEl.textContent = currentName;

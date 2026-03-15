@@ -201,11 +201,6 @@ settingsCtrl.onSettingChanged = (name, value) => {
     }
     if (value) { mainEvalBar.show(); mainEvalBar.reset(); liveEval(); }
     else { mainEvalBar.hide(); mainEvalBar.reset(); if (liveEvalEngine) liveEvalEngine.stop(); }
-  } else if (name === 'boardTint' && mp && mp.color) {
-    const tint = value / 100;
-    if (videoBoard.isActive()) videoBoard.updateTurnTint(game.getTurn(), mp.color, tint);
-    if (splitCam.isActive()) splitCam.updateTurnTint(game.getTurn(), mp.color, tint);
-    if (splitCamH.isActive()) splitCamH.updateTurnTint(game.getTurn(), mp.color, tint);
   }
 };
 
