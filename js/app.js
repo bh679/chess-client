@@ -2250,11 +2250,15 @@ mpUI.onCamChange((mode) => {
   uiCtrl.applyCamMode(mode);
 });
 
-// Waiting room color preference — flip board to preview selected color
+// Waiting room color preference — flip board to preview selected color and update names
 mpUI.onColorPreferenceChange((pref) => {
   const asBlack = pref === 'black';
   board.setFlipped(asBlack);
   appEl.classList.toggle('board-flipped', asBlack);
+  playerNameWhite.textContent = asBlack ? 'Opponent' : 'You';
+  playerNameBlack.textContent = asBlack ? 'You' : 'Opponent';
+  playerNameWhite.classList.toggle('multiplayer-opponent', asBlack);
+  playerNameBlack.classList.toggle('multiplayer-opponent', !asBlack);
 });
 
 // --- Route handlers ---
