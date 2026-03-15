@@ -371,12 +371,13 @@ function renderUsageBar(usageData) {
   const pct = quotaInGB > 0 ? Math.min((usageInGB / quotaInGB) * 100, 100) : 0;
   const quotaStr = quotaInGB > 0 ? `${fmtGB(quotaInGB)} GB` : '\u221E';
   const overStr = overageInGB > 0 ? ` \u00B7 <span class="turn-usage-overage">+${fmtGB(overageInGB)} GB overage</span>` : '';
-  const resetStr = nextResetDate ? ` \u00B7 resets ${esc(nextResetDate)}` : '';
+  const resetStr = nextResetDate ? `<span class="turn-usage-reset">resets ${esc(nextResetDate)}</span>` : '';
   const barClass = overageInGB > 0 ? 'turn-usage-fill overage' : (pct >= 80 ? 'turn-usage-fill warn' : 'turn-usage-fill');
   return `<div class="turn-usage-row">
     <span class="turn-usage-label">Metered usage:</span>
-    <span class="turn-usage-text">${esc(fmtGB(usageInGB))} / ${quotaStr}${overStr}${resetStr}</span>
+    <span class="turn-usage-text">${esc(fmtGB(usageInGB))} / ${quotaStr}${overStr}</span>
     ${quotaInGB > 0 ? `<div class="turn-usage-track"><div class="${barClass}" style="width:${pct.toFixed(1)}%"></div></div>` : ''}
+    ${resetStr}
   </div>`;
 }
 
