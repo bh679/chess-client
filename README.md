@@ -128,6 +128,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Lobby performance**](https://github.com/bh679/chess-client/wiki/Feature:-Lobby-Performance) — diff-based lobby list rendering, event-driven dev mode check, idle-aware database sync, and reduced polling overhead for smoother lobby experience
 - [**Connection status in lobby**](https://github.com/bh679/chess-client/wiki/Feature:-Connection-Status-in-Lobby) — the connection status label ("Connected", "Reconnecting...", "Opponent disconnected", etc.) now appears inside the lobby panel as well as during active games
 - **Split-cam color fix** — camera feeds in Side by Side / Top-Bottom modes no longer vanish when the board is re-oriented due to a color preference change in the lobby
+- [**Public lobby by default**](https://github.com/bh679/chess-client/wiki/Feature:-Public-Lobby-Default) — new online games are now open to the public by default; the globe icon (🌐) in the lobby bar is active when you create a room so other players can find and join without needing a share link
 
 ## Roadmap
 
