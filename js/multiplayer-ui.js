@@ -114,6 +114,7 @@ export class MultiplayerUI {
   showRematchControls() {
     this.rematchControls.classList.remove('hidden');
     this.rematchStatus.textContent = '';
+    this.rematchOfferBtn.textContent = 'Rematch';
     this.rematchOfferBtn.classList.remove('hidden');
   }
 
