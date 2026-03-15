@@ -190,6 +190,7 @@ js/live-move-bar.js     Live move bar and live review mode (persistent strip dur
 js/face-tracker.js      Face detection (MediaPipe) for video board centering
 js/video-board.js       Video board mode (camera feeds as board mosaic)
 js/split-cam.js         Split Cam mode (left half = white player, right half = black player)
+js/split-cam-h.js       Top/Bottom Cam mode (local player always bottom, remote always top)
 js/cropped-stream.js    Face-tracked canvas stream for WebRTC transmission
 js/chess.js             chess.js engine (full rule enforcement)
 js/lib/stockfish.js     Stockfish WASM engine (Web Worker)
