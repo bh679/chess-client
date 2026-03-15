@@ -115,6 +115,17 @@ export class MultiplayerUI {
     this.rematchControls.classList.remove('hidden');
     this.rematchStatus.textContent = '';
     this.rematchOfferBtn.classList.remove('hidden');
+    if (this.summaryBtn) this.summaryBtn.classList.add('hidden'); // summary is open
+  }
+
+  /** Show the Summary button (after user closes the post-game summary modal) */
+  showSummaryButton() {
+    if (this.summaryBtn) this.summaryBtn.classList.remove('hidden');
+  }
+
+  /** Hide the Summary button (when re-opening the post-game summary modal) */
+  hideSummaryButton() {
+    if (this.summaryBtn) this.summaryBtn.classList.add('hidden');
   }
 
   /** Show rematch offer received */
@@ -506,6 +517,7 @@ export class MultiplayerUI {
     this.rematchControls = document.getElementById('mp-rematch-controls');
     this.rematchOfferBtn = document.getElementById('mp-rematch-offer-btn');
     this.rematchStatus = document.getElementById('mp-rematch-status');
+    this.summaryBtn = document.getElementById('mp-summary-btn');
 
     // Per-player connection status dots (shown inline next to player names during online games)
     this.playerConnStatusWhite = document.getElementById('player-connection-status-white');
