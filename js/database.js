@@ -212,17 +212,27 @@ class GameDatabase {
     }
   }
 
-  async listAllGames({ limit = 15, offset = 0 } = {}) {
+  async listAllGames({ limit = 9999, offset = 0 } = {}) {
     if (!this._available) return [];
     try {
-      const res = await fetch(`${API_BASE}/games/list-all`, {
-        method: 'POST',
-        headers: this._headers(),
-        body: JSON.stringify({ limit, offset }),
-      });
-      if (!res.ok) return [];
-      const data = await res.json();
-      return data.games;
+      const PAGE_SIZE = 100;
+      const all = [];
+      let fetched = 0;
+      let total = null;
+      do {
+        const res = await fetch(`${API_BASE}/games/list-all`, {
+          method: 'POST',
+          headers: this._headers(),
+          body: JSON.stringify({ limit: PAGE_SIZE, offset: fetched }),
+        });
+        if (!res.ok) break;
+        const data = await res.json();
+        if (total === null) total = data.total;
+        all.push(...data.games);
+        fetched += data.games.length;
+        if (data.games.length < PAGE_SIZE) break;
+      } while (fetched < Math.min(limit, total));
+      return all;
     } catch (e) {
       console.warn('Failed to list all games:', e);
       return [];
