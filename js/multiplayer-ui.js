@@ -180,10 +180,11 @@ export class MultiplayerUI {
     this._shareUrl = shareUrl;
     this.waitingUrlDisplay.textContent = roomId;
 
-    // Reset public state
-    this._isPublic = false;
-    this.publicToggleBtn.classList.remove('active');
-    this.publicToggleBtn.title = 'Make lobby public';
+    // Default to public
+    this._isPublic = true;
+    this.publicToggleBtn.classList.add('active');
+    this.publicToggleBtn.title = 'Lobby is public';
+    this.mp.setPublic(true);
 
     // Show lobby panel in waiting mode
     this._renderLobbyPanel();
@@ -578,7 +579,7 @@ export class MultiplayerUI {
     });
 
     // Public toggle button
-    this._isPublic = false;
+    this._isPublic = true;
     this.publicToggleBtn.addEventListener('click', () => {
       this._isPublic = !this._isPublic;
       this.mp.setPublic(this._isPublic);
