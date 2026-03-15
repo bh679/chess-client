@@ -222,6 +222,34 @@ body {
   border-color: var(--accent-hover);
 }
 
+#new-game.hidden {
+  display: none;
+}
+
+#exit-game {
+  height: 34px;
+  line-height: 32px;
+  padding: 0 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(239, 83, 80, 0.1);
+  color: var(--danger, #ef5350);
+  border: 1.5px solid var(--danger, #ef5350);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+#exit-game:hover {
+  background: var(--danger, #ef5350);
+  color: #fff;
+}
+
+#exit-game.hidden {
+  display: none;
+}
+
 /* Start game button in header */
 .start-game-btn {
   height: 34px;
