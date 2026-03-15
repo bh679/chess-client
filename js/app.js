@@ -512,11 +512,11 @@ function stopAllVideo() {
 }
 
 /**
- * Full application reset — returns to a fresh local game.
- * Resets: game, network, video, auto-reconnection, UI.
+ * Reset all transient application state (video, network, UI).
+ * Does NOT start a new game — caller decides what to do next.
  * Preserves: settings, account, username cache.
  */
-function hardReset() {
+function resetState() {
   // Video
   _userStoppedCamera = false;
   stopAllVideo();
@@ -552,8 +552,11 @@ function hardReset() {
 
   // Re-render board (removes kingCam video elements)
   board.render();
+}
 
-  // Start fresh local game
+/** Full reset + start a fresh local game. */
+function hardReset() {
+  resetState();
   startNewGame();
 }
 
@@ -733,7 +736,9 @@ newGameBtn.addEventListener('click', async () => {
       'Resign Game?'
     );
     if (!confirmed) return;
-    hardReset();
+    resetState();
+    newGameMenu.showExitButton();
+    newGameMenu.open();
     return;
   }
 
