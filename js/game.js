@@ -151,6 +151,7 @@ class Game {
   }
 
   getGameStatus() {
+    if (this._timedOut) return 'Time out';
     if (this.chess.isCheckmate()) {
       const winner = this.chess.turn() === 'w' ? 'Black' : 'White';
       return `Checkmate! ${winner} wins`;
