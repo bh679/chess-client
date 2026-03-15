@@ -1,9 +1,9 @@
 {
     "name": "chess-client",
-    "version": "2.04.0001",
+    "version": "2.04.0004",
     "requiredApiVersion": "1.03",
     "private": true,
-    "description": "Chess client \u2014 static site with vanilla JavaScript",
+    "description": "Chess client — static site with vanilla JavaScript",
     "dependencies": {
         "playwright": "^1.58.2"
     }
