@@ -1223,6 +1223,11 @@ mp.onLobbyJoined = async (payload) => {
   playerNameBlack.textContent = payload.color === 'b' ? 'You' : payload.opponentName || 'Opponent';
   playerNameWhite.classList.toggle('multiplayer-opponent', payload.color !== 'w');
   playerNameBlack.classList.toggle('multiplayer-opponent', payload.color !== 'b');
+  // Reset icons and elo from any previous game
+  playerIconWhite.textContent = '\uD83C\uDF10';
+  playerIconBlack.textContent = '\uD83C\uDF10';
+  playerEloWhite.classList.add('hidden');
+  playerEloBlack.classList.add('hidden');
 
   // Orient board to player's color and configure timer for lobby preview
   board.setFlipped(payload.color === 'b');
@@ -1248,8 +1253,19 @@ mp.onLobbyJoined = async (payload) => {
 mp.onSettingChanged = (payload) => {
   mpUI.showSettingChanged(payload);
 
+  // Capture opponent name before mp.color changes
+  const opponentName = mp.color === 'w'
+    ? playerNameBlack.textContent
+    : playerNameWhite.textContent;
+
   // Keep mp.color in sync (server sends current color in every setting_changed)
   mp.color = payload.color;
+
+  // Update player name labels to match the new colour assignment
+  playerNameWhite.textContent = payload.color === 'w' ? 'You' : opponentName;
+  playerNameBlack.textContent = payload.color === 'b' ? 'You' : opponentName;
+  playerNameWhite.classList.toggle('multiplayer-opponent', payload.color !== 'w');
+  playerNameBlack.classList.toggle('multiplayer-opponent', payload.color !== 'b');
 
   // Flip board to match new color assignment and update timer display
   // Skip board flip for colorPreference — handled live by onColorPreferenceChange callback
