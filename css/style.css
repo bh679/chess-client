@@ -811,6 +811,7 @@ body {
 }
 .player-conn-dot.disconnected { color: var(--danger); }
 .player-conn-dot.connection-lost { color: var(--danger); }
+.player-conn-dot.hidden { display: none; }
 
 .player-name-input {
   background: var(--bg-sunken);
