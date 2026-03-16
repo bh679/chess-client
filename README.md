@@ -47,6 +47,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - [**Classic**](https://github.com/bh679/Chess/wiki/Feature:-Art-Styles) — traditional SVG chess pieces
 - [**Staunton**](https://github.com/bh679/Chess/wiki/Feature:-Art-Styles) — classic Staunton design
 - [**Gothic**](https://github.com/bh679/Chess/wiki/Feature:-Art-Styles) — gothic style pieces
+- [**Chessmaster**](https://github.com/bh679/chess-client/wiki/Feature:-Chessmaster-Art-Style) — SNES Chessmaster pixel art sprites with transparent backgrounds
 
 ### [Sound Effects](https://github.com/bh679/chess-client/wiki/Feature:-Sound-Effects)
 - [**Piano sound effects**](https://github.com/bh679/chess-client/wiki/Feature:-Sound-Effects) — distinct sounds for piece moves, captures, check, checkmate/draw, and game start (MIT-licensed Lichess piano audio)
