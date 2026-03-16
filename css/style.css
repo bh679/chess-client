@@ -4448,6 +4448,44 @@ button.replay-summary-btn {
 }
 .profile-filter-select:hover { border-color: var(--border-hover); }
 
+.profile-multiselect { position: relative; }
+.profile-multiselect-btn {
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.profile-multiselect-btn:hover { border-color: var(--border-hover); }
+.profile-multiselect-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 100;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 0;
+  min-width: 140px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.profile-multiselect-dropdown.hidden { display: none; }
+.profile-multiselect-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--text-primary);
+  user-select: none;
+}
+.profile-multiselect-option:hover { background: var(--bg-hover); }
+.profile-multiselect-option input[type="checkbox"] { cursor: pointer; }
+
 .profile-filter-label {
   font-size: 0.75rem;
   color: var(--text-secondary);
