@@ -81,7 +81,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 
 ### [User Accounts](https://github.com/bh679/Chess/wiki/Feature:-User-Accounts)
 - **Local auth** — register and sign in with username/password (bcrypt hashing, JWT tokens)
-- **User profile** — view Glicko-2 ratings (Bullet/Blitz/Rapid/Classical), game history with full filters (result, player type, game type, time control, elo range)
+- **User profile** — view Glicko-2 ratings (Bullet/Blitz/Rapid/Classical), game history with multi-select result filter (abandoned hidden by default), player type, game type, time control, and elo range filters
 - **Clickable game rows** — click any game in your profile to replay it
 - **Friends system** — add friends, accept/reject requests, view friend list
 - **Settings sync** — user settings persist across sessions via the server
