@@ -87,6 +87,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 - **Friends system** — add friends, accept/reject requests, view friend list
 - **Settings sync** — user settings persist across sessions via the server
 - **Game claiming** — games are linked to your account at creation; pre-login games are batch claimed on sign-in
+- **Account name as player name** — multiplayer name inputs auto-populate with your account's display name when signed in
 
 ### [Deployment](https://github.com/bh679/Chess/wiki/Feature:-Deployment-Status-Page)
 - [**Deployment status page**](https://github.com/bh679/Chess/wiki/Feature:-Deployment-Status-Page) — standalone page showing real-time deployment progress with step-by-step status, elapsed timer, deployment history, and auto-redirect on completion; index.html redirects visitors to the deployment page during active deploys

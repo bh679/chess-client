@@ -69,6 +69,11 @@ export class NewGameMenu {
     }
   }
 
+  /** Update the player name input when auth state changes */
+  updateNameFromAuth(user) {
+    if (user) this.onlineNameInput.value = user.displayName || user.username || '';
+  }
+
   open() {
     this._showStep('opponent');
     this.modal.classList.remove('hidden');
@@ -135,8 +140,9 @@ export class NewGameMenu {
 
     // Online step elements
     this.onlineNameInput = document.getElementById('ng-online-name');
-    const savedPlayerName = localStorage.getItem('chess-player-name');
-    if (savedPlayerName) this.onlineNameInput.value = savedPlayerName;
+    const _ngAuthUser = (() => { try { return JSON.parse(localStorage.getItem('chess-auth-user')); } catch { return null; } })();
+    const _ngDefaultName = (_ngAuthUser && (_ngAuthUser.displayName || _ngAuthUser.username)) || localStorage.getItem('chess-player-name');
+    if (_ngDefaultName) this.onlineNameInput.value = _ngDefaultName;
     this.onlineTcSelect = document.getElementById('ng-online-tc');
     this.onlineCamBtn = document.getElementById('ng-online-cam-btn');
     this.online960Btn = document.getElementById('ng-online-960-btn');
