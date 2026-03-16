@@ -5,7 +5,7 @@ const PIECE_VALUES = { q: 9, r: 5, b: 3, n: 3, p: 1 };
 const PIECE_DISPLAY = { k: 'K', q: 'Q', r: 'R', b: 'B', n: 'N', p: 'P' };
 
 const DEV_MODE_KEY = 'chess-dev-mode';
-const CAM_LABELS = { 'king-cam': 'King·Cam', 'split-cam': 'Side/Side', 'split-cam-h': 'Top/Bottom', 'none': 'No-Cam' };
+const CAM_LABELS = { 'board-face': 'Board-Face', 'king-cam': 'King·Cam', 'split-cam': 'Side/Side', 'split-cam-h': 'Top/Bottom', 'none': 'No-Cam' };
 
 /**
  * UIController — owns UI rendering and pre-game inline controls.
@@ -426,8 +426,9 @@ export class UIController {
 
   _buildRoomText(room) {
     const tc = room.timeControl === 'none' ? 'No timer' : room.timeControl;
-    const variant = room.chess960 ? ' · 960' : '';
-    const cam = (room.camMode && room.camMode !== 'board-face') ? ` · ${CAM_LABELS[room.camMode] ?? room.camMode}` : '';
+    const variant = room.chess960 ? ' · Chess960' : ' · Chess';
+    const camMode = room.camMode || 'board-face';
+    const cam = ` · ${CAM_LABELS[camMode] ?? camMode}`;
     return `${room.hostName || 'Opponent'} — ${tc}${variant}${cam}`;
   }
 
