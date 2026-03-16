@@ -46,6 +46,7 @@ class PostGameSummary {
     this._progressTextEl = null;
     this._bodyEl = null;
     this._actionsEl = null;
+    this._flagBtnEl = null;
     this._onReview = null;
     this._onNewGame = null;
     this._onClose = null;
@@ -135,13 +136,10 @@ class PostGameSummary {
   }
 
   /**
-   * Insert an action button element at the start of the actions area.
-   * Used by IssueReporter to add a flag button to the summary.
+   * Return the flag button element for IssueReporter to bind its behaviour to.
    */
-  addActionButton(el) {
-    if (el && this._actionsEl) {
-      this._actionsEl.insertBefore(el, this._actionsEl.firstChild);
-    }
+  getPgsFlagButton() {
+    return this._flagBtnEl;
   }
 
   close() {
@@ -216,6 +214,13 @@ class PostGameSummary {
       if (this._onClose) this._onClose();
     });
 
+    const flagBtn = document.createElement('button');
+    flagBtn.className = 'pgs-btn pgs-btn-flag';
+    flagBtn.title = 'Report an issue';
+    flagBtn.textContent = '\u2691';
+    this._flagBtnEl = flagBtn;
+
+    this._actionsEl.appendChild(flagBtn);
     this._actionsEl.appendChild(reviewBtn);
     this._actionsEl.appendChild(newGameBtn);
     this._actionsEl.appendChild(closeBtn);

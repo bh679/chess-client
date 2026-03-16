@@ -671,10 +671,15 @@ export class MultiplayerUI {
       const value = this.inlineTcSelect.value;
       this.inlineTcDisplay.classList.remove('hidden');
       this.inlineTcSelect.classList.add('hidden');
-      if (value === 'custom') {
+      if (value === 'custom' || value === 'odds') {
         this._pendingLobbyCustomTc = true;
         document.getElementById('custom-your-label').textContent = 'Your time (min):';
         document.getElementById('custom-opponent-label').textContent = "Opponent's time (min):";
+        const isOdds = value === 'odds';
+        const oddsToggle = document.getElementById('custom-odds-toggle');
+        oddsToggle.checked = isOdds;
+        document.getElementById('same-time-fields').classList.toggle('hidden', isOdds);
+        document.getElementById('odds-time-fields').classList.toggle('hidden', !isOdds);
         document.getElementById('custom-time-modal').classList.remove('hidden');
         return;
       }
