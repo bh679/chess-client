@@ -490,57 +490,21 @@
     </div>
   </div>
 
+  <!-- Hidden time-control state store (read by getTimeConfig; value set by new-game wizard) -->
+  <select id="time-control" hidden aria-hidden="true">
+    <option value="0" selected>No Timer</option>
+    <option value="60|0">Bullet 1+0</option>
+    <option value="180|2">Blitz 3+2</option>
+    <option value="300|0">Rapid 5+0</option>
+    <option value="600|0">Rapid 10+0</option>
+    <option value="1800|0">Classical 30+0</option>
+    <option value="custom">Custom...</option>
+  </select>
+
   <!-- Settings bottom sheet (outside .app for overlay positioning) -->
   <div id="settings-backdrop" class="settings-backdrop"></div>
   <div id="settings-panel" class="settings-panel">
     <div class="settings-handle"></div>
-
-    <div class="settings-section">
-      <div class="settings-section-title">Game</div>
-      <div class="settings-row">
-        <label class="control-checkbox">
-          <input type="checkbox" id="chess960-toggle" checked>
-          <span>Chess960</span>
-        </label>
-        <select id="time-control">
-          <option value="0" selected>No Timer</option>
-          <option value="60|0">Bullet 1+0</option>
-          <option value="180|2">Blitz 3+2</option>
-          <option value="300|0">Rapid 5+0</option>
-          <option value="600|0">Rapid 10+0</option>
-          <option value="1800|0">Classical 30+0</option>
-          <option value="custom">Custom...</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="settings-section">
-      <div class="settings-section-title">Players</div>
-      <div class="ai-per-side">
-        <div class="ai-side-control">
-          <label class="control-checkbox">
-            <input type="checkbox" id="ai-white-toggle">
-            <span>AI White</span>
-          </label>
-          <select id="ai-white-engine" class="engine-select hidden"></select>
-          <div id="ai-white-elo-wrapper" class="ai-elo-wrapper hidden">
-            <input type="range" id="ai-white-elo" class="elo-slider" min="100" max="3200" value="1500" step="50">
-            <span id="ai-white-elo-value" class="elo-value">1500</span>
-          </div>
-        </div>
-        <div class="ai-side-control">
-          <label class="control-checkbox">
-            <input type="checkbox" id="ai-black-toggle" checked>
-            <span>AI Black</span>
-          </label>
-          <select id="ai-black-engine" class="engine-select"></select>
-          <div id="ai-black-elo-wrapper" class="ai-elo-wrapper">
-            <input type="range" id="ai-black-elo" class="elo-slider" min="100" max="3200" value="500" step="50">
-            <span id="ai-black-elo-value" class="elo-value">500</span>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <div class="settings-section">
       <div class="settings-section-title">Display</div>
@@ -557,9 +521,15 @@
           <input type="checkbox" id="premoves-toggle">
           <span>Premoves</span>
         </label>
-        <label class="control-checkbox">
-          <input type="checkbox" id="sound-toggle" checked>
-          <span>Sound Effects</span>
+      </div>
+      <div class="settings-row" style="margin-top: 8px;">
+        <label class="tint-slider-label">Game Sounds
+          <input type="range" id="game-sound-slider" class="elo-slider" min="0" max="100" value="100" step="5">
+          <span id="game-sound-value" class="elo-value">100%</span>
+        </label>
+        <label class="tint-slider-label">Voice
+          <input type="range" id="voice-volume-slider" class="elo-slider" min="0" max="100" value="100" step="5">
+          <span id="voice-volume-value" class="elo-value">100%</span>
         </label>
       </div>
       <div class="settings-row" style="margin-top: 8px;">
@@ -590,12 +560,6 @@
           </button>
         </div>
       </div>
-      <div class="settings-row" style="margin-top: 8px;">
-        <label class="tint-slider-label">Board Tint
-          <input type="range" id="board-tint-slider" class="elo-slider" min="0" max="100" value="75" step="5">
-          <span id="board-tint-value" class="elo-value">75%</span>
-        </label>
-      </div>
     </div>
 
     <div class="settings-footer">
@@ -604,7 +568,7 @@
         <button id="archive-toggle" class="archive-btn">Archive</button>
         <div id="archive-menu" class="archive-menu hidden"></div>
       </div>
-      <span class="version">v1.15.0000</span>
+      <span class="version">v2.10.0001</span>
     </div>
   </div>
 
