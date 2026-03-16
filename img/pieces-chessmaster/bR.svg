@@ -1,6 +1,3 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-     viewBox="137 44 24 40">
-  <image xlink:href="../chessmaster-atlas.png"
-         x="0" y="0" width="200" height="116"
-         style="image-rendering:pixelated"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 40">
+  <image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAoCAYAAADkDTpVAAADtklEQVR4AbXBoZPbRhTA4Z8VgwcOLAh4IGBBgUDBQkHDg4IBAYX+EwIMnJmAwMKDAQWBgoUHDRcKBAgEPGDwgMACz6hVG3c8rn3nA/d9i5IKr6nilVW8siUvIFkmfiqpLLhBxY0ky9QqbO9r1o0iWSZuUPECq7Zl9f49GgK3qniB4sbQGy9RcQPJMvG34o4NGQmBW1U8Q7JMrcKX9w3mjsbE7nHH9r5Gskw8o+IJkmVqFVKqkaA0q5ZZs2rIuadVkCwTT6i4QrJMrUJKNSHWpCYRa8Xd2D3u6Aw64x+SZeKKJc+QEAhBmQ298dh1dAatgkZl9rAzrql4hsZErJWhN7qvD3QGrUKzarhFxY2G/MhRs2oo7tyi4hnuRt5lzJ3OoFWQoBzZYDyl4oqSyqIzKG4UN2ww1o3SrBpeYskzhmFAQ6BZNcwkKMWNmQ3GcyqukCzTulFsMHLuOVXcMXdOSZaJC5Y8I6WaWXFnVtwxd2wwZp3xpCVPiDFytHvccaoz2N7XJCDnns64qOIJxR2NCQnKUWfQGWzvayQEZhqVaxYlFa6RLNPXj2tmsVaG3nA3ZsUNCUqfd9hgfNOy4IKKKyTLtG6U3748EGtlFmslBCUERYLiQ48NRmdcVXGBZJnWjfKwM9aN8vvHLUNvHNmQ8aEn557O+IdkmbhgyRnJMrXKf2KM1Kmh+/rAqc74H8kylVQWnKg4IVmmVkGjYoMxk6CEoLS/rUmpRqMyaxVa5T+tQqsgWSZOLDmjUYkxYoOxbpRZrJV/rZAhM7PBOGqVqyp+kixTq6AhIEE5Km4c2ZCZxRjRqFzSKkiWiZ8qLihuNKuGmcbE0BvnNARuUXFGQqC5v0djwgbD3Yi1ckln0CpoVDQqGpVzS85IUI5WbYsPPTSJvMtIUIobxZ3tnz3rRtEQOGUYp5ac8aGHJhFrBRSaxOO3b8zMnZkNxpf3DaeKO5e82eiG2UY3nz58/7wN4x4OhXe//MJR/PVXWL7lLgTe6jtiXbOUO5Zyx6GMFHdmOfd0BiWVBT8tuWD3uEOCMktNYhZrBZSjoTdsyBR3nvJmoxuONrr59OH75219B0H424H9fsR+GGUE34/4fsT3I+7GaD84Mnf+6EdKKgtOvNnohlMb3Xz68P3zNox73oY7iu+BA6MboxujG6Mbo/1gZu6MpfCwM0oqC8682eiGcxvdfPrw/fM2jHvM9hw4IMChFA6lcCiFmbljg/FHP1JSWXDBoqTCNZJl4gYllQVXLEoqvKaKV/YX+4bIrqSm1hwAAAAASUVORK5CYII=" width="24" height="40" style="image-rendering:pixelated"/>
 </svg>
