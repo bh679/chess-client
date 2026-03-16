@@ -8,8 +8,9 @@ const STYLE_PATHS = {
   gothic:   'img/pieces-gothic',
   kawaii:   'img/pieces-kawaii',
   pixel:    'img/pieces-pixel',
-  neo:      'img/pieces-neo',
-  fish:     'img/pieces-fish',
+  neo:          'img/pieces-neo',
+  fish:         'img/pieces-fish',
+  chessmaster:  'img/pieces-chessmaster',
 };
 
 /**
