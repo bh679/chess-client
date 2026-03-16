@@ -556,9 +556,15 @@
           <input type="checkbox" id="premoves-toggle">
           <span>Premoves</span>
         </label>
-        <label class="control-checkbox">
-          <input type="checkbox" id="sound-toggle" checked>
-          <span>Sound Effects</span>
+      </div>
+      <div class="settings-row" style="margin-top: 8px;">
+        <label class="tint-slider-label">Game Sounds
+          <input type="range" id="game-sound-slider" class="elo-slider" min="0" max="100" value="100" step="5">
+          <span id="game-sound-value" class="elo-value">100%</span>
+        </label>
+        <label class="tint-slider-label">Voice
+          <input type="range" id="voice-volume-slider" class="elo-slider" min="0" max="100" value="100" step="5">
+          <span id="voice-volume-value" class="elo-value">100%</span>
         </label>
       </div>
       <div class="settings-row" style="margin-top: 8px;">
@@ -603,7 +609,7 @@
         <button id="archive-toggle" class="archive-btn">Archive</button>
         <div id="archive-menu" class="archive-menu hidden"></div>
       </div>
-      <span class="version">v1.15.0000</span>
+      <span class="version">v2.09.0001</span>
     </div>
   </div>
 

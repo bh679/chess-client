@@ -314,6 +314,7 @@ window.addEventListener('unhandledrejection', (event) => {
 // Video Chat
 const videoChat = new VideoChat(mp, diagnostics);
 const videoUI = new VideoUI(videoChat);
+settingsCtrl.setVoiceUi(videoUI);
 const videoBoard = new VideoBoard(boardEl);
 const kingCam = new KingCam();
 const splitCam = new SplitCam(boardEl);

@@ -15,6 +15,7 @@ export class VideoUI {
     this._videoChat = videoChat;
     this._visible = false;
     this._errorTimer = null;
+    this._remoteVolume = parseInt(localStorage.getItem('voiceVolume') ?? '100', 10) / 100;
 
     // Event callbacks — set by app.js
     this.onEndCall = null;         // () => void
@@ -57,9 +58,22 @@ export class VideoUI {
   setRemoteStream(stream) {
     if (this._remoteVideo) {
       this._remoteVideo.srcObject = stream;
+      this._remoteVideo.volume = this._remoteVolume;
     }
     if (this._remotePlaceholder) {
       this._remotePlaceholder.classList.add('hidden');
+    }
+  }
+
+  /**
+   * Set remote audio volume (0–100).
+   * @param {number} pct
+   */
+  setRemoteVolume(pct) {
+    this._remoteVolume = pct / 100;
+    localStorage.setItem('voiceVolume', String(pct));
+    if (this._remoteVideo) {
+      this._remoteVideo.volume = this._remoteVolume;
     }
   }
 

@@ -43,6 +43,7 @@ export class SettingsController {
     this._board = board;
     this._sound = sound;
     this._saveTimer = null;
+    this._voiceUi = null;
 
     /** Fired whenever a setting changes: (name, value) => void */
     this.onSettingChanged = null;
@@ -54,7 +55,10 @@ export class SettingsController {
       evalBarToggle:       document.getElementById('eval-bar-toggle'),
       premovesToggle:      document.getElementById('premoves-toggle'),
       animationsToggle:    document.getElementById('animations-toggle'),
-      soundToggle:         document.getElementById('sound-toggle'),
+      gameSoundSlider:     document.getElementById('game-sound-slider'),
+      gameSoundValue:      document.getElementById('game-sound-value'),
+      voiceVolumeSlider:   document.getElementById('voice-volume-slider'),
+      voiceVolumeValue:    document.getElementById('voice-volume-value'),
       chess960Toggle:      document.getElementById('chess960-toggle'),
       artStylePicker:      document.getElementById('art-style-picker'),
       boardTintSlider:     document.getElementById('board-tint-slider'),
@@ -416,8 +420,15 @@ export class SettingsController {
     settingsBackdrop.addEventListener('click', () => this.closeSettings());
   }
 
+  /** Connect the VideoUI instance so voice volume changes can be applied. */
+  setVoiceUi(voiceUi) {
+    this._voiceUi = voiceUi;
+  }
+
   _initToggles() {
-    const { evalBarToggle, premovesToggle, animationsToggle, soundToggle } = this._els;
+    const { evalBarToggle, premovesToggle, animationsToggle,
+            gameSoundSlider, gameSoundValue,
+            voiceVolumeSlider, voiceVolumeValue } = this._els;
 
     // Eval bar — init from localStorage; complex show/hide handled via onSettingChanged
     evalBarToggle.checked = localStorage.getItem('chess-eval-bar') === 'true';
@@ -444,11 +455,26 @@ export class SettingsController {
       this._notify('animations', animationsToggle.checked);
     });
 
-    // Sound
-    soundToggle.checked = this._sound.isEnabled();
-    soundToggle.addEventListener('change', () => {
-      this._sound.setEnabled(soundToggle.checked);
-      this._notify('sound', soundToggle.checked);
+    // Game sound volume
+    const savedSoundVol = parseInt(localStorage.getItem('soundVolume') ?? '100', 10);
+    gameSoundSlider.value = savedSoundVol;
+    gameSoundValue.textContent = savedSoundVol + '%';
+    this._sound.setVolume(savedSoundVol);
+    gameSoundSlider.addEventListener('input', () => {
+      const val = parseInt(gameSoundSlider.value, 10);
+      gameSoundValue.textContent = val + '%';
+      this._sound.setVolume(val);
+    });
+
+    // Voice volume
+    const savedVoiceVol = parseInt(localStorage.getItem('voiceVolume') ?? '100', 10);
+    voiceVolumeSlider.value = savedVoiceVol;
+    voiceVolumeValue.textContent = savedVoiceVol + '%';
+    voiceVolumeSlider.addEventListener('input', () => {
+      const val = parseInt(voiceVolumeSlider.value, 10);
+      voiceVolumeValue.textContent = val + '%';
+      localStorage.setItem('voiceVolume', String(val));
+      this._voiceUi?.setRemoteVolume(val);
     });
   }
 
