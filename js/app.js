@@ -241,6 +241,10 @@ auth.onAuthChange(async (user) => {
       playerNameWhite.textContent = displayName;
     }
 
+    // Pre-fill multiplayer name inputs with account name
+    mpUI.updateNameFromAuth(user);
+    newGameMenu.updateNameFromAuth(user);
+
     // Update local game records so player names sync to server
     for (const g of Object.values(allGames)) {
       if (g.metadata?.white && !g.metadata.white.isAI && g.metadata.white.name === 'Human') {

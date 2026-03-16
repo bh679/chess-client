@@ -56,6 +56,11 @@ export class MultiplayerUI {
   }
 
   /** Open the multiplayer modal (main menu) */
+  /** Update the player name input when auth state changes */
+  updateNameFromAuth(user) {
+    if (user) this.mpPlayerName.value = user.displayName || user.username || '';
+  }
+
   open() {
     this._showView('menu');
     this.modal.classList.remove('hidden');
@@ -482,8 +487,9 @@ export class MultiplayerUI {
     this.joinCodeInput = document.getElementById('mp-join-code');
     this.mpTimeControl = document.getElementById('mp-time-control');
     this.mpPlayerName = document.getElementById('mp-player-name');
-    const savedName = localStorage.getItem('chess-player-name');
-    if (savedName) this.mpPlayerName.value = savedName;
+    const _mpAuthUser = (() => { try { return JSON.parse(localStorage.getItem('chess-auth-user')); } catch { return null; } })();
+    const _mpDefaultName = (_mpAuthUser && (_mpAuthUser.displayName || _mpAuthUser.username)) || localStorage.getItem('chess-player-name');
+    if (_mpDefaultName) this.mpPlayerName.value = _mpDefaultName;
 
     // Waiting view in modal (still used for display but no longer primary waiting UI)
     this.waitingView = document.getElementById('mp-waiting');
