@@ -5,6 +5,7 @@ const STYLE_PATHS = {
   classic:  'img/pieces',
   staunton: 'img/pieces-staunton',
   gothic:   'img/pieces-gothic',
+  chessmaster:  'img/pieces-chessmaster',
 };
 
 /**
