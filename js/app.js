@@ -458,7 +458,7 @@ gameCtrl.setCallbacks({
   liveEval,
   getTimeConfig: () => {
     const val = timeControlSelect.value;
-    if (val === '0' || val === 'custom') return null;
+    if (val === '0' || val === 'custom' || val === 'odds') return null;
     const parts = val.split('|').map(Number);
     return {
       whiteSec: parts[0],
@@ -827,9 +827,14 @@ gameHistoryBtn.addEventListener('click', () => {
 
 // Time control select
 timeControlSelect.addEventListener('change', () => {
-  if (timeControlSelect.value === 'custom') {
+  const val = timeControlSelect.value;
+  if (val === 'custom' || val === 'odds') {
     customYourLabel.textContent = 'Your time (min):';
     customOpponentLabel.textContent = "Opponent's time (min):";
+    const isOdds = val === 'odds';
+    customOddsToggle.checked = isOdds;
+    sameTimeFields.classList.toggle('hidden', isOdds);
+    oddsTimeFields.classList.toggle('hidden', !isOdds);
     customTimeModal.classList.remove('hidden');
   } else {
     startNewGame();
