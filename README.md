@@ -45,9 +45,8 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 
 ### [Art Styles](https://github.com/bh679/Chess/wiki/Feature:-Art-Styles)
 - [**Classic**](https://github.com/bh679/Chess/wiki/Feature:-Art-Styles) — traditional SVG chess pieces
-- [**Pixel**](https://github.com/bh679/Chess/wiki/Feature:-Art-Styles) — pixel art style
-- [**Neo**](https://github.com/bh679/Chess/wiki/Feature:-Art-Styles) — bold modern style
-- [**Fish**](https://github.com/bh679/Chess/wiki/Feature:-Art-Styles) — fish/sea creature themed pieces
+- [**Staunton**](https://github.com/bh679/Chess/wiki/Feature:-Art-Styles) — classic Staunton design
+- [**Gothic**](https://github.com/bh679/Chess/wiki/Feature:-Art-Styles) — gothic style pieces
 
 ### [Sound Effects](https://github.com/bh679/chess-client/wiki/Feature:-Sound-Effects)
 - [**Piano sound effects**](https://github.com/bh679/chess-client/wiki/Feature:-Sound-Effects) — distinct sounds for piece moves, captures, check, checkmate/draw, and game start (MIT-licensed Lichess piano audio)
@@ -202,7 +201,6 @@ js/chess.js             chess.js engine (full rule enforcement)
 js/lib/stockfish.js     Stockfish WASM engine (Web Worker)
 blog/                   Weekly development blog (auto-generated)
 img/pieces/             Classic SVG chess pieces
-img/pieces-pixel/       Pixel art chess pieces
-img/pieces-neo/         Neo bold chess pieces
-img/pieces-fish/        Fish/sea creature chess pieces
+img/pieces-staunton/    Staunton chess pieces
+img/pieces-gothic/      Gothic chess pieces
 ```
