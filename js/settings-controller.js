@@ -12,16 +12,12 @@ const STYLE_PATHS = {
   fish:     'img/pieces-fish',
 };
 
-const LS_ENGINE_KEY = 'chess-engine-selection';
-
 /**
  * SettingsController — owns all settings-panel DOM, persistence, and server sync.
  *
  * Responsibilities:
  *  - Settings panel open / close
  *  - Toggle state init from localStorage
- *  - Save / load engine selection
- *  - Populate engine dropdowns from registry
  *  - Save settings to server (debounced)
  *  - Apply settings received from server on login
  *  - Apply config from the new-game wizard
@@ -29,13 +25,13 @@ const LS_ENGINE_KEY = 'chess-engine-selection';
  *    without this class needing app-level state (isReplayMode, etc.)
  *
  * Constructor: { auth, board, sound }
- * Exposes:  getCurrentSettings(), getAIConfig(), getBoardTint(),
+ * Exposes:  getCurrentSettings(), getAIConfig(),
  *           isEvalBarEnabled(), isAnimationsEnabled(), isChess960(), isAIEnabled(side),
  *           setEvalBarEnabled(val), setAnimationsEnabled(val), setChess960(val),
- *           toggleAI(side), getEngineSelect(side),
+ *           toggleAI(side),
  *           openSettings(), closeSettings(),
  *           applyServerSettings(settings), applyWizardConfig(config),
- *           updateEloSliderRange(side), saveSettingsToServer()
+ *           saveSettingsToServer()
  */
 export class SettingsController {
   constructor({ auth, board, sound }) {
@@ -48,6 +44,13 @@ export class SettingsController {
     /** Fired whenever a setting changes: (name, value) => void */
     this.onSettingChanged = null;
 
+    // Internal game state (configured by wizard, not settings panel)
+    this._chess960 = false;
+    this._ai = {
+      white: { enabled: false, engineId: '', elo: 1500 },
+      black: { enabled: false, engineId: '', elo: 500 },
+    };
+
     this._els = {
       settingsToggle:      document.getElementById('settings-toggle'),
       settingsPanel:       document.getElementById('settings-panel'),
@@ -59,20 +62,7 @@ export class SettingsController {
       gameSoundValue:      document.getElementById('game-sound-value'),
       voiceVolumeSlider:   document.getElementById('voice-volume-slider'),
       voiceVolumeValue:    document.getElementById('voice-volume-value'),
-      chess960Toggle:      document.getElementById('chess960-toggle'),
       artStylePicker:      document.getElementById('art-style-picker'),
-      boardTintSlider:     document.getElementById('board-tint-slider'),
-      boardTintValue:      document.getElementById('board-tint-value'),
-      aiWhiteToggle:       document.getElementById('ai-white-toggle'),
-      aiWhiteEngineSelect: document.getElementById('ai-white-engine'),
-      aiWhiteEloSlider:    document.getElementById('ai-white-elo'),
-      aiWhiteEloValue:     document.getElementById('ai-white-elo-value'),
-      aiWhiteEloWrapper:   document.getElementById('ai-white-elo-wrapper'),
-      aiBlackToggle:       document.getElementById('ai-black-toggle'),
-      aiBlackEngineSelect: document.getElementById('ai-black-engine'),
-      aiBlackEloSlider:    document.getElementById('ai-black-elo'),
-      aiBlackEloValue:     document.getElementById('ai-black-elo-value'),
-      aiBlackEloWrapper:   document.getElementById('ai-black-elo-wrapper'),
       playerNameWhite:     document.getElementById('player-name-white'),
       playerNameBlack:     document.getElementById('player-name-black'),
       playerIconWhite:     document.getElementById('player-icon-white'),
@@ -91,65 +81,73 @@ export class SettingsController {
 
   /** Returns the full current settings snapshot for persistence. */
   getCurrentSettings() {
-    const { evalBarToggle, premovesToggle, animationsToggle,
-            artStylePicker, boardTintSlider, chess960Toggle } = this._els;
+    const { evalBarToggle, premovesToggle, animationsToggle, artStylePicker } = this._els;
     const selectedStyle = artStylePicker.querySelector('.selected')?.dataset.style || 'classic';
     return {
       evalBar:    evalBarToggle.checked,
       premoves:   premovesToggle.checked,
       pieceStyle: selectedStyle,
       animations: animationsToggle.checked,
-      chess960:   chess960Toggle.checked,
-      boardTint:  parseInt(boardTintSlider.value, 10),
     };
   }
 
   /** Returns the AI configuration object for use in startNewGame(). */
   getAIConfig() {
-    const { aiWhiteToggle, aiWhiteEngineSelect, aiWhiteEloSlider,
-            aiBlackToggle, aiBlackEngineSelect, aiBlackEloSlider } = this._els;
     return {
-      whiteEnabled:  aiWhiteToggle.checked,
-      whiteElo:      parseInt(aiWhiteEloSlider.value, 10),
-      whiteEngineId: aiWhiteEngineSelect.value,
-      blackEnabled:  aiBlackToggle.checked,
-      blackElo:      parseInt(aiBlackEloSlider.value, 10),
-      blackEngineId: aiBlackEngineSelect.value,
+      whiteEnabled:  this._ai.white.enabled,
+      whiteElo:      this._ai.white.elo,
+      whiteEngineId: this._ai.white.engineId,
+      blackEnabled:  this._ai.black.enabled,
+      blackElo:      this._ai.black.elo,
+      blackEngineId: this._ai.black.engineId,
     };
   }
 
-  /** Current board tint percentage (0–100). */
+  /** Board tint percentage — fixed default (no longer user-adjustable). */
   getBoardTint() {
-    return parseInt(this._els.boardTintSlider.value, 10);
+    return 75;
   }
 
   isEvalBarEnabled()    { return this._els.evalBarToggle.checked; }
   isAnimationsEnabled() { return this._els.animationsToggle.checked; }
-  isChess960()          { return this._els.chess960Toggle.checked; }
+  isChess960()          { return this._chess960; }
 
   /** Returns whether the AI toggle for the given side ('w' or 'b') is on. */
   isAIEnabled(side) {
-    return side === 'w'
-      ? this._els.aiWhiteToggle.checked
-      : this._els.aiBlackToggle.checked;
+    return side === 'w' ? this._ai.white.enabled : this._ai.black.enabled;
+  }
+
+  /** Returns the current engine ID for the given side ('w' or 'b'). */
+  getEngineId(side) {
+    return side === 'w' ? this._ai.white.engineId : this._ai.black.engineId;
   }
 
   /**
-   * Returns the engine <select> element for the given side ('w' or 'b').
-   * Used by startEngineSwitch() in app.js for inline engine switching.
+   * Returns ELO config for the given side ('w' or 'b'),
+   * or null if the engine has no ELO range (e.g. Random).
+   * Shape: { min, max, step, value }
    */
-  getEngineSelect(side) {
-    return side === 'w' ? this._els.aiWhiteEngineSelect : this._els.aiBlackEngineSelect;
+  getEloConfig(side) {
+    const ai = side === 'w' ? this._ai.white : this._ai.black;
+    const info = getEngineInfo(ai.engineId);
+    if (!info) return null;
+    const { min, max, step, default: defaultElo } = info.eloRange;
+    if (min === max) return null;
+    return { min, max, step, value: ai.elo || defaultElo };
   }
 
-  /** Returns the ELO slider element for the given side ('w' or 'b'). */
-  getEloSlider(side) {
-    return side === 'w' ? this._els.aiWhiteEloSlider : this._els.aiBlackEloSlider;
+  /** Set the engine for the given side and reset ELO to engine default. */
+  setEngine(side, engineId) {
+    const ai = side === 'w' ? this._ai.white : this._ai.black;
+    ai.engineId = engineId;
+    const info = getEngineInfo(engineId);
+    if (info) ai.elo = info.eloRange.default;
   }
 
-  /** Returns the ELO display value element for the given side ('w' or 'b'). */
-  getEloValueEl(side) {
-    return side === 'w' ? this._els.aiWhiteEloValue : this._els.aiBlackEloValue;
+  /** Set the ELO for the given side. */
+  setElo(side, elo) {
+    const ai = side === 'w' ? this._ai.white : this._ai.black;
+    ai.elo = elo;
   }
 
   /** Returns the eval bar toggle checkbox element (needed by AnalysisController). */
@@ -172,19 +170,20 @@ export class SettingsController {
     this._board.setAnimationsEnabled(val);
   }
 
-  /** Programmatically set the Chess960 toggle. */
+  /** Programmatically set the Chess960 flag. */
   setChess960(val) {
-    this._els.chess960Toggle.checked = val;
+    this._chess960 = val;
   }
 
   /**
-   * Toggle the AI for the given side and dispatch 'change' to update engine
-   * visibility and ELO range. Used by player-icon click handlers in app.js.
+   * Toggle the AI for the given side. Used by player-icon click handlers in app.js.
    */
   toggleAI(side) {
-    const toggle = side === 'w' ? this._els.aiWhiteToggle : this._els.aiBlackToggle;
-    toggle.checked = !toggle.checked;
-    toggle.dispatchEvent(new Event('change'));
+    if (side === 'w') {
+      this._ai.white.enabled = !this._ai.white.enabled;
+    } else {
+      this._ai.black.enabled = !this._ai.black.enabled;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -217,8 +216,7 @@ export class SettingsController {
    * react correctly.
    */
   applyServerSettings(settings) {
-    const { evalBarToggle, premovesToggle, artStylePicker,
-            boardTintSlider, boardTintValue } = this._els;
+    const { evalBarToggle, premovesToggle, artStylePicker } = this._els;
 
     if (settings.evalBar !== undefined) {
       evalBarToggle.checked = settings.evalBar;
@@ -237,138 +235,39 @@ export class SettingsController {
       }
       this._board.redraw();
     }
-    if (settings.boardTint !== undefined) {
-      boardTintSlider.value = settings.boardTint;
-      boardTintValue.textContent = settings.boardTint + '%';
-    }
   }
 
   /**
    * Apply configuration from the new-game wizard.
-   * Sets all relevant toggles, ELO sliders, and engine selects, then
-   * updates visibility of engine/ELO wrappers.
+   * Sets chess960 flag, eval bar toggle, and AI state.
    */
   applyWizardConfig(config) {
-    const { chess960Toggle, evalBarToggle,
-            aiWhiteToggle, aiBlackToggle,
-            aiWhiteEngineSelect, aiBlackEngineSelect,
-            aiWhiteEloSlider, aiBlackEloSlider,
-            aiWhiteEloValue, aiBlackEloValue,
-            aiWhiteEloWrapper, aiBlackEloWrapper } = this._els;
+    const { evalBarToggle } = this._els;
 
-    chess960Toggle.checked = config.chess960;
-    evalBarToggle.checked  = config.evalBar;
+    this._chess960 = config.chess960;
+    evalBarToggle.checked = config.evalBar;
     localStorage.setItem('chess-eval-bar', config.evalBar ? 'true' : 'false');
 
     if (config.mode === 'bot') {
       const userPlaysWhite = config.botSide === 'black';
-      aiWhiteToggle.checked = !userPlaysWhite;
-      aiBlackToggle.checked = userPlaysWhite;
+      this._ai.white.enabled = !userPlaysWhite;
+      this._ai.black.enabled = userPlaysWhite;
+
+      const engines = getAllEngines();
+      const defaultEngineId = engines[0]?.id || '';
 
       if (config.botSide === 'black') {
-        aiBlackEngineSelect.value   = config.engineId;
-        aiBlackEloSlider.value      = config.elo;
-        aiBlackEloValue.textContent = config.elo;
+        this._ai.black.engineId = config.engineId || defaultEngineId;
+        this._ai.black.elo      = config.elo;
       } else {
-        aiWhiteEngineSelect.value   = config.engineId;
-        aiWhiteEloSlider.value      = config.elo;
-        aiWhiteEloValue.textContent = config.elo;
+        this._ai.white.engineId = config.engineId || defaultEngineId;
+        this._ai.white.elo      = config.elo;
       }
-
-      this.updateEloSliderRange('w');
-      this.updateEloSliderRange('b');
     } else {
       // Shared device: both human
-      aiWhiteToggle.checked = false;
-      aiBlackToggle.checked = false;
+      this._ai.white.enabled = false;
+      this._ai.black.enabled = false;
     }
-
-    aiWhiteEngineSelect.classList.toggle('hidden', !aiWhiteToggle.checked);
-    aiWhiteEloWrapper.classList.toggle('hidden', !aiWhiteToggle.checked);
-    aiBlackEngineSelect.classList.toggle('hidden', !aiBlackToggle.checked);
-    aiBlackEloWrapper.classList.toggle('hidden', !aiBlackToggle.checked);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Public API — engine dropdowns
-  // ---------------------------------------------------------------------------
-
-  /** Populate both engine dropdowns from the registry. */
-  populateEngineDropdowns() {
-    const engines = getAllEngines();
-    for (const select of [this._els.aiWhiteEngineSelect, this._els.aiBlackEngineSelect]) {
-      select.innerHTML = '';
-      for (const eng of engines) {
-        const opt = document.createElement('option');
-        opt.value = eng.id;
-        opt.textContent = `${eng.icon} ${eng.name}`;
-        select.appendChild(opt);
-      }
-    }
-  }
-
-  saveEngineSelection() {
-    localStorage.setItem(LS_ENGINE_KEY, JSON.stringify({
-      white: this._els.aiWhiteEngineSelect.value,
-      black: this._els.aiBlackEngineSelect.value,
-    }));
-  }
-
-  loadEngineSelection() {
-    try {
-      const raw = localStorage.getItem(LS_ENGINE_KEY);
-      if (raw) {
-        const { white, black } = JSON.parse(raw);
-        if (white && getEngineInfo(white)) this._els.aiWhiteEngineSelect.value = white;
-        if (black && getEngineInfo(black)) this._els.aiBlackEngineSelect.value = black;
-      }
-    } catch { /* ignore */ }
-  }
-
-  /**
-   * Update ELO slider min/max/step based on selected engine.
-   * Hides slider entirely for engines with no ELO range (e.g. Random).
-   */
-  updateEloSliderRange(side) {
-    const isWhite = side === 'w';
-    const { aiWhiteToggle, aiBlackToggle,
-            aiWhiteEngineSelect, aiBlackEngineSelect,
-            aiWhiteEloSlider, aiBlackEloSlider,
-            aiWhiteEloValue, aiBlackEloValue,
-            aiWhiteEloWrapper, aiBlackEloWrapper } = this._els;
-
-    const toggle  = isWhite ? aiWhiteToggle  : aiBlackToggle;
-    const select  = isWhite ? aiWhiteEngineSelect : aiBlackEngineSelect;
-    const slider  = isWhite ? aiWhiteEloSlider   : aiBlackEloSlider;
-    const valueEl = isWhite ? aiWhiteEloValue    : aiBlackEloValue;
-    const wrapper = isWhite ? aiWhiteEloWrapper  : aiBlackEloWrapper;
-
-    if (!toggle.checked) {
-      wrapper.classList.add('hidden');
-      return;
-    }
-
-    const info = getEngineInfo(select.value);
-    if (!info) return;
-
-    const { min, max, step, default: defaultElo } = info.eloRange;
-
-    if (min === max) {
-      slider.min   = min;
-      slider.max   = max;
-      slider.value = defaultElo;
-      valueEl.textContent = defaultElo;
-      wrapper.classList.add('hidden');
-      return;
-    }
-
-    slider.min  = min;
-    slider.max  = max;
-    slider.step = step;
-    const current = parseInt(slider.value, 10);
-    if (current < min || current > max) slider.value = defaultElo;
-    valueEl.textContent = slider.value;
-    wrapper.classList.remove('hidden');
   }
 
   // ---------------------------------------------------------------------------
@@ -403,9 +302,20 @@ export class SettingsController {
     this._initPanel();
     this._initToggles();
     this._initArtStylePicker();
-    this._initBoardTintSlider();
-    this._initAIToggles();
-    this._initEngineDropdowns();
+    this._initDefaultEngines();
+  }
+
+  _initDefaultEngines() {
+    const engines = getAllEngines();
+    if (!engines.length) return;
+    const defaultId = engines[0].id;
+    if (!this._ai.white.engineId) this._ai.white.engineId = defaultId;
+    if (!this._ai.black.engineId) this._ai.black.engineId = defaultId;
+    const info = getEngineInfo(defaultId);
+    if (info) {
+      if (!this._ai.white.elo) this._ai.white.elo = info.eloRange.default;
+      if (!this._ai.black.elo) this._ai.black.elo = info.eloRange.default;
+    }
   }
 
   _initPanel() {
@@ -496,80 +406,6 @@ export class SettingsController {
       this._notify('artStyle', style);
       this.saveSettingsToServer();
     });
-  }
-
-  _initBoardTintSlider() {
-    const { boardTintSlider, boardTintValue } = this._els;
-    boardTintSlider.addEventListener('input', () => {
-      const val = parseInt(boardTintSlider.value, 10);
-      boardTintValue.textContent = val + '%';
-      this._notify('boardTint', val);
-    });
-    boardTintSlider.addEventListener('change', () => {
-      this.saveSettingsToServer();
-    });
-  }
-
-  _initAIToggles() {
-    const { aiWhiteToggle, aiWhiteEngineSelect, aiWhiteEloSlider, aiWhiteEloValue,
-            aiBlackToggle, aiBlackEngineSelect, aiBlackEloSlider, aiBlackEloValue,
-            playerNameWhite, playerNameBlack,
-            playerIconWhite, playerIconBlack,
-            playerEloWhite, playerEloBlack } = this._els;
-
-    // White AI toggle — show/hide engine select + update ELO range
-    aiWhiteToggle.addEventListener('change', () => {
-      aiWhiteEngineSelect.classList.toggle('hidden', !aiWhiteToggle.checked);
-      this.updateEloSliderRange('w');
-    });
-
-    // Black AI toggle
-    aiBlackToggle.addEventListener('change', () => {
-      aiBlackEngineSelect.classList.toggle('hidden', !aiBlackToggle.checked);
-      this.updateEloSliderRange('b');
-    });
-
-    // Engine selector changes — update ELO range, persist, update player bar
-    aiWhiteEngineSelect.addEventListener('change', () => {
-      this.updateEloSliderRange('w');
-      this.saveEngineSelection();
-      if (aiWhiteToggle.checked) {
-        const info = getEngineInfo(aiWhiteEngineSelect.value);
-        if (info) {
-          playerNameWhite.textContent = info.name;
-          playerIconWhite.textContent = info.icon || '\uD83E\uDD16';
-          playerEloWhite.textContent  = aiWhiteEloSlider.value;
-        }
-      }
-    });
-
-    aiBlackEngineSelect.addEventListener('change', () => {
-      this.updateEloSliderRange('b');
-      this.saveEngineSelection();
-      if (aiBlackToggle.checked) {
-        const info = getEngineInfo(aiBlackEngineSelect.value);
-        if (info) {
-          playerNameBlack.textContent = info.name;
-          playerIconBlack.textContent = info.icon || '\uD83E\uDD16';
-          playerEloBlack.textContent  = aiBlackEloSlider.value;
-        }
-      }
-    });
-
-    // ELO slider — live value display only
-    aiWhiteEloSlider.addEventListener('input', () => {
-      aiWhiteEloValue.textContent = aiWhiteEloSlider.value;
-    });
-    aiBlackEloSlider.addEventListener('input', () => {
-      aiBlackEloValue.textContent = aiBlackEloSlider.value;
-    });
-  }
-
-  _initEngineDropdowns() {
-    this.populateEngineDropdowns();
-    this.loadEngineSelection();
-    this.updateEloSliderRange('w');
-    this.updateEloSliderRange('b');
   }
 
   /** Register a settings-sync listener on auth so server settings are applied on login. */
