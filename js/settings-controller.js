@@ -3,13 +3,8 @@ import { getAllEngines, getEngineInfo } from './engines/registry.js';
 // Art style path mapping (shared with app.js global)
 const STYLE_PATHS = {
   classic:  'img/pieces',
-  sovereign:'img/pieces-sovereign',
   staunton: 'img/pieces-staunton',
   gothic:   'img/pieces-gothic',
-  kawaii:   'img/pieces-kawaii',
-  pixel:    'img/pieces-pixel',
-  neo:      'img/pieces-neo',
-  fish:     'img/pieces-fish',
 };
 
 /**
