@@ -1565,7 +1565,7 @@ mp.onGameEnd = (payload) => {
   }
   lastMultiplayerGameRecord = record;
   if (record) {
-    postGameSummary.addActionButton(issueReporter.createPostGameFlagButton());
+    issueReporter.bindPostGameFlagButton(postGameSummary.getPgsFlagButton());
     postGameSummary.showWithAnalysis(
       record,
       analysisCtrl.getPostGameEngine(),

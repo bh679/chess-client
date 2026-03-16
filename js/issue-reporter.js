@@ -32,6 +32,7 @@ export class IssueReporter {
     this._lobbyFlagBtn = document.getElementById('lobby-flag-btn');
     this._waitingFlagBtn = document.getElementById('waiting-flag-btn');
     this._pgsFlagBtn = null;
+    this._pgsFlagBtnHandler = null;
     this._modalEl = null;
     this._stepCategoriesEl = null;
     this._stepDescriptionEl = null;
@@ -108,27 +109,18 @@ export class IssueReporter {
   }
 
   /**
-   * Create and return a flag button element for the post-game summary.
-   * The caller should insert it into the PGS actions area.
+   * Bind the permanent post-game summary flag button to this reporter.
+   * Called each time a game ends to wire up the click handler and sync visual state.
    */
-  createPostGameFlagButton() {
-    const btn = document.createElement('button');
-    btn.className = 'pgs-btn pgs-btn-flag';
-    btn.title = 'Report an issue';
-    btn.textContent = '\u2691';
-
-    if (this._errorDetected) {
-      btn.classList.add('ir-expanded');
-      btn.textContent = '\u2691 Report';
+  bindPostGameFlagButton(el) {
+    if (!el) return;
+    if (this._pgsFlagBtnHandler && this._pgsFlagBtn) {
+      this._pgsFlagBtn.removeEventListener('click', this._pgsFlagBtnHandler);
     }
-    if (this._reportId) {
-      btn.classList.add('ir-flagged');
-      btn.textContent = '\u2713';
-    }
-
-    btn.addEventListener('click', () => this._flagGame(btn));
-    this._pgsFlagBtn = btn;
-    return btn;
+    this._pgsFlagBtn = el;
+    this._pgsFlagBtnHandler = () => this._flagGame(el);
+    el.addEventListener('click', this._pgsFlagBtnHandler);
+    this._syncPgsFlagButton();
   }
 
   /** Reset all state (on new game start). */
@@ -141,7 +133,7 @@ export class IssueReporter {
     this._closeModal();
     this._updateButtonState();
     this._flagBtn.classList.add('hidden');
-    this._pgsFlagBtn = null;
+    this._syncPgsFlagButton();
     this.hideLobbyButton();
     this.hideWaitingButton();
   }
@@ -200,6 +192,25 @@ export class IssueReporter {
     }
   }
 
+  _syncPgsFlagButton() {
+    if (!this._pgsFlagBtn) return;
+    if (this._reportId) {
+      this._pgsFlagBtn.classList.remove('ir-expanded');
+      this._pgsFlagBtn.classList.add('ir-flagged');
+      this._pgsFlagBtn.textContent = '\u2713';
+      this._pgsFlagBtn.title = 'Issue reported';
+    } else if (this._errorDetected) {
+      this._pgsFlagBtn.classList.add('ir-expanded');
+      this._pgsFlagBtn.classList.remove('ir-flagged');
+      this._pgsFlagBtn.textContent = '\u2691 Report';
+      this._pgsFlagBtn.title = 'An issue was detected — click to report';
+    } else {
+      this._pgsFlagBtn.classList.remove('ir-expanded', 'ir-flagged');
+      this._pgsFlagBtn.textContent = '\u2691';
+      this._pgsFlagBtn.title = 'Report an issue';
+    }
+  }
+
   _updateButtonState() {
     if (this._reportId) {
       this._flagBtn.classList.remove('ir-expanded');
@@ -248,8 +259,7 @@ export class IssueReporter {
 
       // Sync sibling buttons
       if (this._pgsFlagBtn && this._pgsFlagBtn !== triggerBtn) {
-        this._pgsFlagBtn.classList.add('ir-flagged');
-        this._pgsFlagBtn.textContent = '\u2713';
+        this._syncPgsFlagButton();
       }
       if (this._lobbyFlagBtn && this._lobbyFlagBtn !== triggerBtn) {
         this._lobbyFlagBtn.classList.remove('ir-expanded');
