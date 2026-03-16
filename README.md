@@ -51,7 +51,7 @@ A chess game built to practice working with Claude. Runs in the browser with a c
 
 ### [Sound Effects](https://github.com/bh679/chess-client/wiki/Feature:-Sound-Effects)
 - [**Piano sound effects**](https://github.com/bh679/chess-client/wiki/Feature:-Sound-Effects) — distinct sounds for piece moves, captures, check, checkmate/draw, and game start (MIT-licensed Lichess piano audio)
-- [**Sound Effects toggle**](https://github.com/bh679/chess-client/wiki/Feature:-Sound-Effects) — enable/disable in the Display settings section (default on, persists across reloads)
+- [**Volume Controls**](https://github.com/bh679/chess-client/wiki/Feature:-Volume-Controls) — separate Game Sounds and Voice volume sliders in the Display settings section (0–100%, persists across reloads)
 
 ### [Animations](https://github.com/bh679/Chess/wiki/Feature:-Combat-Animations)
 - [**Move animations**](https://github.com/bh679/Chess/wiki/Feature:-Move-Animations) — smooth piece movement with easing
