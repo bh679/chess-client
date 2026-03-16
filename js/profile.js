@@ -19,7 +19,7 @@ export class Profile {
     this._modal = null;
     this._currentUsername = null;
     this._currentUserId = null;
-    this._filters = { result: 'all', gameType: 'all', playerType: 'all', timeControl: 'all', eloMin: '', eloMax: '' };
+    this._filters = { result: ['win', 'loss', 'draw', 'ongoing'], gameType: 'all', playerType: 'all', timeControl: 'all', eloMin: '', eloMax: '' };
     this._page = 0;
     this._totalGames = 0;
     this._buildDOM();
@@ -32,7 +32,7 @@ export class Profile {
     if (!username) return;
 
     this._currentUsername = username;
-    this._filters = { result: 'all', gameType: 'all', playerType: 'all', timeControl: 'all', eloMin: '', eloMax: '' };
+    this._filters = { result: ['win', 'loss', 'draw', 'ongoing'], gameType: 'all', playerType: 'all', timeControl: 'all', eloMin: '', eloMax: '' };
     this._page = 0;
     this._modal.classList.remove('hidden');
     this._modal.querySelector('.profile-body').innerHTML = '<div class="profile-loading">Loading...</div>';
@@ -146,17 +146,35 @@ export class Profile {
     this._loadGames();
   }
 
+  _resultFilterLabel(selected) {
+    const ALL_RESULTS = ['win', 'loss', 'draw', 'abandoned', 'ongoing'];
+    if (selected.length === 0) return 'No Results';
+    if (selected.length === ALL_RESULTS.length) return 'All Results';
+    if (selected.length <= 2) {
+      const NAMES = { win: 'Win', loss: 'Loss', draw: 'Draw', abandoned: 'Abandoned', ongoing: 'Ongoing' };
+      return selected.map(r => NAMES[r]).join(', ');
+    }
+    return `${selected.length} of ${ALL_RESULTS.length} Results`;
+  }
+
   _buildFilters(container) {
+    const DEFAULT_RESULTS = ['win', 'loss', 'draw', 'ongoing'];
+    const ALL_RESULTS = ['win', 'loss', 'draw', 'abandoned', 'ongoing'];
+    const RESULT_LABELS = { win: 'Win', loss: 'Loss', draw: 'Draw', abandoned: 'Abandoned', ongoing: 'Ongoing' };
+
     container.innerHTML = `
       <div class="profile-filters-row">
-        <select class="profile-filter-select" data-filter="result">
-          <option value="all">All Results</option>
-          <option value="win">Wins</option>
-          <option value="loss">Losses</option>
-          <option value="draw">Draws</option>
-          <option value="abandoned">Abandoned</option>
-          <option value="ongoing">Ongoing</option>
-        </select>
+        <div class="profile-multiselect">
+          <button class="profile-multiselect-btn" type="button">${this._resultFilterLabel(this._filters.result)} \u25BE</button>
+          <div class="profile-multiselect-dropdown hidden">
+            ${ALL_RESULTS.map(r => `
+              <label class="profile-multiselect-option">
+                <input type="checkbox" value="${r}"${DEFAULT_RESULTS.includes(r) ? ' checked' : ''}>
+                ${RESULT_LABELS[r]}
+              </label>
+            `).join('')}
+          </div>
+        </div>
         <select class="profile-filter-select" data-filter="playerType">
           <option value="all">All Players</option>
           <option value="hvai">Human vs AI</option>
@@ -193,6 +211,29 @@ export class Profile {
       </div>
     `;
 
+    // Multi-select result dropdown
+    const multiselect = container.querySelector('.profile-multiselect');
+    const btn = multiselect.querySelector('.profile-multiselect-btn');
+    const dropdown = multiselect.querySelector('.profile-multiselect-dropdown');
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!multiselect.contains(e.target)) dropdown.classList.add('hidden');
+    });
+
+    dropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        this._filters.result = [...dropdown.querySelectorAll('input[type="checkbox"]:checked')].map(c => c.value);
+        btn.textContent = this._resultFilterLabel(this._filters.result) + ' \u25BE';
+        this._page = 0;
+        this._loadGames();
+      });
+    });
+
     container.querySelectorAll('.profile-filter-select').forEach(sel => {
       sel.addEventListener('change', () => {
         this._filters[sel.dataset.filter] = sel.value;
@@ -214,7 +255,12 @@ export class Profile {
     });
 
     container.querySelector('.profile-filter-clear-btn').addEventListener('click', () => {
-      this._filters = { result: 'all', gameType: 'all', playerType: 'all', timeControl: 'all', eloMin: '', eloMax: '' };
+      this._filters = { result: [...DEFAULT_RESULTS], gameType: 'all', playerType: 'all', timeControl: 'all', eloMin: '', eloMax: '' };
+      // Reset result checkboxes
+      dropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.checked = DEFAULT_RESULTS.includes(cb.value);
+      });
+      btn.textContent = this._resultFilterLabel(this._filters.result) + ' \u25BE';
       container.querySelectorAll('.profile-filter-select').forEach(s => { s.value = 'all'; });
       container.querySelectorAll('.profile-filter-elo').forEach(i => { i.value = ''; });
       this._page = 0;
@@ -235,7 +281,11 @@ export class Profile {
         limit: PAGE_SIZE,
         offset: this._page * PAGE_SIZE,
       });
-      if (this._filters.result !== 'all') params.set('result', this._filters.result);
+      const ALL_RESULTS = ['win', 'loss', 'draw', 'abandoned', 'ongoing'];
+      const sel = this._filters.result;
+      if (sel.length > 0 && sel.length < ALL_RESULTS.length) {
+        params.set('result', sel.join(','));
+      }
       if (this._filters.gameType !== 'all') params.set('gameType', this._filters.gameType);
       if (this._filters.playerType !== 'all') params.set('playerType', this._filters.playerType);
       if (this._filters.timeControl !== 'all') params.set('timeControl', this._filters.timeControl);
