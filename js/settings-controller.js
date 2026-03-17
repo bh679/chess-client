@@ -224,6 +224,7 @@ export class SettingsController {
     }
     if (settings.pieceStyle && STYLE_PATHS[settings.pieceStyle]) {
       window.chessPiecePath = STYLE_PATHS[settings.pieceStyle];
+      this._applyPieceStyle(settings.pieceStyle);
       const btn = artStylePicker.querySelector(`[data-style="${settings.pieceStyle}"]`);
       if (btn) {
         artStylePicker.querySelector('.selected')?.classList.remove('selected');
@@ -384,6 +385,10 @@ export class SettingsController {
     });
   }
 
+  _applyPieceStyle(style) {
+    this._board.container.dataset.pieceStyle = style;
+  }
+
   _initArtStylePicker() {
     const { artStylePicker } = this._els;
     artStylePicker.addEventListener('click', (e) => {
@@ -394,6 +399,7 @@ export class SettingsController {
       if (!STYLE_PATHS[style]) return;
 
       window.chessPiecePath = STYLE_PATHS[style];
+      this._applyPieceStyle(style);
       artStylePicker.querySelectorAll('.art-style-option').forEach(el => {
         el.classList.toggle('selected', el === btn);
       });
