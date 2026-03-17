@@ -25,7 +25,7 @@ export class UIController {
 
   constructor({
     game, board, db, mp, gameCtrl, settingsCtrl, replayController, liveMoveBar,
-    diagnostics, videoChat, videoBoard, splitCam, splitCamH, kingCam,
+    diagnostics, videoChat, videoBoard, tileCam, splitCam, splitCamH, kingCam,
     getVideoActive,
     callbacks,
     dom,
@@ -42,6 +42,7 @@ export class UIController {
     this.diagnostics = diagnostics;
     this.videoChat = videoChat;
     this.videoBoard = videoBoard;
+    this.tileCam = tileCam;
     this.splitCam = splitCam;
     this.splitCamH = splitCamH;
     this.kingCam = kingCam;
@@ -513,6 +514,7 @@ export class UIController {
     this.diagnostics.camModeChanged(mode);
     if (mode === 'king-cam') {
       this.videoBoard.disable();
+      this.tileCam.disable();
       this.splitCam.disable();
       this.splitCamH.disable();
       // Restore raw camera track — videoBoard replaced it with a cropped canvas stream that is now stopped
@@ -525,6 +527,7 @@ export class UIController {
       this.board.render();
     } else if (mode === 'board-face') {
       this.kingCam.disable();
+      this.tileCam.disable();
       this.splitCam.disable();
       this.splitCamH.disable();
       this.board.render();
@@ -536,6 +539,7 @@ export class UIController {
     } else if (mode === 'split-cam') {
       this.kingCam.disable();
       this.videoBoard.disable();
+      this.tileCam.disable();
       this.splitCamH.disable();
       this.board.render();
       // Restore raw camera track — videoBoard may have replaced it
@@ -547,15 +551,25 @@ export class UIController {
       this.kingCam.disable();
       this.videoBoard.disable();
       this.splitCam.disable();
+      this.tileCam.disable();
       this.board.render();
       // Restore raw camera track — videoBoard may have replaced it
       const rawVideoTrack = this.videoChat._localStream?.getVideoTracks()[0];
       if (rawVideoTrack) this.videoChat.replaceVideoTrack(rawVideoTrack);
       this.splitCamH.enable(this.videoChat._localStream, this.videoChat._remoteStream, this.mp.color);
       this.splitCamH.setTintEnabled(true);
+    } else if (mode === 'tile-cam') {
+      this.kingCam.disable();
+      this.videoBoard.disable();
+      this.splitCam.disable();
+      this.splitCamH.disable();
+      this.board.render();
+      this.tileCam.enable(this.videoChat._localStream, this.videoChat._remoteStream, this.mp.color);
+      this.tileCam.setTintEnabled(true);
     } else {
       this.kingCam.disable();
       this.videoBoard.disable();
+      this.tileCam.disable();
       this.splitCam.disable();
       this.splitCamH.disable();
       // Restore raw camera track when disabling all video modes

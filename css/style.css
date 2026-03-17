@@ -420,6 +420,18 @@ body {
   object-fit: cover;
 }
 
+.tile-cam-video::-webkit-media-controls {
+  display: none !important;
+}
+
+.tile-cam-video::-webkit-media-controls-panel {
+  display: none !important;
+}
+
+.tile-cam-video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+}
+
 /* Color tint overlays for turn indication — clipped to matching square colour */
 .tile-cam-light-tint {
   position: absolute;
@@ -428,8 +440,8 @@ body {
   opacity: 0.55;
   pointer-events: none;
   transition: opacity 0.3s ease;
-  -webkit-mask: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 12.5% 12.5%;
-  mask: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 12.5% 12.5%;
+  -webkit-mask: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 25% 25%;
+  mask: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 25% 25%;
 }
 
 .tile-cam-dark-tint {
@@ -439,8 +451,8 @@ body {
   opacity: 0.55;
   pointer-events: none;
   transition: opacity 0.3s ease;
-  -webkit-mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 12.5% 12.5%;
-  mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 12.5% 12.5%;
+  -webkit-mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 25% 25%;
+  mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 25% 25%;
 }
 
 /* When tile cam is active, make square backgrounds transparent */
