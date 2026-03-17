@@ -31,7 +31,7 @@ import { Diagnostics } from './diagnostics.js?v=2';
 import { IssueReporter } from './issue-reporter.js';
 import { Sound } from './sound.js';
 import { LiveMoveBar } from './live-move-bar.js';
-import { SettingsController } from './settings-controller.js';
+import { SettingsController, STYLE_PATHS } from './settings-controller.js';
 import { GameController } from './game-controller.js';
 import { UIController } from './ui-controller.js';
 
@@ -194,7 +194,7 @@ const settingsCtrl = new SettingsController({ auth, board, sound });
 // React to eval bar and board tint changes (requires app-level state)
 settingsCtrl.onSettingChanged = (name, value) => {
   if (name === 'evalBar') {
-    if (gameCtrl.multiplayerActive) { settingsCtrl.setEvalBarEnabled(false); return; }
+    if (gameCtrl.multiplayerActive) { settingsCtrl.setEvalBarEnabled(window._mpEvalBar ?? false); return; }
     if (replayController.isActive) {
       if (value && analysisCtrl.data) { mainEvalBar.show(); analysisCtrl.updateEvalBar(replayController.getPly()); }
       else { mainEvalBar.hide(); }
@@ -1238,6 +1238,24 @@ mp.onGameStart = async (payload) => {
 
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960, payload.isCreator);
 
+  // Apply shared lobby settings (eval bar, art style)
+  window._mpPersonalArtStyle = settingsCtrl.getCurrentSettings().pieceStyle;
+  window._mpEvalBar = !!payload.evalBar;
+  if (payload.evalBar) {
+    settingsCtrl.setEvalBarEnabled(true);
+    mainEvalBar.show();
+    mainEvalBar.reset();
+    liveEval();
+  } else {
+    settingsCtrl.setEvalBarEnabled(false);
+    mainEvalBar.hide();
+  }
+  if (payload.artStyle && payload.artStyle !== 'none' && STYLE_PATHS[payload.artStyle]) {
+    window.chessPiecePath = STYLE_PATHS[payload.artStyle];
+    board.container.dataset.pieceStyle = payload.artStyle;
+    board.render();
+  }
+
   // If a camera mode is active, request camera and auto-send video ready
   if (activeCamMode !== 'none' && !videoChat.hasLocalStream()) {
     try {
@@ -1555,6 +1573,16 @@ mp.onGameEnd = (payload) => {
   board.setInteractive(false);
   newGameBtn.classList.add('game-ended');
 
+  // Restore personal settings after multiplayer game ends
+  if (window._mpPersonalArtStyle && STYLE_PATHS[window._mpPersonalArtStyle]) {
+    window.chessPiecePath = STYLE_PATHS[window._mpPersonalArtStyle];
+    board.container.dataset.pieceStyle = window._mpPersonalArtStyle;
+    board.render();
+  }
+  window._mpPersonalArtStyle = null;
+  settingsCtrl.setEvalBarEnabled(localStorage.getItem('chess-eval-bar') === 'true');
+  window._mpEvalBar = null;
+
   const { result, reason } = payload;
 
   // Persist game result to local database
@@ -1630,6 +1658,23 @@ mp.onRematchStart = async (payload) => {
   mpUI.hideGameControls();
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960, payload.isCreator);
 
+  // Apply shared lobby settings (eval bar, art style) — carried forward from previous game
+  window._mpEvalBar = !!payload.evalBar;
+  if (payload.evalBar) {
+    settingsCtrl.setEvalBarEnabled(true);
+    mainEvalBar.show();
+    mainEvalBar.reset();
+    liveEval();
+  } else {
+    settingsCtrl.setEvalBarEnabled(false);
+    mainEvalBar.hide();
+  }
+  if (payload.artStyle && payload.artStyle !== 'none' && STYLE_PATHS[payload.artStyle]) {
+    window.chessPiecePath = STYLE_PATHS[payload.artStyle];
+    board.container.dataset.pieceStyle = payload.artStyle;
+    board.render();
+  }
+
   // Handle video board for the new game.
   // Colors swap on rematch so _playerColor must be updated, and streams must
   // be reassigned to the correct light/dark squares for the new color.
@@ -1672,6 +1717,24 @@ mp.onReconnect = async (payload) => {
   // before replaying moves. Using payload.fen (current state) would cause "Invalid move"
   // errors because moves would be applied on top of an already-advanced board.
   startMultiplayerGame(payload.color, payload.startingFen || null, payload.timeControl, payload.opponentName, payload.chess960, payload.isCreator);
+
+  // Apply shared lobby settings on reconnect
+  window._mpPersonalArtStyle = window._mpPersonalArtStyle || settingsCtrl.getCurrentSettings().pieceStyle;
+  window._mpEvalBar = !!payload.evalBar;
+  if (payload.evalBar) {
+    settingsCtrl.setEvalBarEnabled(true);
+    mainEvalBar.show();
+    mainEvalBar.reset();
+    liveEval();
+  } else {
+    settingsCtrl.setEvalBarEnabled(false);
+    mainEvalBar.hide();
+  }
+  if (payload.artStyle && payload.artStyle !== 'none' && STYLE_PATHS[payload.artStyle]) {
+    window.chessPiecePath = STYLE_PATHS[payload.artStyle];
+    board.container.dataset.pieceStyle = payload.artStyle;
+    board.render();
+  }
 
   // Replay all moves to restore game state and populate the move strip
   if (payload.moves && payload.moves.length > 0) {

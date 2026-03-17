@@ -14,6 +14,8 @@
 const CAM_LABELS = { 'board-face': 'Board - Face', 'tile-cam': 'Tile - Cam', 'king-cam': 'King - Cam', 'split-cam': 'Side / Side', 'split-cam-h': 'Top / Bottom', 'none': 'No-Cam' };
 const CAM_LABELS_SHORT = { 'board-face': 'Board Face', 'tile-cam': 'Tile Cam', 'split-cam': 'Side / Side', 'split-cam-h': 'Top / Bottom', 'king-cam': 'King Cam', 'none': 'No Cam' };
 const CAM_MODES = ['board-face', 'tile-cam', 'king-cam', 'split-cam', 'split-cam-h', 'none'];
+const ART_STYLES = ['none', 'classic', 'staunton', 'gothic', 'chessmaster'];
+const ART_STYLE_LABELS = { none: 'Personal', classic: 'Classic', staunton: 'Staunton', gothic: 'Gothic', chessmaster: 'Chessmaster' };
 
 export class MultiplayerUI {
   constructor(mp) {
@@ -28,7 +30,7 @@ export class MultiplayerUI {
     this._pendingLobbyCustomTc = false;
     this._myColor = null; // 'w' | 'b' — set when game starts via setPlayerColor()
     // Settings tracked while in waiting state (host-only, before opponent joins)
-    this._waitingSettings = { timeControl: '5+0', chess960: false, colorPreference: 'random' };
+    this._waitingSettings = { timeControl: '5+0', chess960: false, colorPreference: 'random', evalBar: false, artStyle: 'none' };
 
     this._initElements();
     this._bindEvents();
@@ -176,6 +178,8 @@ export class MultiplayerUI {
       timeControl: initialTc || this.mpTimeControl?.value || '5+0',
       chess960: !!initialChess960,
       colorPreference: 'random',
+      evalBar: false,
+      artStyle: 'none',
     };
     this._currentView = 'waiting';
     this._updateStatusBar();
@@ -318,6 +322,14 @@ export class MultiplayerUI {
       this.inlineSwapBtn.textContent = COLOR_LABELS[this._lobbyState.colorPreference ?? 'random'] ?? 'Random Color';
     }
 
+    // Eval Bar
+    const evalBar = isWaiting ? this._waitingSettings.evalBar : this._lobbyState?.settings?.evalBar;
+    this.inlineEvalBarBtn.textContent = evalBar ? 'Eval Bar: On' : 'Eval Bar: Off';
+
+    // Art Style
+    const artStyle = isWaiting ? this._waitingSettings.artStyle : (this._lobbyState?.settings?.artStyle || 'none');
+    this.inlineArtStyleBtn.textContent = `Art: ${ART_STYLE_LABELS[artStyle] || 'Personal'}`;
+
     // Ready states (lobby only)
     if (!isWaiting) {
       const s = this._lobbyState;
@@ -354,6 +366,12 @@ export class MultiplayerUI {
       }
       if (payload.settings?.colorPreference !== undefined) {
         this._waitingSettings.colorPreference = payload.settings.colorPreference;
+      }
+      if (payload.settings?.evalBar !== undefined) {
+        this._waitingSettings.evalBar = payload.settings.evalBar;
+      }
+      if (payload.settings?.artStyle !== undefined) {
+        this._waitingSettings.artStyle = payload.settings.artStyle;
       }
       this._renderLobbyPanel();
       this._updateStatusBar();
@@ -470,6 +488,10 @@ export class MultiplayerUI {
     this.inlineReadyBtn = document.getElementById('lobby-ready-btn');
     this.inlineReadyYou = document.getElementById('lobby-ready-you');
     this.inlineReadyOpp = document.getElementById('lobby-ready-opp');
+    this.moreToggle = document.getElementById('lobby-more-toggle');
+    this.moreSettings = document.getElementById('lobby-more-settings');
+    this.inlineEvalBarBtn = document.getElementById('lobby-evalbar-btn');
+    this.inlineArtStyleBtn = document.getElementById('lobby-artstyle-btn');
 
     // Waiting section in lobby panel
     this.waitingSection = document.getElementById('lobby-waiting-section');
@@ -735,6 +757,40 @@ export class MultiplayerUI {
         this.mp.proposeSetting('camMode', next);
       });
     }
+
+    // More Settings toggle
+    this.moreToggle.addEventListener('click', () => {
+      this.moreToggle.classList.toggle('open');
+      this.moreSettings.classList.toggle('hidden');
+    });
+
+    // Inline lobby — eval bar toggle
+    this.inlineEvalBarBtn.addEventListener('click', () => {
+      if (this._currentView === 'waiting') {
+        this._waitingSettings.evalBar = !this._waitingSettings.evalBar;
+        this._renderLobbyPanel();
+        this.mp.proposeSetting('evalBar', this._waitingSettings.evalBar);
+        return;
+      }
+      const current = this._lobbyState?.settings?.evalBar || false;
+      this.mp.proposeSetting('evalBar', !current);
+    });
+
+    // Inline lobby — art style cycle
+    this.inlineArtStyleBtn.addEventListener('click', () => {
+      if (this._currentView === 'waiting') {
+        const idx = ART_STYLES.indexOf(this._waitingSettings.artStyle);
+        const next = ART_STYLES[(idx + 1) % ART_STYLES.length];
+        this._waitingSettings.artStyle = next;
+        this._renderLobbyPanel();
+        this.mp.proposeSetting('artStyle', next);
+        return;
+      }
+      const current = this._lobbyState?.settings?.artStyle || 'none';
+      const idx = ART_STYLES.indexOf(current);
+      const next = ART_STYLES[(idx + 1) % ART_STYLES.length];
+      this.mp.proposeSetting('artStyle', next);
+    });
 
     // Inline lobby — ready
     this.inlineReadyBtn.addEventListener('click', () => {

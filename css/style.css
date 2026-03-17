@@ -3829,6 +3829,32 @@ button.replay-summary-btn {
   border-color: var(--accent);
 }
 
+/* More Settings toggle */
+.lobby-more-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 4px 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary, #999);
+  user-select: none;
+}
+.lobby-more-toggle:hover {
+  color: var(--text-primary, #fff);
+}
+.lobby-more-arrow {
+  font-size: 0.6rem;
+  transition: transform 0.2s;
+}
+.lobby-more-toggle.open .lobby-more-arrow {
+  transform: rotate(180deg);
+}
+.lobby-more-settings.hidden {
+  display: none;
+}
+
 /* Ready row */
 .lobby-ready-row {
   display: flex;

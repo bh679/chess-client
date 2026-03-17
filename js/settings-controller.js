@@ -1,7 +1,7 @@
 import { getAllEngines, getEngineInfo } from './engines/registry.js';
 
 // Art style path mapping (shared with app.js global)
-const STYLE_PATHS = {
+export const STYLE_PATHS = {
   classic:  'img/pieces',
   staunton: 'img/pieces-staunton',
   gothic:   'img/pieces-gothic',
