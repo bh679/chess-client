@@ -1,8 +1,10 @@
 /**
- * VideoUI — DOM management for video chat overlay, controls, and camera preview.
+ * VideoUI — under-board video controls, error toast, and remote volume management.
  *
- * Follows the same pattern as multiplayer-ui.js: caches DOM elements, binds events,
- * exposes show/hide and stream-setting methods.
+ * The floating video overlay and camera preview modal have been removed.
+ * Video is displayed via board camera modes (board-face, king-cam, split-cam, split-cam-h).
+ * This class now manages only the under-board mic/camera/end-call controls,
+ * error toasts, and remote audio volume.
  */
 
 const ERROR_TOAST_DURATION = 4000;
@@ -13,14 +15,11 @@ export class VideoUI {
    */
   constructor(videoChat) {
     this._videoChat = videoChat;
-    this._visible = false;
     this._errorTimer = null;
     this._remoteVolume = parseInt(localStorage.getItem('voiceVolume') ?? '100', 10) / 100;
 
     // Event callbacks — set by app.js
     this.onEndCall = null;         // () => void
-    this.onPreviewConfirm = null;  // () => void
-    this.onPreviewCancel = null;   // () => void
 
     this._initElements();
     this._bindEvents();
@@ -28,40 +27,29 @@ export class VideoUI {
 
   // --- Public API ---
 
-  show() {
-    if (this._container) {
-      this._container.classList.remove('hidden');
+  showControls() {
+    if (this._controlsContainer) {
+      this._controlsContainer.classList.remove('hidden');
     }
-    this._visible = true;
   }
 
-  hide() {
-    if (this._container) {
-      this._container.classList.add('hidden');
+  hideControls() {
+    if (this._controlsContainer) {
+      this._controlsContainer.classList.add('hidden');
     }
-    this._visible = false;
-    this._clearStreams();
-  }
-
-  /**
-   * @param {MediaStream} stream
-   */
-  setLocalStream(stream) {
-    if (this._localVideo) {
-      this._localVideo.srcObject = stream;
+    if (this._remoteAudio) {
+      this._remoteAudio.srcObject = null;
     }
   }
 
   /**
+   * Attach the remote stream to the hidden audio element for voice playback.
    * @param {MediaStream} stream
    */
   setRemoteStream(stream) {
-    if (this._remoteVideo) {
-      this._remoteVideo.srcObject = stream;
-      this._remoteVideo.volume = this._remoteVolume;
-    }
-    if (this._remotePlaceholder) {
-      this._remotePlaceholder.classList.add('hidden');
+    if (this._remoteAudio) {
+      this._remoteAudio.srcObject = stream;
+      this._remoteAudio.volume = this._remoteVolume;
     }
   }
 
@@ -72,36 +60,8 @@ export class VideoUI {
   setRemoteVolume(pct) {
     this._remoteVolume = pct / 100;
     localStorage.setItem('voiceVolume', String(pct));
-    if (this._remoteVideo) {
-      this._remoteVideo.volume = this._remoteVolume;
-    }
-  }
-
-  /**
-   * Show camera preview modal with local stream.
-   * @param {MediaStream} stream
-   */
-  showCameraPreview(stream) {
-    if (this._previewVideo) {
-      this._previewVideo.srcObject = stream;
-    }
-    if (this._previewBackdrop) {
-      this._previewBackdrop.classList.remove('hidden');
-    }
-    if (this._previewModal) {
-      this._previewModal.classList.remove('hidden');
-    }
-  }
-
-  hideCameraPreview() {
-    if (this._previewBackdrop) {
-      this._previewBackdrop.classList.add('hidden');
-    }
-    if (this._previewModal) {
-      this._previewModal.classList.add('hidden');
-    }
-    if (this._previewVideo) {
-      this._previewVideo.srcObject = null;
+    if (this._remoteAudio) {
+      this._remoteAudio.volume = this._remoteVolume;
     }
   }
 
@@ -151,18 +111,11 @@ export class VideoUI {
   // --- Private ---
 
   _initElements() {
-    this._container = document.getElementById('vc-container');
-    this._localVideo = document.getElementById('vc-local-video');
-    this._remoteVideo = document.getElementById('vc-remote-video');
-    this._remotePlaceholder = document.getElementById('vc-remote-placeholder');
+    this._controlsContainer = document.getElementById('vc-settings-section');
     this._toggleMicBtn = document.getElementById('vc-toggle-mic');
     this._toggleVideoBtn = document.getElementById('vc-toggle-video');
     this._endCallBtn = document.getElementById('vc-end-call');
-    this._previewBackdrop = document.getElementById('vc-preview-backdrop');
-    this._previewModal = document.getElementById('vc-preview-modal');
-    this._previewVideo = document.getElementById('vc-preview-video');
-    this._previewConfirmBtn = document.getElementById('vc-preview-confirm');
-    this._previewCancelBtn = document.getElementById('vc-preview-cancel');
+    this._remoteAudio = document.getElementById('vc-remote-audio');
     this._errorToast = document.getElementById('vc-error-toast');
   }
 
@@ -184,23 +137,5 @@ export class VideoUI {
         if (this.onEndCall) this.onEndCall();
       });
     }
-    if (this._previewConfirmBtn) {
-      this._previewConfirmBtn.addEventListener('click', () => {
-        this.hideCameraPreview();
-        if (this.onPreviewConfirm) this.onPreviewConfirm();
-      });
-    }
-    if (this._previewCancelBtn) {
-      this._previewCancelBtn.addEventListener('click', () => {
-        this.hideCameraPreview();
-        if (this.onPreviewCancel) this.onPreviewCancel();
-      });
-    }
-  }
-
-  _clearStreams() {
-    if (this._localVideo) this._localVideo.srcObject = null;
-    if (this._remoteVideo) this._remoteVideo.srcObject = null;
-    if (this._remotePlaceholder) this._remotePlaceholder.classList.remove('hidden');
   }
 }

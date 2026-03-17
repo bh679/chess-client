@@ -550,6 +550,21 @@
       </div>
     </div>
 
+    <div id="vc-settings-section" class="settings-section hidden">
+      <div class="settings-section-title">Video Call</div>
+      <div class="settings-row vc-settings-controls">
+        <button id="vc-toggle-mic" class="vc-ctrl-btn" title="Mute Microphone">
+          <span class="vc-icon">&#x1F3A4;</span>
+        </button>
+        <button id="vc-toggle-video" class="vc-ctrl-btn" title="Turn Off Camera">
+          <span class="vc-icon">&#x1F4F7;</span>
+        </button>
+        <button id="vc-end-call" class="vc-ctrl-btn vc-ctrl-danger" title="End Video">
+          <span class="vc-icon">&#x260E;</span>
+        </button>
+      </div>
+    </div>
+
     <div class="settings-footer">
       <a href="https://github.com/bh679/chess-project" target="_blank" rel="noopener">GitHub</a>
       <div class="archive-wrapper">
@@ -592,41 +607,8 @@
     </div>
   </div>
 
-  <!-- Video Chat Container -->
-  <div id="vc-container" class="vc-container hidden">
-    <div class="vc-videos">
-      <div class="vc-remote-wrapper">
-        <video id="vc-remote-video" class="vc-video vc-remote" autoplay playsinline></video>
-        <div id="vc-remote-placeholder" class="vc-placeholder">Waiting for opponent...</div>
-      </div>
-      <div class="vc-local-wrapper">
-        <video id="vc-local-video" class="vc-video vc-local" autoplay playsinline muted></video>
-      </div>
-    </div>
-    <div class="vc-controls">
-      <button id="vc-toggle-mic" class="vc-ctrl-btn" title="Mute Microphone">
-        <span class="vc-icon">&#x1F3A4;</span>
-      </button>
-      <button id="vc-toggle-video" class="vc-ctrl-btn" title="Turn Off Camera">
-        <span class="vc-icon">&#x1F4F7;</span>
-      </button>
-      <button id="vc-end-call" class="vc-ctrl-btn vc-ctrl-danger" title="End Video">
-        <span class="vc-icon">&#x260E;</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Camera Preview Modal -->
-  <div id="vc-preview-backdrop" class="vc-preview-backdrop hidden"></div>
-  <div id="vc-preview-modal" class="vc-preview-modal hidden">
-    <h3>Camera Preview</h3>
-    <video id="vc-preview-video" class="vc-preview-video" autoplay playsinline muted></video>
-    <p class="vc-preview-text">Your camera will be visible to your opponent.</p>
-    <div class="vc-preview-actions">
-      <button id="vc-preview-confirm" class="mp-btn mp-btn-primary">Join with Video</button>
-      <button id="vc-preview-cancel" class="mp-btn mp-btn-danger">Cancel</button>
-    </div>
-  </div>
+  <!-- Hidden audio element for remote voice chat -->
+  <audio id="vc-remote-audio" autoplay></audio>
 
   <!-- Video error toast -->
   <div id="vc-error-toast" class="vc-error-toast hidden"></div>

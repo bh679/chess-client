@@ -516,8 +516,7 @@ function setMultiplayerMode(active) {
 
 function stopAllVideo() {
   videoChat.stop();
-  videoUI.hide();
-  videoUI.hideCameraPreview();
+  videoUI.hideControls();
   videoBoard.disable();
   tileCam.disable();
   kingCam.disable();
@@ -1239,11 +1238,12 @@ mp.onGameStart = async (payload) => {
 
   startMultiplayerGame(payload.color, payload.fen, payload.timeControl, payload.opponentName, payload.chess960, payload.isCreator);
 
-  // If a camera mode is active, request camera (skip if already started in lobby)
+  // If a camera mode is active, request camera and auto-send video ready
   if (activeCamMode !== 'none' && !videoChat.hasLocalStream()) {
     try {
-      const stream = await videoChat.requestCamera();
-      videoUI.showCameraPreview(stream);
+      await videoChat.requestCamera();
+      videoChat.fetchIceServers();
+      mp.sendVideoReady();
     } catch (e) {
       videoUI.showError(e.message || 'Camera access failed.');
     }
@@ -1655,8 +1655,9 @@ mp.onRematchStart = async (payload) => {
     // Video was configured for this room but the connection dropped — re-request
     // camera and signal readiness so the server can re-initiate WebRTC.
     try {
-      const stream = await videoChat.requestCamera();
-      videoUI.showCameraPreview(stream);
+      await videoChat.requestCamera();
+      videoChat.fetchIceServers();
+      mp.sendVideoReady();
     } catch (e) {
       videoUI.showError(e.message || 'Camera access failed on rematch.');
     }
@@ -1885,10 +1886,8 @@ mp.onVideoStart = async (payload) => {
           videoBoard.updateRemoteStream(videoChat._remoteStream, mp.color);
         }
       }
-    } else {
-      // Fallback: show floating popup only when board mode is unavailable
-      videoUI.show();
     }
+    videoUI.showControls();
   } catch (e) {
     diagnostics.record('lifecycle', 'video_call_failed', { error: e.message });
     diagnostics.flush();
@@ -1950,7 +1949,6 @@ videoChat.onLocalStream = (stream) => {
       diagnostics.record('webrtc', 'local_track_ended', { kind: 'video', reason });
     };
   });
-  videoUI.setLocalStream(stream);
   if (mp.color) {
     videoBoard.updateLocalStream(stream, mp.color);
     diagnostics.localStreamUpdated('board-face', mp.color);
@@ -2052,18 +2050,6 @@ videoChat.onRemoteVideoUnmuted = () => {
 };
 
 // VideoUI events
-videoUI.onPreviewConfirm = () => {
-  // Pre-fetch ICE servers while waiting for opponent to confirm camera
-  videoChat.fetchIceServers();
-  mp.sendVideoReady();
-};
-
-videoUI.onPreviewCancel = () => {
-  // User cancelled — stop camera, don't send video_ready
-  _userStoppedCamera = true;
-  videoChat.stop();
-};
-
 videoUI.onEndCall = () => {
   mp.sendVideoEnd();
   _userStoppedCamera = true;
