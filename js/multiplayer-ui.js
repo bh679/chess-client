@@ -11,9 +11,9 @@
  * waiting. When the opponent joins, the panel transitions to full lobby
  * mode (ready buttons, color swap).
  */
-const CAM_LABELS = { 'board-face': 'Board - Face', 'king-cam': 'King - Cam', 'split-cam': 'Side / Side', 'split-cam-h': 'Top / Bottom', 'none': 'No-Cam' };
-const CAM_LABELS_SHORT = { 'board-face': 'Board Face', 'split-cam': 'Side / Side', 'split-cam-h': 'Top / Bottom', 'king-cam': 'King Cam', 'none': 'No Cam' };
-const CAM_MODES = ['board-face', 'king-cam', 'split-cam', 'split-cam-h', 'none'];
+const CAM_LABELS = { 'board-face': 'Board - Face', 'tile-cam': 'Tile - Cam', 'king-cam': 'King - Cam', 'split-cam': 'Side / Side', 'split-cam-h': 'Top / Bottom', 'none': 'No-Cam' };
+const CAM_LABELS_SHORT = { 'board-face': 'Board Face', 'tile-cam': 'Tile Cam', 'split-cam': 'Side / Side', 'split-cam-h': 'Top / Bottom', 'king-cam': 'King Cam', 'none': 'No Cam' };
+const CAM_MODES = ['board-face', 'tile-cam', 'king-cam', 'split-cam', 'split-cam-h', 'none'];
 
 export class MultiplayerUI {
   constructor(mp) {
