@@ -5079,14 +5079,10 @@ button.replay-summary-btn {
    Video Chat (vc- prefix)
    ========================================= */
 
-/* Under-board video controls */
-.vc-board-controls {
-  display: flex;
-  gap: 6px;
+/* Video call controls in settings panel */
+.vc-settings-controls {
   justify-content: center;
-  margin-top: 8px;
 }
-.vc-board-controls.hidden { display: none; }
 
 .vc-ctrl-btn {
   width: 36px;

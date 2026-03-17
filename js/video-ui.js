@@ -111,7 +111,7 @@ export class VideoUI {
   // --- Private ---
 
   _initElements() {
-    this._controlsContainer = document.getElementById('vc-board-controls');
+    this._controlsContainer = document.getElementById('vc-settings-section');
     this._toggleMicBtn = document.getElementById('vc-toggle-mic');
     this._toggleVideoBtn = document.getElementById('vc-toggle-video');
     this._endCallBtn = document.getElementById('vc-end-call');

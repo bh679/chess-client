@@ -64,19 +64,6 @@
       </div>
     </div>
 
-    <!-- Video controls (below board, shown during active video call) -->
-    <div id="vc-board-controls" class="vc-board-controls hidden">
-      <button id="vc-toggle-mic" class="vc-ctrl-btn" title="Mute Microphone">
-        <span class="vc-icon">&#x1F3A4;</span>
-      </button>
-      <button id="vc-toggle-video" class="vc-ctrl-btn" title="Turn Off Camera">
-        <span class="vc-icon">&#x1F4F7;</span>
-      </button>
-      <button id="vc-end-call" class="vc-ctrl-btn vc-ctrl-danger" title="End Video">
-        <span class="vc-icon">&#x260E;</span>
-      </button>
-    </div>
-
     <!-- Pre-game lobby panel (inline, below board) -->
     <div id="lobby-panel" class="lobby-panel hidden">
       <!-- Shown while waiting for opponent to join -->
@@ -560,6 +547,21 @@
             <img src="img/pieces-chessmaster/wN.svg" alt="Chessmaster" draggable="false">
           </button>
         </div>
+      </div>
+    </div>
+
+    <div id="vc-settings-section" class="settings-section hidden">
+      <div class="settings-section-title">Video Call</div>
+      <div class="settings-row vc-settings-controls">
+        <button id="vc-toggle-mic" class="vc-ctrl-btn" title="Mute Microphone">
+          <span class="vc-icon">&#x1F3A4;</span>
+        </button>
+        <button id="vc-toggle-video" class="vc-ctrl-btn" title="Turn Off Camera">
+          <span class="vc-icon">&#x1F4F7;</span>
+        </button>
+        <button id="vc-end-call" class="vc-ctrl-btn vc-ctrl-danger" title="End Video">
+          <span class="vc-icon">&#x260E;</span>
+        </button>
       </div>
     </div>
 
