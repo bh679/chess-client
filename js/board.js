@@ -180,6 +180,7 @@ class Board {
         const el = document.createElement('div');
         el.className = 'square ' + ((rankIdx + fileIdx) % 2 === 0 ? 'light' : 'dark');
         el.dataset.square = square;
+        el.dataset.row = row;
 
         // Coordinate labels
         if (col === 0) {
