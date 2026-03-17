@@ -5079,7 +5079,8 @@ button.replay-summary-btn {
    Video Chat (vc- prefix)
    ========================================= */
 
-/* Video call controls in settings panel */
+/* Video call section in settings panel — hidden when no active call */
+#vc-settings-section.hidden { display: none; }
 .vc-settings-controls {
   justify-content: center;
 }
