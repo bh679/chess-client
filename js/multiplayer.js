@@ -562,7 +562,7 @@ export class MultiplayerClient {
         if (this.onBughouseRoomCreated) this.onBughouseRoomCreated(payload);
         break;
 
-      case 'bug_lobby_joined':
+      case 'bug_lobby_update':
         this.roomId = payload.roomId;
         if (this.onBughouseLobbyJoined) this.onBughouseLobbyJoined(payload);
         break;
