@@ -23,6 +23,7 @@ import { NewGameMenu } from './new-game-menu.js';
 import { VideoChat } from './video-chat.js';
 import { VideoUI } from './video-ui.js';
 import { VideoBoard } from './video-board.js';
+import { TileCam } from './tile-cam.js';
 import { KingCam } from './king-cam.js';
 import { SplitCam } from './split-cam.js';
 import { SplitCamH } from './split-cam-h.js';
@@ -315,6 +316,7 @@ const videoChat = new VideoChat(mp, diagnostics);
 const videoUI = new VideoUI(videoChat);
 settingsCtrl.setVoiceUi(videoUI);
 const videoBoard = new VideoBoard(boardEl);
+const tileCam = new TileCam(boardEl);
 const kingCam = new KingCam();
 const splitCam = new SplitCam(boardEl);
 const splitCamH = new SplitCamH(boardEl);
@@ -479,6 +481,7 @@ gameCtrl.setCallbacks({
   routerSilentUpdate: (path) => router.silentUpdate(path),
   issueReporter,
   videoBoard,
+  tileCam,
   splitCam,
   splitCamH,
   getLiveEvalEngine: () => liveEvalEngine,
@@ -515,6 +518,7 @@ function stopAllVideo() {
   videoChat.stop();
   videoUI.hideControls();
   videoBoard.disable();
+  tileCam.disable();
   kingCam.disable();
   splitCam.disable();
   splitCamH.disable();
@@ -575,7 +579,7 @@ function hardReset() {
 // ─── UIController ────────────────────────────────────────────────
 uiCtrl = new UIController({
   game, board, db, mp, gameCtrl, settingsCtrl, replayController, liveMoveBar,
-  diagnostics, videoChat, videoBoard, splitCam, splitCamH, kingCam,
+  diagnostics, videoChat, videoBoard, tileCam, splitCam, splitCamH, kingCam,
   getVideoActive: () => videoActive,
   callbacks: { startNewGame },
   dom: {
@@ -618,6 +622,9 @@ board.onMove((result) => {
     board.setInteractive(false);
     if (videoBoard.isActive()) {
       videoBoard.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
+    }
+    if (tileCam.isActive()) {
+      tileCam.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
     }
     if (splitCam.isActive()) {
       splitCam.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
@@ -1181,6 +1188,9 @@ mp.onGameStart = async (payload) => {
   if (videoBoard.isActive()) {
     videoBoard.setTintEnabled(true);
   }
+  if (tileCam.isActive()) {
+    tileCam.setTintEnabled(true);
+  }
   if (splitCam.isActive()) {
     splitCam.setTintEnabled(true);
   }
@@ -1196,11 +1206,13 @@ mp.onGameStart = async (payload) => {
     const needsSplitCamH = activeCamMode === 'split-cam-h' && !splitCamH.isActive();
     const needsKingCam = activeCamMode === 'king-cam' && !kingCam.isActive();
     const needsBoardFace = activeCamMode === 'board-face' && !videoBoard.isActive();
+    const needsTileCam = activeCamMode === 'tile-cam' && !tileCam.isActive();
     const needsNone = activeCamMode === 'none' &&
-      (videoBoard.isActive() || splitCam.isActive() || splitCamH.isActive() || kingCam.isActive());
+      (videoBoard.isActive() || tileCam.isActive() || splitCam.isActive() || splitCamH.isActive() || kingCam.isActive());
 
-    if (needsSplitCam || needsSplitCamH || needsKingCam || needsBoardFace || needsNone) {
+    if (needsSplitCam || needsSplitCamH || needsKingCam || needsBoardFace || needsTileCam || needsNone) {
       videoBoard.disable();
+      tileCam.disable();
       splitCam.disable();
       splitCamH.disable();
       kingCam.disable();
@@ -1217,6 +1229,9 @@ mp.onGameStart = async (payload) => {
       } else if (activeCamMode === 'board-face') {
         videoBoard.enable(videoChat._localStream, videoChat._remoteStream, mp.color);
         videoBoard.setTintEnabled(true);
+      } else if (activeCamMode === 'tile-cam') {
+        tileCam.enable(videoChat._localStream, videoChat._remoteStream, mp.color);
+        tileCam.setTintEnabled(true);
       }
     }
   }
@@ -1489,6 +1504,9 @@ mp.onOpponentMove = (payload) => {
   if (videoBoard.isActive()) {
     videoBoard.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
   }
+  if (tileCam.isActive()) {
+    tileCam.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
+  }
   if (splitCam.isActive()) {
     splitCam.updateTurnTint(game.getTurn(), mp.color, settingsCtrl.getBoardTint() / 100);
   }
@@ -1618,6 +1636,9 @@ mp.onRematchStart = async (payload) => {
   if (videoBoard.isActive()) {
     // WebRTC connection still live — reset board with new player color.
     videoBoard.reset(videoChat._localStream, videoChat._remoteStream, payload.color);
+  } else if (tileCam.isActive()) {
+    // Tile cam — reset with new player color.
+    tileCam.reset(videoChat._localStream, videoChat._remoteStream, payload.color);
   } else if (splitCam.isActive()) {
     // Split cam — disable and re-enable with new player color.
     splitCam.disable();
@@ -1851,6 +1872,12 @@ mp.onVideoStart = async (payload) => {
         if (videoChat._remoteStream) {
           splitCamH.updateRemoteStream(videoChat._remoteStream, mp.color);
         }
+      } else if (activeCamMode === 'tile-cam') {
+        // Tile cam — each square shows its own complete camera feed
+        tileCam.enable(videoChat._localStream, null, mp.color);
+        if (videoChat._remoteStream) {
+          tileCam.updateRemoteStream(videoChat._remoteStream, mp.color);
+        }
       } else {
         // Default: board-face mode — camera fills board squares
         videoBoard.enable(videoChat._localStream, null, mp.color);
@@ -1876,6 +1903,11 @@ mp.onVideoPeerReady = () => {
 // Face tracking runs locally only — the remote peer receives a pre-cropped stream
 // and doesn't need to run face detection on it.
 videoBoard.onCroppedStreamReady = (canvasStream) => {
+  videoChat.replaceVideoTrack(canvasStream.getVideoTracks()[0]);
+};
+
+// TileCam: same — send cropped stream over WebRTC.
+tileCam.onCroppedStreamReady = (canvasStream) => {
   videoChat.replaceVideoTrack(canvasStream.getVideoTracks()[0]);
 };
 

@@ -396,6 +396,82 @@ body {
   opacity: 0.8;
 }
 
+/* Tile Cam — each board tile shows its own complete camera feed */
+.tile-cam-layer {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.tile-cam-cell {
+  position: relative;
+  overflow: hidden;
+}
+
+.tile-cam-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Color tint overlays for turn indication — clipped to matching square colour */
+.tile-cam-light-tint {
+  position: absolute;
+  inset: 0;
+  background-color: var(--board-light);
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  -webkit-mask: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 12.5% 12.5%;
+  mask: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 12.5% 12.5%;
+}
+
+.tile-cam-dark-tint {
+  position: absolute;
+  inset: 0;
+  background-color: var(--board-dark);
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  -webkit-mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 12.5% 12.5%;
+  mask: repeating-conic-gradient(transparent 0% 25%, #000 0% 50%) 0 0 / 12.5% 12.5%;
+}
+
+/* When tile cam is active, make square backgrounds transparent */
+.board.tile-cam-active .square.light,
+.board.tile-cam-active .square.dark {
+  background-color: transparent;
+}
+
+/* Ensure squares render above tile cam layer */
+.board.tile-cam-active .square {
+  z-index: 1;
+}
+
+/* State highlights show as semi-transparent overlays on video */
+.board.tile-cam-active .square.selected {
+  background-color: rgba(247, 236, 90, 0.5) !important;
+}
+
+.board.tile-cam-active .square.last-move {
+  background-color: rgba(255, 255, 0, 0.25) !important;
+}
+
+.board.tile-cam-active .square.check {
+  background-color: rgba(255, 0, 0, 0.4) !important;
+}
+
+.board.tile-cam-active .square.legal-move::after,
+.board.tile-cam-active .square.legal-capture::after {
+  opacity: 0.8;
+}
+
 /* Split Cam — left half (white player) / right half (black player) */
 .split-cam-layer {
   position: absolute;

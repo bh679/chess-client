@@ -167,6 +167,7 @@ class Board {
     const videoLayer = this.container.querySelector('.video-board-layer');
     const splitCamLayer = this.container.querySelector('.split-cam-layer');
     const splitCamHLayer = this.container.querySelector('.split-cam-h-layer');
+    const tileCamLayer = this.container.querySelector('.tile-cam-layer');
 
     this.container.innerHTML = '';
     const files = this._flipped ? [...FILES].reverse() : FILES;
@@ -209,6 +210,9 @@ class Board {
     }
     if (splitCamHLayer) {
       this.container.insertBefore(splitCamHLayer, this.container.firstChild);
+    }
+    if (tileCamLayer) {
+      this.container.insertBefore(tileCamLayer, this.container.firstChild);
     }
 
     // Re-append arrow overlay SVG (innerHTML = '' removes it)
