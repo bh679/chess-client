@@ -70,6 +70,29 @@ export class MultiplayerClient {
     // Public lobby callbacks
     this.onPublicSet = null;
     this.onPublicRoomsList = null;
+
+    // Bughouse callbacks
+    this.onBughouseRoomCreated = null;
+    this.onBughouseLobbyJoined = null;
+    this.onBughouseSettingChanged = null;
+    this.onBughouseReadyState = null;
+    this.onBughouseGameStart = null;
+    this.onBughouseMove = null;
+    this.onBughouseMoveAck = null;
+    this.onBughouseDrop = null;
+    this.onBughouseDropAck = null;
+    this.onBughousePoolUpdate = null;
+    this.onBughouseClockSync = null;
+    this.onBughouseGameEnd = null;
+    this.onBughousePlayerDisconnected = null;
+    this.onBughousePlayerReconnected = null;
+    this.onBughouseReconnect = null;
+    this.onBughouseQueueJoined = null;
+    this.onBughouseQueueLeft = null;
+    this.onBughouseRoomCancelled = null;
+    this.onBughousePublicSet = null;
+    this.onBughousePublicRoomsList = null;
+    this.onBughouseTeamSwapped = null;
   }
 
   /** Connect to the WebSocket server */
@@ -231,6 +254,83 @@ export class MultiplayerClient {
 
   /** Request list of public rooms available to join */
   requestPublicRooms() { this._send('list_public_rooms', {}); }
+
+  // --- Bughouse methods ---
+
+  /** Create a bughouse room */
+  createBughouseRoom(timeControl, name) {
+    this._send('bug_create_room', { timeControl, name });
+  }
+
+  /** Join an existing bughouse room by code */
+  joinBughouseRoom(roomId, name) {
+    this._send('bug_join_room', { roomId: roomId.toUpperCase(), name });
+  }
+
+  /** Join bughouse quick match queue */
+  bughouseQuickMatch(timeControl, name) {
+    this._send('bug_quick_match', { timeControl, name });
+  }
+
+  /** Cancel bughouse queue */
+  cancelBughouseQueue() {
+    this._send('bug_cancel_queue', {});
+  }
+
+  /** Send a standard move on our bughouse board */
+  sendBughouseMove(san) {
+    this._send('bug_move', { san });
+  }
+
+  /** Send a piece drop on our bughouse board */
+  sendBughouseDrop(piece, square) {
+    this._send('bug_drop', { piece, square });
+  }
+
+  /** Propose a bughouse setting change */
+  sendBughouseSettingChange(field, value) {
+    this._send('bug_setting_change', { field, value });
+  }
+
+  /** Set bughouse ready state */
+  sendBughouseReady(ready) {
+    this._send('bug_ready', { ready });
+  }
+
+  /** Set bughouse ready state */
+  setBughouseReady(ready) {
+    this._send('bug_ready', { ready });
+  }
+
+  /** Resign bughouse game */
+  resignBughouse() {
+    this._send('bug_resign', {});
+  }
+
+  /** Propose bughouse setting change */
+  proposeBughouseSetting(field, value) {
+    this._send('bug_setting_change', { field, value });
+  }
+
+  /** Request team swap in bughouse lobby */
+  bughouseTeamSwap() {
+    this._send('bug_team_swap', {});
+  }
+
+  /** Cancel a pending bughouse room */
+  cancelBughouseRoom() {
+    this._send('bug_cancel_room', {});
+  }
+
+  /** Toggle public visibility for bughouse room */
+  setBughousePublic(isPublic) {
+    this._send('bug_set_public', { isPublic });
+  }
+
+  /** Request list of public bughouse rooms */
+  requestBughousePublicRooms() {
+    this._send('bug_list_public_rooms', {});
+  }
 
   /** Disconnect from the server */
   disconnect() {
@@ -454,6 +554,103 @@ export class MultiplayerClient {
 
       case 'public_rooms_list':
         if (this.onPublicRoomsList) this.onPublicRoomsList(payload.rooms);
+        break;
+
+      // Bughouse messages
+      case 'bug_room_created':
+        this.roomId = payload.roomId;
+        if (this.onBughouseRoomCreated) this.onBughouseRoomCreated(payload);
+        break;
+
+      case 'bug_lobby_update':
+        this.roomId = payload.roomId;
+        if (this.onBughouseLobbyJoined) this.onBughouseLobbyJoined(payload);
+        break;
+
+      case 'bug_setting_changed':
+        if (this.onBughouseSettingChanged) this.onBughouseSettingChanged(payload);
+        break;
+
+      case 'bug_ready_state':
+        if (this.onBughouseReadyState) this.onBughouseReadyState(payload);
+        break;
+
+      case 'bug_game_start':
+        this.roomId = payload.roomId;
+        this.color = payload.color;
+        this.active = true;
+        if (this.onBughouseGameStart) this.onBughouseGameStart(payload);
+        break;
+
+      case 'bug_move':
+        if (this.onBughouseMove) this.onBughouseMove(payload);
+        break;
+
+      case 'bug_move_ack':
+        if (this.onBughouseMoveAck) this.onBughouseMoveAck(payload);
+        break;
+
+      case 'bug_drop':
+        if (this.onBughouseDrop) this.onBughouseDrop(payload);
+        break;
+
+      case 'bug_drop_ack':
+        if (this.onBughouseDropAck) this.onBughouseDropAck(payload);
+        break;
+
+      case 'bug_pool_update':
+        if (this.onBughousePoolUpdate) this.onBughousePoolUpdate(payload);
+        break;
+
+      case 'bug_clock_sync':
+        if (this.onBughouseClockSync) this.onBughouseClockSync(payload);
+        break;
+
+      case 'bug_game_end':
+        this.active = false;
+        if (this.onBughouseGameEnd) this.onBughouseGameEnd(payload);
+        break;
+
+      case 'bug_player_disconnected':
+        if (this.onBughousePlayerDisconnected) this.onBughousePlayerDisconnected(payload);
+        break;
+
+      case 'bug_player_reconnected':
+        if (this.onBughousePlayerReconnected) this.onBughousePlayerReconnected(payload);
+        break;
+
+      case 'bug_reconnect':
+        this.roomId = payload.roomId;
+        this.color = payload.color;
+        this.active = true;
+        this._roomConnected = true;
+        if (this.onBughouseReconnect) this.onBughouseReconnect(payload);
+        break;
+
+      case 'bug_queue_joined':
+        if (this.onBughouseQueueJoined) this.onBughouseQueueJoined(payload);
+        break;
+
+      case 'bug_queue_left':
+        if (this.onBughouseQueueLeft) this.onBughouseQueueLeft();
+        break;
+
+      case 'bug_room_cancelled':
+        this.roomId = null;
+        this.color = null;
+        if (this.onBughouseRoomCancelled) this.onBughouseRoomCancelled();
+        break;
+
+      case 'bug_public_set':
+        if (this.onBughousePublicSet) this.onBughousePublicSet(payload);
+        break;
+
+      case 'bug_public_rooms_list':
+        if (this.onBughousePublicRoomsList) this.onBughousePublicRoomsList(payload.rooms);
+        break;
+
+      case 'bug_team_swapped':
+        if (this.onBughouseTeamSwapped) this.onBughouseTeamSwapped(payload);
         break;
 
       case 'error':

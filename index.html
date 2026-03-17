@@ -12,6 +12,7 @@
   </script>
   <link rel="stylesheet" href="css/style.css?v=13">
   <link rel="stylesheet" href="css/combat-enhanced.css">
+  <link rel="stylesheet" href="css/bughouse.css">
 </head>
 <body>
   <div class="app">
@@ -52,6 +53,33 @@
       <div id="board" class="board"></div>
     </div>
     <div id="promotion-modal" class="promotion-modal hidden"></div>
+
+    <!-- Bughouse Lobby (hidden by default) -->
+    <div id="bughouse-lobby-container" class="hidden"></div>
+
+    <!-- Bughouse dual board layout (hidden by default) -->
+    <div id="bughouse-container" class="bughouse-container hidden">
+      <div class="bughouse-board-wrapper bughouse-my-board">
+        <div class="bughouse-bar" id="bughouse-my-opponent-bar">Opponent</div>
+        <div id="bughouse-board-mine" class="board"></div>
+        <div class="bughouse-bar" id="bughouse-my-player-bar">You</div>
+      </div>
+      <div class="bughouse-pools">
+        <div class="bughouse-pool-section">
+          <div class="bughouse-pool-label">Your pieces</div>
+          <div class="bughouse-pool-pieces" id="bughouse-pool-mine"></div>
+        </div>
+        <div class="bughouse-pool-section">
+          <div class="bughouse-pool-label">Partner's pieces</div>
+          <div class="bughouse-pool-pieces" id="bughouse-pool-partner"></div>
+        </div>
+      </div>
+      <div class="bughouse-board-wrapper bughouse-partner-board">
+        <div class="bughouse-bar" id="bughouse-partner-opponent-bar">Opponent</div>
+        <div id="bughouse-board-partner" class="board"></div>
+        <div class="bughouse-bar" id="bughouse-partner-player-bar">Partner</div>
+      </div>
+    </div>
 
     <div class="player-bar bottom-bar">
       <div id="captured-by-white" class="captured-pieces"></div>
@@ -342,6 +370,13 @@
               <span class="ng-opponent-desc">Join with a room code</span>
             </div>
           </button>
+          <button class="ng-opponent-btn ng-opponent-btn-purple" data-mode="bughouse">
+            <span class="ng-opponent-icon">&#9823;&#9823;</span>
+            <div class="ng-opponent-text">
+              <span class="ng-opponent-label">Bughouse</span>
+              <span class="ng-opponent-desc">4-player team chess (2v2)</span>
+            </div>
+          </button>
           <button class="ng-opponent-btn" data-mode="bot">
             <span class="ng-opponent-icon">🤖</span>
             <div class="ng-opponent-text">
@@ -401,6 +436,21 @@
         <div id="ng-public-lobbies" class="ng-public-lobbies hidden">
           <div class="ng-divider"><span>or join a public game</span></div>
           <div id="ng-public-list" class="ng-public-list"></div>
+        </div>
+      </div>
+
+      <!-- Step: Bughouse (create or join 4-player room) -->
+      <div id="ng-step-bughouse" class="ng-view hidden">
+        <p class="ng-info-text">Bughouse is 4-player team chess. Two boards, two teams. Captures give pieces to your partner!</p>
+        <div class="ng-field">
+          <label>Your Name</label>
+          <input type="text" id="ng-bug-name" class="ng-input" placeholder="Anonymous" maxlength="20">
+        </div>
+        <button id="ng-bug-create" class="ng-btn ng-btn-primary ng-btn-block">Create Room</button>
+        <div class="ng-divider"><span>or join an existing room</span></div>
+        <div class="ng-join-row">
+          <input type="text" id="ng-bug-join-code" class="ng-input ng-code-input" placeholder="ROOM CODE" maxlength="6">
+          <button id="ng-bug-join" class="ng-btn">Join</button>
         </div>
       </div>
 
