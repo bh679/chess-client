@@ -21,6 +21,7 @@ export class VideoUI {
     this.onEndCall = null;         // () => void
     this.onPreviewConfirm = null;  // () => void
     this.onPreviewCancel = null;   // () => void
+    this.onMicStateChange = null;  // (state: 'none'|'ready'|'active'|'muted') => void
 
     this._initElements();
     this._bindEvents();
@@ -41,6 +42,7 @@ export class VideoUI {
     }
     this._visible = false;
     this._clearStreams();
+    this._notifyMicState();
   }
 
   /**
@@ -50,6 +52,7 @@ export class VideoUI {
     if (this._localVideo) {
       this._localVideo.srcObject = stream;
     }
+    this._notifyMicState();
   }
 
   /**
@@ -118,6 +121,7 @@ export class VideoUI {
         this._toggleMicBtn.title = 'Unmute Microphone';
       }
     }
+    this._notifyMicState();
   }
 
   /**
@@ -195,6 +199,12 @@ export class VideoUI {
         this.hideCameraPreview();
         if (this.onPreviewCancel) this.onPreviewCancel();
       });
+    }
+  }
+
+  _notifyMicState() {
+    if (this.onMicStateChange) {
+      this.onMicStateChange(this._videoChat.getMicState());
     }
   }
 

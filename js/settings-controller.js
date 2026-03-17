@@ -58,6 +58,7 @@ export class SettingsController {
       gameSoundValue:      document.getElementById('game-sound-value'),
       voiceVolumeSlider:   document.getElementById('voice-volume-slider'),
       voiceVolumeValue:    document.getElementById('voice-volume-value'),
+      micBtn:              document.getElementById('settings-mic-btn'),
       artStylePicker:      document.getElementById('art-style-picker'),
       playerNameWhite:     document.getElementById('player-name-white'),
       playerNameBlack:     document.getElementById('player-name-black'),
@@ -327,9 +328,34 @@ export class SettingsController {
     settingsBackdrop.addEventListener('click', () => this.closeSettings());
   }
 
-  /** Connect the VideoUI instance so voice volume changes can be applied. */
+  /** Connect the VideoUI instance so voice volume changes and mic state can be applied. */
   setVoiceUi(voiceUi) {
     this._voiceUi = voiceUi;
+    voiceUi.onMicStateChange = (state) => this._updateMicBtn(state);
+    this._updateMicBtn(voiceUi._videoChat.getMicState());
+
+    const { micBtn } = this._els;
+    if (micBtn) {
+      micBtn.addEventListener('click', () => {
+        if (!this._voiceUi) return;
+        this._voiceUi._videoChat.toggleAudio();
+        this._voiceUi._notifyMicState();
+      });
+    }
+  }
+
+  _updateMicBtn(state) {
+    const { micBtn } = this._els;
+    if (!micBtn) return;
+    micBtn.classList.remove('mic-none', 'mic-ready', 'mic-active', 'mic-muted');
+    micBtn.classList.add(`mic-${state}`);
+    const titles = {
+      none:   'Microphone not connected',
+      ready:  'Microphone ready (not in call)',
+      active: 'Microphone on — click to mute',
+      muted:  'Microphone muted — click to unmute',
+    };
+    micBtn.title = titles[state] ?? 'Microphone';
   }
 
   _initToggles() {

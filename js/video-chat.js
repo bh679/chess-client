@@ -247,6 +247,19 @@ export class VideoChat {
   }
 
   /**
+   * Returns the current mic state for UI rendering.
+   * @returns {'none'|'ready'|'active'|'muted'}
+   */
+  getMicState() {
+    if (!this._localStream || !this._localStream.getAudioTracks().length) return 'none';
+    const track = this._localStream.getAudioTracks()[0];
+    const connected = this._peerConnection &&
+      ['connected', 'completed'].includes(this._peerConnection.connectionState);
+    if (!connected) return 'ready';
+    return track.enabled ? 'active' : 'muted';
+  }
+
+  /**
    * Toggle audio track. Returns new enabled state.
    * @returns {boolean}
    */
