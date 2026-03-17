@@ -627,21 +627,21 @@ body {
 [data-piece-style="chessmaster"] .square {
   overflow: visible;
 }
-[data-piece-style="chessmaster"] .square[data-row="0"] { z-index: 1; }
-[data-piece-style="chessmaster"] .square[data-row="1"] { z-index: 2; }
-[data-piece-style="chessmaster"] .square[data-row="2"] { z-index: 3; }
-[data-piece-style="chessmaster"] .square[data-row="3"] { z-index: 4; }
-[data-piece-style="chessmaster"] .square[data-row="4"] { z-index: 5; }
-[data-piece-style="chessmaster"] .square[data-row="5"] { z-index: 6; }
-[data-piece-style="chessmaster"] .square[data-row="6"] { z-index: 7; }
-[data-piece-style="chessmaster"] .square[data-row="7"] { z-index: 8; }
+/* Z-index on the piece (not the square) so animated pieces aren't trapped in a stacking context */
+[data-piece-style="chessmaster"] .square[data-row="0"] .piece { z-index: 1; }
+[data-piece-style="chessmaster"] .square[data-row="1"] .piece { z-index: 2; }
+[data-piece-style="chessmaster"] .square[data-row="2"] .piece { z-index: 3; }
+[data-piece-style="chessmaster"] .square[data-row="3"] .piece { z-index: 4; }
+[data-piece-style="chessmaster"] .square[data-row="4"] .piece { z-index: 5; }
+[data-piece-style="chessmaster"] .square[data-row="5"] .piece { z-index: 6; }
+[data-piece-style="chessmaster"] .square[data-row="6"] .piece { z-index: 7; }
+[data-piece-style="chessmaster"] .square[data-row="7"] .piece { z-index: 8; }
 [data-piece-style="chessmaster"] .piece {
   position: absolute;
   width: 200%;
   height: 200%;
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  left: -50%; /* center 200%-wide piece: left = -50% of square width */
   object-fit: contain;
 }
 
