@@ -24,6 +24,7 @@ export class NewGameMenu {
     this._onFriend = null;   // (action, code?) => void  — create or join
     this._onCustomTime = null; // () => void
     this._onExit = null;      // () => void
+    this._onBughouse = null;  // (action, code?) => void — create or join bughouse
     this._pendingCustomTime = false;
 
     this._initElements();
@@ -39,6 +40,7 @@ export class NewGameMenu {
   onFriend(cb) { this._onFriend = cb; }
   onCustomTime(cb) { this._onCustomTime = cb; }
   onExit(cb) { this._onExit = cb; }
+  onBughouse(cb) { this._onBughouse = cb; }
   /** Returns the current game mode ('bot' | 'local' | 'online' | 'friend' | null) */
   getMode() { return this._mode; }
   showExitButton() { this.exitGameBtn.classList.remove('hidden'); }
@@ -135,6 +137,7 @@ export class NewGameMenu {
     this.stepFriend = document.getElementById('ng-step-friend');
     this.stepTime = document.getElementById('ng-step-time');
     this.stepSettings = document.getElementById('ng-step-settings');
+    this.stepBughouse = document.getElementById('ng-step-bughouse');
 
     this.opponentBtns = this.stepOpponent.querySelectorAll('.ng-opponent-btn');
 
@@ -153,6 +156,12 @@ export class NewGameMenu {
     this.joinRoomBtn = document.getElementById('ng-join-room');
     this.publicLobbiesSection = document.getElementById('ng-public-lobbies');
     this.publicList = document.getElementById('ng-public-list');
+
+    // Bughouse step elements
+    this.bugNameInput = document.getElementById('ng-bug-name');
+    this.bugCreateBtn = document.getElementById('ng-bug-create');
+    this.bugJoinCodeInput = document.getElementById('ng-bug-join-code');
+    this.bugJoinBtn = document.getElementById('ng-bug-join');
 
     // Time control elements
     this.tcCatBtns = this.stepTime.querySelectorAll('.ng-tc-cat');
@@ -212,6 +221,10 @@ export class NewGameMenu {
           this._showStep('friend');
           return;
         }
+        if (this._mode === 'bughouse') {
+          this._showStep('bughouse');
+          return;
+        }
 
         this._showStep('time');
       });
@@ -246,6 +259,26 @@ export class NewGameMenu {
       this.close();
       if (this._onFriend) this._onFriend('join', code);
     });
+
+    // --- Bughouse step ---
+    if (this.bugCreateBtn) {
+      this.bugCreateBtn.addEventListener('click', () => {
+        const name = this.bugNameInput.value.trim() || null;
+        if (name) localStorage.setItem('chess-player-name', name);
+        this.close();
+        if (this._onBughouse) this._onBughouse('create', null, name);
+      });
+    }
+    if (this.bugJoinBtn) {
+      this.bugJoinBtn.addEventListener('click', () => {
+        const code = this.bugJoinCodeInput.value.trim().toUpperCase();
+        if (!code || code.length < 4) return;
+        const name = this.bugNameInput.value.trim() || null;
+        if (name) localStorage.setItem('chess-player-name', name);
+        this.close();
+        if (this._onBughouse) this._onBughouse('join', code, name);
+      });
+    }
 
     this.joinCodeInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') this.joinRoomBtn.click();
@@ -383,11 +416,12 @@ export class NewGameMenu {
   _showStep(step) {
     this._step = step;
 
-    const steps = ['opponent', 'online', 'friend', 'time', 'settings'];
+    const steps = ['opponent', 'online', 'friend', 'bughouse', 'time', 'settings'];
     const stepEls = {
       opponent: this.stepOpponent,
       online: this.stepOnline,
       friend: this.stepFriend,
+      bughouse: this.stepBughouse,
       time: this.stepTime,
       settings: this.stepSettings,
     };
@@ -401,6 +435,7 @@ export class NewGameMenu {
       opponent: 'New Game',
       online: 'Play Online',
       friend: 'Join A Game',
+      bughouse: 'Bughouse (4-Player)',
       time: 'Time Control',
       settings: 'Game Settings',
     };
@@ -421,7 +456,7 @@ export class NewGameMenu {
   }
 
   _goBack() {
-    if (this._step === 'online' || this._step === 'friend') {
+    if (this._step === 'online' || this._step === 'friend' || this._step === 'bughouse') {
       this._showStep('opponent');
     } else if (this._step === 'time') {
       this._showStep('opponent');

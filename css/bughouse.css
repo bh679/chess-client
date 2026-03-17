@@ -1,0 +1,406 @@
+/* Bughouse - Dual Board Layout */
+
+.bughouse-container {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.bughouse-container.hidden {
+  display: none;
+}
+
+/* My board (primary, larger) */
+.bughouse-my-board {
+  flex: 0 0 auto;
+}
+
+.bughouse-my-board .board {
+  width: min(55vw, 60vh, 560px);
+  height: min(55vw, 60vh, 560px);
+}
+
+/* Partner board (secondary, smaller) */
+.bughouse-partner-board {
+  flex: 0 0 auto;
+}
+
+.bughouse-partner-board .board {
+  width: min(28vw, 30vh, 280px);
+  height: min(28vw, 30vh, 280px);
+  opacity: 0.9;
+}
+
+.bughouse-partner-board .board .square {
+  cursor: default;
+}
+
+/* Board wrapper for player bars */
+.bughouse-board-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bughouse-bar {
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  background: var(--bar-bg, rgba(0, 0, 0, 0.3));
+  border-radius: 4px;
+  color: var(--text-color, #fff);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Piece Pool */
+.bughouse-pools {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 4px;
+  align-self: center;
+}
+
+.bughouse-pool-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.bughouse-pool-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #999);
+}
+
+.bughouse-pool-pieces {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bughouse-pool-piece {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.bughouse-pool-piece.pool-available {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.bughouse-pool-piece.pool-available:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.bughouse-pool-piece.pool-selected {
+  background: rgba(100, 200, 100, 0.4);
+  box-shadow: 0 0 8px rgba(100, 200, 100, 0.6);
+}
+
+.bughouse-pool-piece.pool-empty {
+  opacity: 0.3;
+}
+
+.pool-piece-img {
+  width: 32px;
+  height: 32px;
+}
+
+.pool-piece-count {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  background: var(--accent-color, #e74c3c);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: bold;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.pool-piece-count:empty,
+.pool-empty .pool-piece-count {
+  display: none;
+}
+
+/* Drop target highlighting */
+.square.drop-target {
+  background-color: rgba(100, 200, 100, 0.4) !important;
+  cursor: pointer;
+}
+
+.square.drop-target::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: rgba(100, 200, 100, 0.6);
+  transform: translate(-50%, -50%);
+}
+
+/* Game End Overlay */
+.bughouse-result-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 100;
+}
+
+.bughouse-result-overlay.hidden {
+  display: none;
+}
+
+.bughouse-result-message {
+  text-align: center;
+  padding: 24px 40px;
+  border-radius: 12px;
+  color: #fff;
+}
+
+.bughouse-result-message.win {
+  background: rgba(46, 204, 113, 0.9);
+}
+
+.bughouse-result-message.loss {
+  background: rgba(231, 76, 60, 0.9);
+}
+
+.bughouse-result-message.draw {
+  background: rgba(149, 165, 166, 0.9);
+}
+
+.bughouse-result-message h2 {
+  margin: 0 0 16px;
+  font-size: 1.3rem;
+}
+
+.bughouse-result-close {
+  padding: 8px 24px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.bughouse-result-close:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Bughouse Lobby */
+.bughouse-lobby {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 20px;
+  text-align: center;
+}
+
+.bughouse-room-code {
+  margin-bottom: 16px;
+  font-size: 1rem;
+}
+
+.bughouse-room-code .code {
+  font-family: monospace;
+  font-size: 1.6rem;
+  font-weight: bold;
+  letter-spacing: 0.15em;
+  color: var(--accent-color, #3498db);
+  user-select: all;
+}
+
+.bughouse-lobby-status {
+  margin-bottom: 16px;
+  font-size: 0.95rem;
+  color: var(--text-muted, #999);
+}
+
+.bughouse-teams {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.bughouse-team {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bughouse-team h3 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bughouse-team-alpha {
+  border-color: rgba(52, 152, 219, 0.3);
+}
+
+.bughouse-team-beta {
+  border-color: rgba(231, 76, 60, 0.3);
+}
+
+.bughouse-board-slot {
+  margin: 8px 0;
+  padding: 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.board-label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-muted, #888);
+  margin-bottom: 4px;
+}
+
+.bughouse-player {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.bughouse-player.empty {
+  color: var(--text-muted, #666);
+  font-style: italic;
+}
+
+.color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.white-dot {
+  background: #fff;
+}
+
+.black-dot {
+  background: #333;
+}
+
+.ready-badge {
+  margin-left: auto;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(46, 204, 113, 0.6);
+  color: #fff;
+}
+
+.bughouse-settings {
+  margin-bottom: 16px;
+}
+
+.bughouse-tc-select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  color: inherit;
+  font-size: 0.9rem;
+}
+
+.bughouse-ready-btn {
+  padding: 10px 32px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent-color, #3498db);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.bughouse-ready-btn:hover {
+  filter: brightness(1.1);
+}
+
+.bughouse-ready-btn.ready-active {
+  background: rgba(46, 204, 113, 0.8);
+}
+
+/* Hide standard board when bughouse is active */
+.app.bughouse-active > .player-bar,
+.app.bughouse-active > .board-row,
+.app.bughouse-active > #live-move-bar {
+  display: none;
+}
+
+/* Mobile (stacked layout) */
+@media (max-width: 768px) {
+  .bughouse-container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .bughouse-my-board .board {
+    width: min(90vw, 45vh, 400px);
+    height: min(90vw, 45vh, 400px);
+  }
+
+  .bughouse-partner-board .board {
+    width: min(45vw, 20vh, 180px);
+    height: min(45vw, 20vh, 180px);
+  }
+
+  .bughouse-pools {
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .bughouse-pool-pieces {
+    flex-direction: row;
+  }
+
+  .bughouse-pool-piece {
+    width: 32px;
+    height: 32px;
+  }
+
+  .pool-piece-img {
+    width: 24px;
+    height: 24px;
+  }
+
+  .bughouse-teams {
+    flex-direction: column;
+  }
+}

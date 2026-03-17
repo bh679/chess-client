@@ -34,6 +34,8 @@ import { LiveMoveBar } from './live-move-bar.js';
 import { SettingsController } from './settings-controller.js';
 import { GameController } from './game-controller.js';
 import { UIController } from './ui-controller.js';
+import { BughouseController } from './bughouse-controller.js';
+import { BughouseUI } from './bughouse-ui.js';
 
 const sound = new Sound();
 
@@ -264,6 +266,11 @@ gameBrowser.setOnClose(() => {
 // Multiplayer
 const mp = new MultiplayerClient();
 const mpUI = new MultiplayerUI(mp);
+
+// Bughouse — 4-player team chess
+const bughouseLobbyEl = document.getElementById('bughouse-lobby-container');
+const bughouseUI = new BughouseUI(bughouseLobbyEl, mp);
+let bughouseCtrl = null; // lazy-init on game start
 
 // Wire multiplayer into game browser for pending rooms / rejoin
 gameBrowser.setMultiplayerClient(mp);
@@ -558,6 +565,13 @@ function resetState() {
   // Timers & polling
   timer.stop();
   uiCtrl.stopPublicLobbyPolling();
+
+  // Bughouse cleanup
+  if (bughouseCtrl) {
+    bughouseCtrl.cleanup();
+    bughouseCtrl = null;
+  }
+  bughouseUI.hide();
 
   // Multiplayer UI
   mpUI.hideGameControls();
@@ -2269,6 +2283,136 @@ newGameMenu.onCustomTime(() => {
   }
   customTimeModal.classList.remove('hidden');
 });
+
+// --- Bughouse wiring ---
+
+newGameMenu.onBughouse(async (action, code, name) => {
+  if (!mp.ws || mp.ws.readyState !== WebSocket.OPEN) {
+    try {
+      await mp.connect();
+    } catch (e) {
+      alert('Could not connect to the multiplayer server. Please try again.');
+      return;
+    }
+  }
+  if (action === 'create') {
+    mp.createBughouseRoom('5+0', name);
+  } else if (action === 'join') {
+    mp.joinBughouseRoom(code, name);
+  }
+  setMultiplayerMode(true);
+  gameCtrl.multiplayerActive = true;
+});
+
+mp.onBughouseRoomCreated = (payload) => {
+  bughouseUI.updateLobby(payload);
+};
+
+mp.onBughouseLobbyJoined = (payload) => {
+  bughouseUI.updateLobby(payload);
+};
+
+mp.onBughouseSettingChanged = (payload) => {
+  bughouseUI.updateLobby(payload);
+};
+
+mp.onBughouseReadyState = (payload) => {
+  bughouseUI.updateReadyState(payload);
+};
+
+mp.onBughouseGameStart = (payload) => {
+  bughouseUI.hide();
+
+  bughouseCtrl = new BughouseController(
+    {
+      myBoardEl: document.getElementById('bughouse-board-mine'),
+      partnerBoardEl: document.getElementById('bughouse-board-partner'),
+      myPoolEl: document.getElementById('bughouse-pool-mine'),
+      partnerPoolEl: document.getElementById('bughouse-pool-partner'),
+      promotionModalEl: promotionModal,
+    },
+    mp,
+    sound,
+    null, // timerA — TODO
+    null  // timerB — TODO
+  );
+
+  bughouseCtrl.start(payload);
+};
+
+mp.onBughouseMove = (payload) => {
+  if (bughouseCtrl) bughouseCtrl.handleServerMove(payload);
+};
+
+mp.onBughouseMoveAck = (payload) => {
+  // Acknowledgment — update clock
+  if (bughouseCtrl) bughouseCtrl.handleServerMove(payload);
+};
+
+mp.onBughouseDrop = (payload) => {
+  if (bughouseCtrl) bughouseCtrl.handleServerDrop(payload);
+};
+
+mp.onBughouseDropAck = (payload) => {
+  if (bughouseCtrl) bughouseCtrl.handleServerDrop(payload);
+};
+
+mp.onBughousePoolUpdate = (payload) => {
+  if (bughouseCtrl && bughouseCtrl.board) {
+    bughouseCtrl.game.updatePools(payload.pools);
+    bughouseCtrl.board.updatePools(payload.pools);
+  }
+};
+
+mp.onBughouseClockSync = (payload) => {
+  // Clock sync — TODO: wire to timers
+};
+
+mp.onBughouseGameEnd = (payload) => {
+  if (bughouseCtrl) bughouseCtrl.handleGameEnd(payload);
+};
+
+mp.onBughousePlayerDisconnected = (payload) => {
+  // TODO: show disconnection notice
+};
+
+mp.onBughousePlayerReconnected = (payload) => {
+  // TODO: clear disconnection notice
+};
+
+mp.onBughouseReconnect = (payload) => {
+  if (bughouseCtrl) {
+    bughouseCtrl.handleReconnect(payload);
+  } else {
+    // Create controller for reconnect
+    bughouseCtrl = new BughouseController(
+      {
+        myBoardEl: document.getElementById('bughouse-my-board'),
+        partnerBoardEl: document.getElementById('bughouse-partner-board'),
+        myPoolEl: document.getElementById('bughouse-pool-mine'),
+        partnerPoolEl: document.getElementById('bughouse-pool-partner'),
+        promotionModalEl: promotionModal,
+      },
+      mp,
+      sound,
+      null,
+      null
+    );
+    bughouseCtrl.handleReconnect(payload);
+  }
+  setMultiplayerMode(true);
+  gameCtrl.multiplayerActive = true;
+};
+
+mp.onBughouseRoomCancelled = () => {
+  bughouseUI.hide();
+  gameCtrl.multiplayerActive = false;
+  setMultiplayerMode(false);
+};
+
+mp.onBughouseTeamSwapped = (payload) => {
+  bughouseUI.updateLobby(payload);
+};
 
 // Lobby cam mode change — update activeCamMode, notify opponent, and switch live video
 mpUI.onCamChange((mode) => {
